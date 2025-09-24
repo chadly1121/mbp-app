@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, Lock, User } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,6 +16,7 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState('');
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Redirect authenticated users
   useEffect(() => {
@@ -47,35 +49,35 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-xl flex items-center justify-center mb-4">
-            <Building2 className="h-8 w-8 text-white" />
+        <div className="text-center mb-6 md:mb-8">
+          <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-gradient-primary rounded-xl flex items-center justify-center mb-3 md:mb-4">
+            <Building2 className="h-6 w-6 md:h-8 md:w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">MBP SaaS</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">MBP SaaS</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2">
             Monthly Business Planning & Analysis Platform
           </p>
         </div>
 
         <Card className="shadow-elevated border-0 bg-gradient-card">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome</CardTitle>
-            <CardDescription>
+          <CardHeader className="text-center pb-4 md:pb-6">
+            <CardTitle className="text-xl md:text-2xl">Welcome</CardTitle>
+            <CardDescription className="text-sm md:text-base">
               Sign in to your account or create a new one
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          <CardContent className="pb-4 md:pb-6">
+            <Tabs defaultValue="signin" className="space-y-4 md:space-y-6">
+              <TabsList className="grid w-full grid-cols-2 h-9 md:h-10">
+                <TabsTrigger value="signin" className="text-sm md:text-base">Sign In</TabsTrigger>
+                <TabsTrigger value="signup" className="text-sm md:text-base">Sign Up</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="signin" className="space-y-4">
-                <form onSubmit={handleSignIn} className="space-y-4">
+              <TabsContent value="signin" className="space-y-3 md:space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-3 md:space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
+                    <Label htmlFor="email" className="flex items-center gap-2 text-sm">
+                      <Mail className="h-3 w-3 md:h-4 md:w-4" />
                       Email
                     </Label>
                     <Input
@@ -85,12 +87,12 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-background/50"
+                      className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
+                    <Label htmlFor="password" className="flex items-center gap-2 text-sm">
+                      <Lock className="h-3 w-3 md:h-4 md:w-4" />
                       Password
                     </Label>
                     <Input
@@ -100,20 +102,20 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-background/50"
+                      className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full h-10 md:h-11 text-sm md:text-base" disabled={isLoading}>
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSignUp} className="space-y-4">
+              <TabsContent value="signup" className="space-y-3 md:space-y-4">
+                <form onSubmit={handleSignUp} className="space-y-3 md:space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="displayName" className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
+                    <Label htmlFor="displayName" className="flex items-center gap-2 text-sm">
+                      <User className="h-3 w-3 md:h-4 md:w-4" />
                       Display Name
                     </Label>
                     <Input
@@ -122,12 +124,12 @@ const Auth = () => {
                       placeholder="Enter your name"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="bg-background/50"
+                      className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupEmail" className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
+                    <Label htmlFor="signupEmail" className="flex items-center gap-2 text-sm">
+                      <Mail className="h-3 w-3 md:h-4 md:w-4" />
                       Email
                     </Label>
                     <Input
@@ -137,12 +139,12 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-background/50"
+                      className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupPassword" className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
+                    <Label htmlFor="signupPassword" className="flex items-center gap-2 text-sm">
+                      <Lock className="h-3 w-3 md:h-4 md:w-4" />
                       Password
                     </Label>
                     <Input
@@ -153,10 +155,10 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      className="bg-background/50"
+                      className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full h-10 md:h-11 text-sm md:text-base" disabled={isLoading}>
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
                 </form>

@@ -1,15 +1,24 @@
 import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
-interface SidebarProps {
+interface AppSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
 }
 
-const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const AppSidebar = ({ activeSection, onSectionChange }: AppSidebarProps) => {
+  const { state } = useSidebar();
 
   const menuItems = [
     { id: 'mbp', label: 'MBP Dashboard', icon: DollarSign },
@@ -23,50 +32,41 @@ const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
   ];
 
   return (
-    <aside className={cn(
-      "h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
-      isCollapsed ? "w-16" : "w-sidebar"
-    )}>
-      <div className="flex flex-col h-full">
-        <div className="p-4 border-b border-sidebar-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="w-full justify-start text-sidebar-foreground"
-          >
-            <BarChart3 className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Menu</span>}
-          </Button>
-        </div>
-        
-        <nav className="flex-1 p-2">
-          <ul className="space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.id}>
-                  <Button
-                    variant={activeSection === item.id ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start",
-                      activeSection === item.id 
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    )}
-                    onClick={() => onSectionChange(item.id)}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {!isCollapsed && <span className="ml-2">{item.label}</span>}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
-    </aside>
+    <Sidebar className="border-r border-border/40">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs uppercase tracking-wider font-medium px-3 py-2">
+            Navigation
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => onSectionChange(item.id)}
+                      className={cn(
+                        "w-full justify-start transition-colors",
+                        isActive 
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.label}</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
   );
 };
 
-export default Sidebar;
+export default AppSidebar;

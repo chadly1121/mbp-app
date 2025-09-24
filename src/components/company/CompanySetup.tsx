@@ -7,9 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Plus } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const CompanySetup = () => {
   const { companies, currentCompany, setCurrentCompany, createCompany } = useCompany();
+  const isMobile = useIsMobile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [companySlug, setCompanySlug] = useState('');
@@ -89,9 +91,9 @@ const CompanySetup = () => {
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <Building2 className="h-5 w-5 text-muted-foreground" />
+    <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-1 md:gap-2">
+        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
         <Select
           value={currentCompany?.id || ''}
           onValueChange={(value) => {
@@ -99,13 +101,13 @@ const CompanySetup = () => {
             setCurrentCompany(company || null);
           }}
         >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select company" />
+          <SelectTrigger className={`${isMobile ? 'w-24' : 'w-48'} text-xs md:text-sm`}>
+            <SelectValue placeholder={isMobile ? "Company" : "Select company"} />
           </SelectTrigger>
           <SelectContent>
             {companies.map((company) => (
-              <SelectItem key={company.id} value={company.id}>
-                {company.name}
+              <SelectItem key={company.id} value={company.id} className="text-xs md:text-sm">
+                {isMobile ? company.name.slice(0, 12) + (company.name.length > 12 ? '...' : '') : company.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -114,12 +116,12 @@ const CompanySetup = () => {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            New Company
+          <Button variant="outline" size={isMobile ? "sm" : "sm"} className="shrink-0">
+            <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+            {isMobile ? 'New' : 'New Company'}
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Company</DialogTitle>
             <DialogDescription>

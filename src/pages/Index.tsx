@@ -1,4 +1,4 @@
-import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut } from "lucide-react";
+import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany, CompanyProvider } from "@/hooks/useCompany";
@@ -6,13 +6,15 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import SalesPipeline from "@/components/dashboard/SalesPipeline";
-import Sidebar from "@/components/dashboard/Sidebar";
+import AppSidebar from "@/components/dashboard/Sidebar";
 import FilterBar from "@/components/dashboard/FilterBar";
 import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
 import MBPDashboard from "@/components/mbp/MBPDashboard";
 import { Button } from "@/components/ui/button";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('mbp');
@@ -31,6 +33,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
   signOut: () => void;
 }) => {
   const { currentCompany } = useCompany();
+  const isMobile = useIsMobile();
 
   const renderContent = () => {
     switch (activeSection) {
@@ -51,7 +54,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
         return (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               <MetricCard
                 title="Total Revenue"
                 value="$847,230"
@@ -83,7 +86,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               <RevenueChart />
               <SalesPipeline />
             </div>
@@ -93,46 +96,60 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex">
-      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-      
-      <div className="flex-1 flex flex-col">
-        <div className="h-header border-b border-border/40 flex items-center justify-between px-6">
-          <CompanySetup />
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
+    <SidebarProvider>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex w-full">
+        <AppSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
         
-        <main className="flex-1 px-6 py-8 overflow-auto">
-          <div className="max-w-7xl mx-auto space-y-8">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-                {activeSection === 'mbp' ? 'Monthly Business Planning' :
-                 activeSection === 'dashboard' ? 'Executive Dashboard' :
-                 activeSection === 'analytics' ? 'Analytics Overview' :
-                 activeSection === 'growth' ? 'Growth Metrics' :
-                 activeSection === 'revenue' ? 'Revenue Analysis' :
-                 'Dashboard'}
-              </h2>
-              <p className="text-muted-foreground">
-                {activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
-                 activeSection === 'dashboard' ? 'Your business performance at a glance' :
-                 activeSection === 'analytics' ? 'Detailed analytics and insights' :
-                 activeSection === 'growth' ? 'Track your growth goals and KPIs' :
-                 activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
-                 'Business insights and metrics'}
-              </p>
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile/Desktop Header */}
+          <header className="h-14 md:h-16 border-b border-border/40 flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center gap-2 md:gap-4">
+              <SidebarTrigger className="md:hidden" />
+              {!isMobile && <CompanySetup />}
             </div>
-
-            {activeSection !== 'mbp' && <FilterBar onFilterChange={() => {}} />}
             
-            {renderContent()}
-          </div>
-        </main>
+            <div className="flex items-center gap-2">
+              {isMobile && <CompanySetup />}
+              <Button variant="ghost" size="sm" onClick={signOut} className="text-xs md:text-sm">
+                <LogOut className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                {isMobile ? '' : 'Sign Out'}
+              </Button>
+            </div>
+          </header>
+          
+          {/* Main Content */}
+          <main className="flex-1 px-4 md:px-6 py-4 md:py-8 overflow-auto">
+            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+              {/* Page Header */}
+              <div className="space-y-1 md:space-y-2">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                  {activeSection === 'mbp' ? 'Monthly Business Planning' :
+                   activeSection === 'dashboard' ? 'Executive Dashboard' :
+                   activeSection === 'analytics' ? 'Analytics Overview' :
+                   activeSection === 'growth' ? 'Growth Metrics' :
+                   activeSection === 'revenue' ? 'Revenue Analysis' :
+                   'Dashboard'}
+                </h2>
+                <p className="text-sm md:text-base text-muted-foreground">
+                  {activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
+                   activeSection === 'dashboard' ? 'Your business performance at a glance' :
+                   activeSection === 'analytics' ? 'Detailed analytics and insights' :
+                   activeSection === 'growth' ? 'Track your growth goals and KPIs' :
+                   activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
+                   'Business insights and metrics'}
+                </p>
+              </div>
+
+              {/* Filter Bar - Hide on mobile for MBP */}
+              {activeSection !== 'mbp' && !isMobile && <FilterBar onFilterChange={() => {}} />}
+              
+              {/* Content */}
+              {renderContent()}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
