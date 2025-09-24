@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { BetaAccessPending } from '@/components/BetaAccessPending';
@@ -215,8 +216,7 @@ export const ProtectedRoute = ({
   }
 
   if (!user) {
-    window.location.href = '/auth';
-    return null;
+    return <Navigate to="/auth" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
