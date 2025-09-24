@@ -13,7 +13,9 @@ interface QBOConnection {
   qbo_company_id: string;
   is_active: boolean;
   last_sync_at: string | null;
+  token_expires_at: string;
   created_at: string;
+  updated_at: string;
 }
 
 export const QBOIntegration = () => {
@@ -38,14 +40,15 @@ export const QBOIntegration = () => {
       const { data, error } = await supabase
         .rpc('get_qbo_connection_status', {
           p_company_id: currentCompany.id
-        })
-        .maybeSingle();
+        });
 
       if (error) {
         console.error('Error checking QBO connection:', error);
         setConnection(null);
+      } else if (data && data.length > 0) {
+        setConnection(data[0] as QBOConnection);
       } else {
-        setConnection(data as QBOConnection | null);
+        setConnection(null);
       }
     } catch (error) {
       console.error('Error checking connection:', error);

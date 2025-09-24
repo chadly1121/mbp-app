@@ -1538,7 +1538,9 @@ export type Database = {
           id: string
           is_active: boolean
           last_sync_at: string
+          qbo_company_id: string
           token_expires_at: string
+          updated_at: string
         }[]
       }
       get_qbo_tokens: {
