@@ -21,16 +21,17 @@ interface ChecklistItem {
   item_text: string;
   is_completed: boolean;
   sort_order: number;
+  objective_id?: string;
 }
 
 interface StrategicObjective {
   id: string;
   title: string;
-  description: string | null;
-  target_date: string | null;
-  status: string | null;
-  priority: string | null;
-  completion_percentage: number | null;
+  description: string;
+  target_date: string;
+  status: string;
+  priority: string;
+  completion_percentage: number;
   created_at: string;
   checklist?: ChecklistItem[];
 }
@@ -72,7 +73,7 @@ export const StrategicPlanning = () => {
 
       // Fetch checklist items for all objectives
       const objectiveIds = objectivesData?.map(obj => obj.id) || [];
-      let checklistData: any[] = [];
+      let checklistData: ChecklistItem[] = [];
       
       if (objectiveIds.length > 0) {
         const { data: checklistResponse, error: checklistError } = await supabase
@@ -82,22 +83,31 @@ export const StrategicPlanning = () => {
           .order('sort_order', { ascending: true });
 
         if (checklistError) throw checklistError;
-        checklistData = checklistResponse || [];
+        checklistData = (checklistResponse || []).map(item => ({
+          id: item.id,
+          item_text: item.item_text,
+          is_completed: item.is_completed,
+          sort_order: item.sort_order,
+          objective_id: item.objective_id
+        }));
       }
 
       // Combine objectives with their checklist items
-      const objectivesWithChecklist = (objectivesData || []).map(objective => ({
-        ...objective,
+      const objectivesWithChecklist: StrategicObjective[] = (objectivesData || []).map(objective => ({
+        id: objective.id,
+        title: objective.title,
         description: objective.description || '',
         target_date: objective.target_date || '',
         status: objective.status || 'not_started',
         priority: objective.priority || 'medium',
         completion_percentage: objective.completion_percentage || 0,
+        created_at: objective.created_at,
         checklist: checklistData.filter(item => item.objective_id === objective.id)
       }));
 
       setObjectives(objectivesWithChecklist);
     } catch (error: any) {
+      console.error('Error fetching objectives:', error);
       toast({
         title: "Error loading objectives",
         description: error.message,
@@ -137,6 +147,7 @@ export const StrategicPlanning = () => {
       setIsAddingObjective(false);
       fetchObjectives();
     } catch (error: any) {
+      console.error('Error adding objective:', error);
       toast({
         title: "Error adding objective",
         description: error.message,
@@ -147,9 +158,12 @@ export const StrategicPlanning = () => {
 
   const handleUpdateObjective = async (objectiveId: string, updates: Partial<StrategicObjective>) => {
     try {
+      // Remove checklist from updates as it's not a column in the table
+      const { checklist, ...dbUpdates } = updates;
+      
       const { error } = await supabase
         .from('strategic_objectives')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', objectiveId);
 
       if (error) throw error;
@@ -161,6 +175,7 @@ export const StrategicPlanning = () => {
       
       fetchObjectives();
     } catch (error: any) {
+      console.error('Error updating objective:', error);
       toast({
         title: "Error updating objective",
         description: error.message,
@@ -188,6 +203,7 @@ export const StrategicPlanning = () => {
       
       fetchObjectives();
     } catch (error: any) {
+      console.error('Error adding checklist item:', error);
       toast({
         title: "Error adding checklist item",
         description: error.message,
@@ -207,6 +223,7 @@ export const StrategicPlanning = () => {
       
       fetchObjectives();
     } catch (error: any) {
+      console.error('Error updating checklist item:', error);
       toast({
         title: "Error updating checklist item",
         description: error.message,
@@ -226,6 +243,7 @@ export const StrategicPlanning = () => {
       
       fetchObjectives();
     } catch (error: any) {
+      console.error('Error deleting checklist item:', error);
       toast({
         title: "Error deleting checklist item",
         description: error.message,
@@ -305,7 +323,7 @@ export const StrategicPlanning = () => {
     return (
       <Card 
         key={objective.id} 
-        className={`transition-all duration-200 hover:shadow-md cursor-pointer ${isExpanded ? 'ring-2 ring-blue-200' : ''}`}
+        className={`transition-all duration-200 hover:shadow-md cursor-pointer group ${isExpanded ? 'ring-2 ring-blue-200' : ''}`}
       >
         <CardHeader 
           className="pb-3"
@@ -362,7 +380,7 @@ export const StrategicPlanning = () => {
           </div>
 
           {/* Progress Bar */}
-            <div className="space-y-2">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
               <span className="font-medium">{objective.completion_percentage || 0}%</span>
