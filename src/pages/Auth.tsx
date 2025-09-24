@@ -20,10 +20,11 @@ const Auth = () => {
 
   // Redirect authenticated users
   useEffect(() => {
-    if (user) {
-      navigate('/');
+    if (user && !loading) {
+      console.log('Redirecting authenticated user to home');
+      navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
