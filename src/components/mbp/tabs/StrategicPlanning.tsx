@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Target, Calendar, User, TrendingUp, Edit3, Save, X, CheckCircle, ListTodo, Trash2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,11 +26,11 @@ interface ChecklistItem {
 interface StrategicObjective {
   id: string;
   title: string;
-  description: string;
-  target_date: string;
-  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  completion_percentage: number;
+  description: string | null;
+  target_date: string | null;
+  status: string | null;
+  priority: string | null;
+  completion_percentage: number | null;
   created_at: string;
   checklist?: ChecklistItem[];
 }
@@ -41,7 +42,7 @@ export const StrategicPlanning = () => {
   const [loading, setLoading] = useState(true);
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [editingObjective, setEditingObjective] = useState<string | null>(null);
-  const [expandedObjective, setExpandedObjective] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [newObjective, setNewObjective] = useState({
     title: '',
     description: '',
@@ -61,27 +62,41 @@ export const StrategicPlanning = () => {
     if (!currentCompany) return;
 
     try {
-      const { data, error } = await supabase
+      const { data: objectivesData, error: objectivesError } = await supabase
         .from('strategic_objectives')
         .select('*')
         .eq('company_id', currentCompany.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (objectivesError) throw objectivesError;
+
+      // Fetch checklist items for all objectives
+      const objectiveIds = objectivesData?.map(obj => obj.id) || [];
+      let checklistData: any[] = [];
       
-      const objectivesWithChecklists = await Promise.all(
-        (data || []).map(async (objective) => {
-          const { data: checklist } = await supabase
-            .from('strategic_objective_checklist')
-            .select('*')
-            .eq('objective_id', objective.id)
-            .order('sort_order');
-          
-          return { ...objective, checklist: checklist || [] };
-        })
-      );
-      
-      setObjectives(objectivesWithChecklists as StrategicObjective[]);
+      if (objectiveIds.length > 0) {
+        const { data: checklistResponse, error: checklistError } = await supabase
+          .from('strategic_objective_checklist')
+          .select('*')
+          .in('objective_id', objectiveIds)
+          .order('sort_order', { ascending: true });
+
+        if (checklistError) throw checklistError;
+        checklistData = checklistResponse || [];
+      }
+
+      // Combine objectives with their checklist items
+      const objectivesWithChecklist = (objectivesData || []).map(objective => ({
+        ...objective,
+        description: objective.description || '',
+        target_date: objective.target_date || '',
+        status: objective.status || 'not_started',
+        priority: objective.priority || 'medium',
+        completion_percentage: objective.completion_percentage || 0,
+        checklist: checklistData.filter(item => item.objective_id === objective.id)
+      }));
+
+      setObjectives(objectivesWithChecklist);
     } catch (error: any) {
       toast({
         title: "Error loading objectives",
@@ -158,8 +173,8 @@ export const StrategicPlanning = () => {
     if (!itemText.trim()) return;
 
     try {
-      const objective = objectives.find(o => o.id === objectiveId);
-      const sortOrder = (objective?.checklist?.length || 0);
+      const objective = objectives.find(obj => obj.id === objectiveId);
+      const sortOrder = (objective?.checklist?.length || 0) + 1;
 
       const { error } = await supabase
         .from('strategic_objective_checklist')
@@ -170,6 +185,7 @@ export const StrategicPlanning = () => {
         }]);
 
       if (error) throw error;
+      
       fetchObjectives();
     } catch (error: any) {
       toast({
@@ -180,14 +196,15 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const handleToggleChecklistItem = async (itemId: string, isCompleted: boolean) => {
+  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItem>) => {
     try {
       const { error } = await supabase
         .from('strategic_objective_checklist')
-        .update({ is_completed: isCompleted })
+        .update(updates)
         .eq('id', itemId);
 
       if (error) throw error;
+      
       fetchObjectives();
     } catch (error: any) {
       toast({
@@ -206,6 +223,7 @@ export const StrategicPlanning = () => {
         .eq('id', itemId);
 
       if (error) throw error;
+      
       fetchObjectives();
     } catch (error: any) {
       toast({
@@ -214,6 +232,16 @@ export const StrategicPlanning = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const toggleCardExpansion = (objectiveId: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(objectiveId)) {
+      newExpanded.delete(objectiveId);
+    } else {
+      newExpanded.add(objectiveId);
+    }
+    setExpandedCards(newExpanded);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -237,64 +265,77 @@ export const StrategicPlanning = () => {
 
   const ObjectiveCard = ({ objective }: { objective: StrategicObjective }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState(objective);
+    const [editData, setEditData] = useState({
+      ...objective,
+      status: objective.status || 'not_started',
+      priority: objective.priority || 'medium',
+      completion_percentage: objective.completion_percentage || 0,
+      description: objective.description || '',
+      target_date: objective.target_date || ''
+    });
     const [newChecklistItem, setNewChecklistItem] = useState('');
-    const isExpanded = expandedObjective === objective.id;
+    const isExpanded = expandedCards.has(objective.id);
+    const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
+    const totalItems = objective.checklist?.length || 0;
 
     const handleSave = () => {
-      handleUpdateObjective(objective.id, editForm);
+      handleUpdateObjective(objective.id, editData);
       setIsEditing(false);
     };
 
     const handleCancel = () => {
-      setEditForm(objective);
+      setEditData({
+        ...objective,
+        status: objective.status || 'not_started',
+        priority: objective.priority || 'medium',
+        completion_percentage: objective.completion_percentage || 0,
+        description: objective.description || '',
+        target_date: objective.target_date || ''
+      });
       setIsEditing(false);
     };
 
-    const toggleExpand = () => {
-      setExpandedObjective(isExpanded ? null : objective.id);
+    const addChecklistItem = () => {
+      if (newChecklistItem.trim()) {
+        handleAddChecklistItem(objective.id, newChecklistItem);
+        setNewChecklistItem('');
+      }
     };
-
-    const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
-    const totalItems = objective.checklist?.length || 0;
-    const checklistCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
     return (
       <Card 
         key={objective.id} 
-        className={`transition-all duration-200 hover:shadow-md cursor-pointer ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
-        onClick={!isEditing ? toggleExpand : undefined}
+        className={`transition-all duration-200 hover:shadow-md cursor-pointer ${isExpanded ? 'ring-2 ring-blue-200' : ''}`}
       >
-        <CardHeader className="pb-4">
+        <CardHeader 
+          className="pb-3"
+          onClick={() => !isEditing && toggleCardExpansion(objective.id)}
+        >
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              {isEditing ? (
-                <Input
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="text-lg font-semibold mb-2"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <CardTitle className="text-lg mb-2 flex items-center gap-2">
-                  {objective.title}
-                  {objective.status === 'completed' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                </CardTitle>
-              )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                {isExpanded ? 
+                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : 
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                }
+                {isEditing ? (
+                  <Input
+                    value={editData.title}
+                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                    className="text-lg font-semibold"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <h4 className="text-lg font-semibold truncate">{objective.title}</h4>
+                )}
+              </div>
               
-              {isEditing ? (
-                <Textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={2}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <CardDescription>{objective.description}</CardDescription>
+              {!isExpanded && (
+                <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-4">
               {!isEditing && (
                 <Button
                   variant="ghost"
@@ -303,191 +344,198 @@ export const StrategicPlanning = () => {
                     e.stopPropagation();
                     setIsEditing(true);
                   }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Edit3 className="h-4 w-4" />
+                  <Edit2 className="h-4 w-4" />
                 </Button>
               )}
               
-              {isEditing && (
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSave();
-                    }}
-                  >
-                    <Save className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCancel();
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                <Badge className={getPriorityColor(objective.priority || 'medium')}>
+                  {objective.priority || 'medium'}
+                </Badge>
+                <Badge className={getStatusColor(objective.status || 'not_started')}>
+                  {(objective.status || 'not_started').replace('_', ' ')}
+                </Badge>
+              </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={getPriorityColor(objective.priority)}>
-              {objective.priority}
-            </Badge>
-            <Badge className={getStatusColor(objective.status)}>
-              {objective.status.replace('_', ' ')}
-            </Badge>
+
+          {/* Progress Bar */}
+            <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">{objective.completion_percentage || 0}%</span>
+            </div>
+            <Progress value={objective.completion_percentage || 0} className="h-2" />
             {totalItems > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <ListTodo className="h-3 w-3" />
-                {completedItems}/{totalItems}
-              </Badge>
+              <div className="text-sm text-muted-foreground">
+                {completedItems} of {totalItems} checklist items completed
+              </div>
             )}
           </div>
         </CardHeader>
 
-        {isExpanded && (
-          <CardContent className="space-y-4" onClick={(e) => e.stopPropagation()}>
-            <Separator />
-            
-            {/* Editing Fields */}
-            {isEditing && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Status</Label>
-                  <Select 
-                    value={editForm.status} 
-                    onValueChange={(value: any) => setEditForm({ ...editForm, status: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="not_started">Not Started</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="on_hold">On Hold</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label>Priority</Label>
-                  <Select 
-                    value={editForm.priority} 
-                    onValueChange={(value: any) => setEditForm({ ...editForm, priority: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label>Target Date</Label>
-                  <Input
-                    type="date"
-                    value={editForm.target_date}
-                    onChange={(e) => setEditForm({ ...editForm, target_date: e.target.value })}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Completion Percentage */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Completion Percentage</Label>
-                <span className="text-sm font-medium">{objective.completion_percentage}%</span>
-              </div>
-              <Progress value={objective.completion_percentage} className="h-2" />
-              {isEditing && (
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={editForm.completion_percentage}
-                  onChange={(e) => setEditForm({ ...editForm, completion_percentage: parseInt(e.target.value) || 0 })}
-                  className="w-24"
-                />
-              )}
-            </div>
-
-            {/* Target Date Display */}
-            {!isEditing && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                Target: {objective.target_date ? new Date(objective.target_date).toLocaleDateString() : 'No target date set'}
-              </div>
-            )}
-
-            {/* Checklist */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <ListTodo className="h-4 w-4" />
-                <Label>Action Items</Label>
-              </div>
-              
-              <div className="space-y-2">
-                {objective.checklist?.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 group">
-                    <Checkbox
-                      checked={item.is_completed}
-                      onCheckedChange={(checked) => handleToggleChecklistItem(item.id, !!checked)}
+        <Collapsible open={isExpanded}>
+          <CollapsibleContent>
+            <CardContent className="pt-0 space-y-4">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea
+                      value={editData.description || ''}
+                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                      rows={3}
                     />
-                    <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                      {item.item_text}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDeleteChecklistItem(item.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Status</Label>
+                      <Select 
+                        value={editData.status} 
+                        onValueChange={(value: any) => setEditData({ ...editData, status: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="not_started">Not Started</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Priority</Label>
+                      <Select 
+                        value={editData.priority} 
+                        onValueChange={(value: any) => setEditData({ ...editData, priority: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Completion %</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={editData.completion_percentage || 0}
+                        onChange={(e) => setEditData({ ...editData, completion_percentage: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Target Date</Label>
+                      <Input
+                        type="date"
+                        value={editData.target_date || ''}
+                        onChange={(e) => setEditData({ ...editData, target_date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button onClick={handleSave} size="sm">
+                      <Check className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button variant="outline" onClick={handleCancel} size="sm">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
                     </Button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-muted-foreground">{objective.description}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {objective.target_date ? new Date(objective.target_date).toLocaleDateString() : 'No target date'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        {objective.completion_percentage || 0}% complete
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add new action item..."
-                  value={newChecklistItem}
-                  onChange={(e) => setNewChecklistItem(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddChecklistItem(objective.id, newChecklistItem);
-                      setNewChecklistItem('');
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    handleAddChecklistItem(objective.id, newChecklistItem);
-                    setNewChecklistItem('');
-                  }}
-                  disabled={!newChecklistItem.trim()}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        )}
+                  <Separator />
+
+                  {/* Checklist Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium flex items-center gap-2">
+                        <CheckSquare className="h-4 w-4" />
+                        Checklist ({completedItems}/{totalItems})
+                      </h5>
+                    </div>
+                    
+                    {objective.checklist && objective.checklist.length > 0 && (
+                      <div className="space-y-2">
+                        {objective.checklist.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 group">
+                            <Checkbox
+                              checked={item.is_completed}
+                              onCheckedChange={(checked) => 
+                                handleUpdateChecklistItem(item.id, { is_completed: checked as boolean })
+                              }
+                            />
+                            <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                              {item.item_text}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteChecklistItem(item.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add checklist item..."
+                        value={newChecklistItem}
+                        onChange={(e) => setNewChecklistItem(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addChecklistItem()}
+                      />
+                      <Button onClick={addChecklistItem} size="sm">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
     );
   };
@@ -507,7 +555,7 @@ export const StrategicPlanning = () => {
         <div>
           <h3 className="text-xl font-semibold">Strategic Planning</h3>
           <p className="text-sm text-muted-foreground">
-            Define and track your strategic goals and initiatives. Click any card to edit or add details.
+            Define and track your strategic goals and initiatives. Click cards to expand and edit.
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -545,7 +593,7 @@ export const StrategicPlanning = () => {
                   />
                 </div>
                 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Priority</Label>
                     <Select value={newObjective.priority} onValueChange={(value: any) => setNewObjective({ ...newObjective, priority: value })}>
@@ -566,16 +614,6 @@ export const StrategicPlanning = () => {
                       type="date"
                       value={newObjective.target_date}
                       onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Initial Progress %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newObjective.completion_percentage}
-                      onChange={(e) => setNewObjective({ ...newObjective, completion_percentage: parseInt(e.target.value) || 0 })}
                     />
                   </div>
                 </div>
@@ -669,9 +707,11 @@ export const StrategicPlanning = () => {
             </Dialog>
           </Card>
         ) : (
-          objectives.map((objective) => (
-            <ObjectiveCard key={objective.id} objective={objective} />
-          ))
+          <div className="space-y-4 group">
+            {objectives.map((objective) => (
+              <ObjectiveCard key={objective.id} objective={objective} />
+            ))}
+          </div>
         )}
       </div>
     </div>
