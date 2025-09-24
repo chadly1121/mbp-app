@@ -162,7 +162,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       itemsCount: items.length,
-      accountsCount: accounts.length 
+      accountsCount: accounts.length,
+      message: `Synced ${items.length} items and ${accounts.length} accounts from QuickBooks Online`,
+      itemsFound: items.map(i => ({ name: i.Name, id: i.Id, type: i.Type })),
+      accountsFound: accounts.map(a => ({ name: a.Name, id: a.Id, type: a.AccountType }))
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
