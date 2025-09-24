@@ -248,9 +248,19 @@ Deno.serve(async (req) => {
           
           console.log(`Found ${revenueAccounts.length} revenue accounts and ${expenseAccounts.length} expense accounts`)
           
-          // Add revenue entries with realistic amounts
+          // Add revenue entries with realistic amounts (targeting ~$400k total)
           revenueAccounts.forEach((account, index) => {
-            const baseAmount = 15000 + (index * 8000) + Math.random() * 25000
+            let baseAmount
+            if (index === 0) {
+              baseAmount = 250000 // Main services account
+            } else if (index === 1) {
+              baseAmount = 100000 // Second services account  
+            } else if (index === 2) {
+              baseAmount = 50000 // Third services account
+            } else {
+              baseAmount = 15000 + Math.random() * 10000 // Smaller amounts for additional accounts
+            }
+            
             samplePLData.push({
               account_name: account.account_name,
               account_type: 'revenue',
@@ -259,9 +269,21 @@ Deno.serve(async (req) => {
             })
           })
           
-          // Add expense entries with realistic amounts  
+          // Add expense entries with realistic amounts (targeting ~$250k total expenses)
           expenseAccounts.forEach((account, index) => {
-            const baseAmount = 1500 + (index * 800) + Math.random() * 4000
+            let baseAmount
+            if (account.account_name.toLowerCase().includes('legal') || account.account_name.toLowerCase().includes('professional')) {
+              baseAmount = 25000 + Math.random() * 15000
+            } else if (account.account_name.toLowerCase().includes('office') || account.account_name.toLowerCase().includes('supplies')) {
+              baseAmount = 8000 + Math.random() * 7000
+            } else if (account.account_name.toLowerCase().includes('advertising') || account.account_name.toLowerCase().includes('marketing')) {
+              baseAmount = 15000 + Math.random() * 10000
+            } else if (account.account_name.toLowerCase().includes('repair') || account.account_name.toLowerCase().includes('maintenance')) {
+              baseAmount = 12000 + Math.random() * 8000
+            } else {
+              baseAmount = 3000 + Math.random() * 5000 // General expenses
+            }
+            
             samplePLData.push({
               account_name: account.account_name,
               account_type: 'expense',
@@ -274,10 +296,12 @@ Deno.serve(async (req) => {
         // Ensure we have some data even if no matching accounts found
         if (samplePLData.length === 0) {
           samplePLData.push(
-            { account_name: 'Service Revenue', account_type: 'revenue', qbo_account_id: null, amount: 85000 },
-            { account_name: 'Product Sales', account_type: 'revenue', qbo_account_id: null, amount: 35000 },
-            { account_name: 'Operating Expenses', account_type: 'expense', qbo_account_id: null, amount: 12000 },
-            { account_name: 'Professional Services', account_type: 'expense', qbo_account_id: null, amount: 8500 }
+            { account_name: 'Services', account_type: 'revenue', qbo_account_id: null, amount: 280000 },
+            { account_name: 'Landscaping Services', account_type: 'revenue', qbo_account_id: null, amount: 120000 },
+            { account_name: 'Office Expenses', account_type: 'expense', qbo_account_id: null, amount: 18000 },
+            { account_name: 'Legal & Professional Fees', account_type: 'expense', qbo_account_id: null, amount: 28000 },
+            { account_name: 'Advertising', account_type: 'expense', qbo_account_id: null, amount: 15000 },
+            { account_name: 'Supplies', account_type: 'expense', qbo_account_id: null, amount: 12000 }
           )
         }
         
