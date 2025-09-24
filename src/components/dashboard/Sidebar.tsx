@@ -1,4 +1,4 @@
-import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign, Cable } from "lucide-react";
+import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign, Cable, Target, CheckSquare } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +21,8 @@ const AppSidebar = ({ activeSection, onSectionChange }: AppSidebarProps) => {
   const { state } = useSidebar();
 
   const menuItems = [
+    { id: 'strategic', label: 'Strategic Plan', icon: Target },
+    { id: 'gsr', label: 'GSR Dashboard', icon: CheckSquare },
     { id: 'mbp', label: 'MBP Dashboard', icon: DollarSign },
     { id: 'dashboard', label: 'Executive', icon: Home },
     { id: 'revenue', label: 'Revenue', icon: BarChart3 },

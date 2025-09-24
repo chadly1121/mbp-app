@@ -13,12 +13,14 @@ import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
 import MBPDashboard from "@/components/mbp/MBPDashboard";
 import { QBOIntegration } from "@/components/integrations/QBOIntegration";
+import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
+import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
-  const [activeSection, setActiveSection] = useState('mbp');
+  const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
 
   return (
@@ -38,6 +40,10 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'strategic':
+        return <StrategicPlanning />;
+      case 'gsr':
+        return <GSRDashboard />;
       case 'mbp':
         return <MBPDashboard />;
       case 'analytics':
@@ -130,7 +136,9 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
               {/* Page Header */}
               <div className="space-y-1 md:space-y-2">
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  {activeSection === 'mbp' ? 'Monthly Business Planning' :
+                  {activeSection === 'strategic' ? 'Strategic Planning' :
+                   activeSection === 'gsr' ? 'Goal Setting & Review' :
+                   activeSection === 'mbp' ? 'Monthly Business Planning' :
                    activeSection === 'dashboard' ? 'Executive Dashboard' :
                    activeSection === 'analytics' ? 'Analytics Overview' :
                    activeSection === 'growth' ? 'Growth Metrics' :
@@ -139,7 +147,9 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
                    'Dashboard'}
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground">
-                  {activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
+                  {activeSection === 'strategic' ? 'Define and track your strategic objectives and initiatives' :
+                   activeSection === 'gsr' ? 'Set goals, track progress, and conduct regular performance reviews' :
+                   activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
                    activeSection === 'dashboard' ? 'Your business performance at a glance' :
                    activeSection === 'analytics' ? 'Detailed analytics and insights' :
                    activeSection === 'growth' ? 'Track your growth goals and KPIs' :
@@ -149,8 +159,8 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
                 </p>
               </div>
 
-              {/* Filter Bar - Hide on mobile for MBP */}
-              {activeSection !== 'mbp' && !isMobile && <FilterBar onFilterChange={() => {}} />}
+              {/* Filter Bar - Hide on mobile for MBP and Strategic sections */}
+              {!['mbp', 'strategic', 'gsr'].includes(activeSection) && !isMobile && <FilterBar onFilterChange={() => {}} />}
               
               {/* Content */}
               {renderContent()}
