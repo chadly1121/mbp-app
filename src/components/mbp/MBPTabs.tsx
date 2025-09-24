@@ -10,6 +10,14 @@ import { StrategicPlanning } from "./tabs/StrategicPlanning";
 import { ActionItems } from "./tabs/ActionItems";
 import { MonthlyReview } from "./tabs/MonthlyReview";
 import { MarketAnalysis } from "./tabs/MarketAnalysis";
+import { SalesPlanning } from "./tabs/SalesPlanning";
+import { LeadFunnel } from "./tabs/LeadFunnel";
+import { JobPlanner } from "./tabs/JobPlanner";
+import { ProductionPlanning } from "./tabs/ProductionPlanning";
+import { MarketingPlan } from "./tabs/MarketingPlan";
+import { ARTracker } from "./tabs/ARTracker";
+import { OrganizationalStructure } from "./tabs/OrganizationalStructure";
+import { HabitsTracker } from "./tabs/HabitsTracker";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -18,7 +26,13 @@ import {
   Map,
   CheckSquare,
   Calendar,
-  BarChart3
+  BarChart3,
+  Users,
+  Factory,
+  Megaphone,
+  CreditCard,
+  Building,
+  Activity
 } from "lucide-react";
 
 export const MBPTabs = () => {
@@ -72,6 +86,54 @@ export const MBPTabs = () => {
       label: "Monthly Review",
       icon: Calendar,
       shortLabel: "Review"
+    },
+    {
+      id: "sales",
+      label: "Sales Planning",
+      icon: TrendingUp,
+      shortLabel: "Sales"
+    },
+    {
+      id: "leads",
+      label: "Lead Funnel",
+      icon: Users,
+      shortLabel: "Leads"
+    },
+    {
+      id: "jobs",
+      label: "Job Planner",
+      icon: Calendar,
+      shortLabel: "Jobs"
+    },
+    {
+      id: "production",
+      label: "Production",
+      icon: Factory,
+      shortLabel: "Production"
+    },
+    {
+      id: "marketing",
+      label: "Marketing",
+      icon: Megaphone,
+      shortLabel: "Marketing"
+    },
+    {
+      id: "ar",
+      label: "AR Tracker",
+      icon: CreditCard,
+      shortLabel: "AR"
+    },
+    {
+      id: "org",
+      label: "Organization",
+      icon: Building,
+      shortLabel: "Org"
+    },
+    {
+      id: "habits",
+      label: "Habits Tracker",
+      icon: Activity,
+      shortLabel: "Habits"
     }
   ];
 
@@ -134,6 +196,38 @@ export const MBPTabs = () => {
           
           <TabsContent value="review" className="mt-0">
             <MonthlyReview />
+          </TabsContent>
+          
+          <TabsContent value="sales" className="mt-0">
+            <SalesPlanning />
+          </TabsContent>
+          
+          <TabsContent value="leads" className="mt-0">
+            <LeadFunnel />
+          </TabsContent>
+          
+          <TabsContent value="jobs" className="mt-0">
+            <JobPlanner />
+          </TabsContent>
+          
+          <TabsContent value="production" className="mt-0">
+            <ProductionPlanning />
+          </TabsContent>
+          
+          <TabsContent value="marketing" className="mt-0">
+            <MarketingPlan />
+          </TabsContent>
+          
+          <TabsContent value="ar" className="mt-0">
+            <ARTracker />
+          </TabsContent>
+          
+          <TabsContent value="org" className="mt-0">
+            <OrganizationalStructure />
+          </TabsContent>
+          
+          <TabsContent value="habits" className="mt-0">
+            <HabitsTracker />
           </TabsContent>
         </div>
       </Tabs>
