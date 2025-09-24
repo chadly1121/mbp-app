@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
-import { ExternalLink, RefreshCw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ExternalLink, RefreshCw, CheckCircle, AlertCircle, Loader2, Info } from 'lucide-react';
 
 interface QBOConnection {
   id: string;
@@ -23,6 +24,7 @@ export const QBOIntegration = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const { currentCompany } = useCompany();
   const { toast } = useToast();
 
@@ -46,7 +48,13 @@ export const QBOIntegration = () => {
         console.error('Error checking QBO connection:', error);
         setConnection(null);
       } else if (data && data.length > 0) {
-        setConnection(data[0] as QBOConnection);
+        const connectionData = data[0] as QBOConnection;
+        setConnection(connectionData);
+        
+        // Show sync prompt if connected but never synced
+        if (connectionData.is_active && !connectionData.last_sync_at) {
+          setShowSyncPrompt(true);
+        }
       } else {
         setConnection(null);
       }
@@ -88,7 +96,7 @@ export const QBOIntegration = () => {
       const checkClosed = setInterval(() => {
         if (popup?.closed) {
           clearInterval(checkClosed);
-          checkConnection(); // Refresh connection status
+          checkConnection(); // This will trigger the sync prompt if needed
           setConnecting(false);
         }
       }, 1000);
@@ -129,6 +137,7 @@ export const QBOIntegration = () => {
       });
 
       checkConnection(); // Refresh to get updated last_sync_at
+      setShowSyncPrompt(false); // Hide the sync prompt after successful sync
 
     } catch (error: any) {
       console.error('Sync error:', error);
@@ -207,6 +216,17 @@ export const QBOIntegration = () => {
       <CardContent className="space-y-4">
         {connection ? (
           <>
+            {/* Sync Prompt Alert */}
+            {showSyncPrompt && (
+              <Alert className="border-blue-200 bg-blue-50">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <strong>Ready to sync!</strong> Your QuickBooks Online is now connected. 
+                  Click "Sync Now" below to import your products, accounts, and financial data.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">QuickBooks Company ID:</span>
