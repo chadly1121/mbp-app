@@ -24,6 +24,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           parent_id: string | null
+          qbo_id: string | null
           updated_at: string
         }
         Insert: {
@@ -35,6 +36,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           parent_id?: string | null
+          qbo_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -46,6 +48,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           parent_id?: string | null
+          qbo_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -168,6 +171,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           product_type: string
+          qbo_id: string | null
           unit_price: number | null
           updated_at: string
         }
@@ -179,6 +183,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           product_type: string
+          qbo_id?: string | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -190,6 +195,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           product_type?: string
+          qbo_id?: string | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -228,6 +234,48 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      qbo_connections: {
+        Row: {
+          access_token: string
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          qbo_company_id: string
+          refresh_token: string
+          token_expires_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          qbo_company_id: string
+          refresh_token: string
+          token_expires_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          qbo_company_id?: string
+          refresh_token?: string
+          token_expires_at?: string
           updated_at?: string
           user_id?: string
         }

@@ -1,4 +1,4 @@
-import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign } from "lucide-react";
+import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign, Cable } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +26,7 @@ const AppSidebar = ({ activeSection, onSectionChange }: AppSidebarProps) => {
     { id: 'revenue', label: 'Revenue', icon: BarChart3 },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'growth', label: 'Growth', icon: TrendingUp },
+    { id: 'integrations', label: 'Integrations', icon: Cable },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },

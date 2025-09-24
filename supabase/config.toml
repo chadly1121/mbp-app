@@ -1,1 +1,7 @@
 project_id = "qdrcpflmnxhkzrlhdhda"
+
+[functions.qbo-auth]
+verify_jwt = true
+
+[functions.qbo-sync]
+verify_jwt = true

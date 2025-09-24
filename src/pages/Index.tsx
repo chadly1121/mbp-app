@@ -12,6 +12,7 @@ import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
 import MBPDashboard from "@/components/mbp/MBPDashboard";
+import { QBOIntegration } from "@/components/integrations/QBOIntegration";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -43,6 +44,12 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
         return <AnalyticsSection />;
       case 'growth':
         return <GrowthSection />;
+      case 'integrations':
+        return (
+          <div className="space-y-6">
+            <QBOIntegration />
+          </div>
+        );
       case 'revenue':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -127,6 +134,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
                    activeSection === 'dashboard' ? 'Executive Dashboard' :
                    activeSection === 'analytics' ? 'Analytics Overview' :
                    activeSection === 'growth' ? 'Growth Metrics' :
+                   activeSection === 'integrations' ? 'Integrations' :
                    activeSection === 'revenue' ? 'Revenue Analysis' :
                    'Dashboard'}
                 </h2>
@@ -135,6 +143,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
                    activeSection === 'dashboard' ? 'Your business performance at a glance' :
                    activeSection === 'analytics' ? 'Detailed analytics and insights' :
                    activeSection === 'growth' ? 'Track your growth goals and KPIs' :
+                   activeSection === 'integrations' ? 'Connect and sync with external accounting software' :
                    activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
                    'Business insights and metrics'}
                 </p>

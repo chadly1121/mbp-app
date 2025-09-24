@@ -34,7 +34,9 @@ export const QBOIntegration = () => {
     if (!currentCompany) return;
 
     try {
-      const { data, error } = await supabase
+      // Check if there's a QBO connection for this company
+      // Since types aren't updated yet, we'll handle this gracefully
+      const { data, error } = await (supabase as any)
         .from('qbo_connections')
         .select('*')
         .eq('company_id', currentCompany.id)
@@ -43,11 +45,13 @@ export const QBOIntegration = () => {
 
       if (error) {
         console.error('Error checking QBO connection:', error);
+        setConnection(null);
       } else {
-        setConnection(data);
+        setConnection(data as QBOConnection | null);
       }
     } catch (error) {
       console.error('Error checking connection:', error);
+      setConnection(null);
     } finally {
       setLoading(false);
     }
@@ -152,7 +156,8 @@ export const QBOIntegration = () => {
     if (!connection) return;
 
     try {
-      const { error } = await supabase
+      // Use type assertion for now since types aren't updated yet
+      const { error } = await (supabase as any)
         .from('qbo_connections')
         .update({ is_active: false })
         .eq('id', connection.id);
