@@ -1339,9 +1339,48 @@ export type Database = {
         }
         Relationships: []
       }
+      strategic_objective_checklist: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean | null
+          item_text: string
+          objective_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          item_text: string
+          objective_id: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          item_text?: string
+          objective_id?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_objective_checklist_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_objectives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategic_objectives: {
         Row: {
           company_id: string
+          completion_percentage: number | null
           created_at: string
           description: string | null
           id: string
@@ -1353,6 +1392,7 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          completion_percentage?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1364,6 +1404,7 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          completion_percentage?: number | null
           created_at?: string
           description?: string | null
           id?: string
