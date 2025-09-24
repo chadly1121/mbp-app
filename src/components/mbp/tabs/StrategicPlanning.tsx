@@ -119,7 +119,11 @@ export const StrategicPlanning = () => {
   };
 
   const handleAddObjective = async () => {
-    if (!currentCompany || !newObjective.title) return;
+    console.log('Adding objective:', { currentCompany, newObjective });
+    if (!currentCompany || !newObjective.title) {
+      console.log('Missing requirements:', { currentCompany: !!currentCompany, title: !!newObjective.title });
+      return;
+    }
 
     try {
       const { error } = await supabase
