@@ -65,31 +65,20 @@ export const QBOIntegration = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const response = await supabase.functions.invoke('qbo-auth', {
-        body: {},
+      // Call the edge function with the correct parameters
+      const response = await fetch(`https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/qbo-auth?action=connect&companyId=${currentCompany.id}`, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.error) throw response.error;
-
-      const params = new URLSearchParams({
-        action: 'connect',
-        companyId: currentCompany.id
-      });
-
-      const authResponse = await fetch(`https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/qbo-auth?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (!authResponse.ok) {
-        throw new Error('Failed to initiate OAuth flow');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initiate OAuth flow');
       }
 
-      const { authUrl } = await authResponse.json();
+      const { authUrl } = await response.json();
       
       // Open QuickBooks OAuth in new window
       const popup = window.open(authUrl, 'qbo-oauth', 'width=600,height=600');
