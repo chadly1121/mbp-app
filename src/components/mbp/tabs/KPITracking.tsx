@@ -1,141 +1,125 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
 
 interface KPI {
   id: string;
   name: string;
-  category: string;
-  currentValue: number;
-  targetValue: number;
+  description: string;
+  current_value: number;
+  target_value: number;
   unit: string;
-  frequency: 'monthly' | 'quarterly' | 'annually';
-  trend: 'up' | 'down' | 'stable';
-  status: 'on-track' | 'at-risk' | 'behind';
-  lastUpdated: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  is_active: boolean;
+  created_at: string;
 }
 
 export const KPITracking = () => {
   const { toast } = useToast();
-  const [kpis, setKpis] = useState<KPI[]>([
-    {
-      id: '1',
-      name: 'Monthly Recurring Revenue',
-      category: 'Revenue',
-      currentValue: 45000,
-      targetValue: 50000,
-      unit: '$',
-      frequency: 'monthly',
-      trend: 'up',
-      status: 'on-track',
-      lastUpdated: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Customer Acquisition Cost',
-      category: 'Marketing',
-      currentValue: 125,
-      targetValue: 100,
-      unit: '$',
-      frequency: 'monthly',
-      trend: 'up',
-      status: 'at-risk',
-      lastUpdated: '2024-01-14'
-    },
-    {
-      id: '3',
-      name: 'Customer Lifetime Value',
-      category: 'Revenue',
-      currentValue: 850,
-      targetValue: 1000,
-      unit: '$',
-      frequency: 'quarterly',
-      trend: 'up',
-      status: 'on-track',
-      lastUpdated: '2024-01-10'
-    },
-    {
-      id: '4',
-      name: 'Gross Margin',
-      category: 'Financial',
-      currentValue: 68,
-      targetValue: 75,
-      unit: '%',
-      frequency: 'monthly',
-      trend: 'stable',
-      status: 'behind',
-      lastUpdated: '2024-01-12'
-    },
-    {
-      id: '5',
-      name: 'Employee Satisfaction',
-      category: 'Operations',
-      currentValue: 4.2,
-      targetValue: 4.5,
-      unit: '/5',
-      frequency: 'quarterly',
-      trend: 'up',
-      status: 'on-track',
-      lastUpdated: '2024-01-01'
-    }
-  ]);
-  
+  const { currentCompany } = useCompany();
+  const [kpis, setKpis] = useState<KPI[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddingKPI, setIsAddingKPI] = useState(false);
   const [newKPI, setNewKPI] = useState({
     name: '',
-    category: '',
-    currentValue: '',
-    targetValue: '',
+    description: '',
+    current_value: 0,
+    target_value: 0,
     unit: '',
     frequency: 'monthly' as const
   });
 
-  const categories = ['Revenue', 'Marketing', 'Financial', 'Operations', 'Customer', 'Product'];
+  useEffect(() => {
+    if (currentCompany) {
+      fetchKPIs();
+    }
+  }, [currentCompany]);
 
-  const handleAddKPI = () => {
-    const kpi: KPI = {
-      id: Date.now().toString(),
-      name: newKPI.name,
-      category: newKPI.category,
-      currentValue: parseFloat(newKPI.currentValue),
-      targetValue: parseFloat(newKPI.targetValue),
-      unit: newKPI.unit,
-      frequency: newKPI.frequency,
-      trend: 'stable',
-      status: 'on-track',
-      lastUpdated: new Date().toISOString().split('T')[0]
-    };
-    
-    setKpis([...kpis, kpi]);
-    setIsAddingKPI(false);
-    setNewKPI({
-      name: '',
-      category: '',
-      currentValue: '',
-      targetValue: '',
-      unit: '',
-      frequency: 'monthly'
-    });
-    
-    toast({
-      title: "KPI added",
-      description: `${newKPI.name} has been added to your KPI dashboard.`
-    });
+  const fetchKPIs = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setKpis((data as KPI[]) || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading KPIs",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddKPI = async () => {
+    if (!currentCompany || !newKPI.name) return;
+
+    try {
+      const { error } = await supabase
+        .from('kpis')
+        .insert([{
+          ...newKPI,
+          company_id: currentCompany.id
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "KPI added",
+        description: `${newKPI.name} has been added to your KPI dashboard.`
+      });
+      
+      setNewKPI({
+        name: '',
+        description: '',
+        current_value: 0,
+        target_value: 0,
+        unit: '',
+        frequency: 'monthly'
+      });
+      setIsAddingKPI(false);
+      fetchKPIs();
+    } catch (error: any) {
+      toast({
+        title: "Error adding KPI",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getProgressPercentage = (current: number, target: number) => {
     return Math.min((current / target) * 100, 100);
   };
 
-  const getStatusColor = (status: string) => {
+  const getKPIStatus = (current: number, target: number) => {
+    const percentage = (current / target) * 100;
+    if (percentage >= 100) return 'on-track';
+    if (percentage >= 75) return 'at-risk';
+    return 'behind';
+  };
+
+  const getStatusColor = (current: number, target: number) => {
+    const status = getKPIStatus(current, target);
     switch (status) {
       case 'on-track': return 'text-green-600 bg-green-50 border-green-200';
       case 'at-risk': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
@@ -144,7 +128,8 @@ export const KPITracking = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (current: number, target: number) => {
+    const status = getKPIStatus(current, target);
     switch (status) {
       case 'on-track': return CheckCircle;
       case 'at-risk': return AlertCircle;
@@ -153,19 +138,20 @@ export const KPITracking = () => {
     }
   };
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'up': return TrendingUp;
-      case 'down': return TrendingDown;
-      default: return Target;
-    }
+  const getTrendIcon = (current: number, target: number) => {
+    const percentage = (current / target) * 100;
+    if (percentage >= 100) return TrendingUp;
+    if (percentage >= 75) return Minus;
+    return TrendingDown;
   };
 
-  const groupedKPIs = kpis.reduce((acc, kpi) => {
-    if (!acc[kpi.category]) acc[kpi.category] = [];
-    acc[kpi.category].push(kpi);
-    return acc;
-  }, {} as Record<string, KPI[]>);
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading KPIs...</div>;
+  }
+
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -203,17 +189,13 @@ export const KPITracking = () => {
                 </div>
                 
                 <div>
-                  <Label>Category</Label>
-                  <Select value={newKPI.category} onValueChange={(value) => setNewKPI({ ...newKPI, category: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={newKPI.description}
+                    onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
+                    placeholder="Describe what this KPI measures..."
+                    rows={2}
+                  />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
@@ -221,8 +203,8 @@ export const KPITracking = () => {
                     <Label>Current Value</Label>
                     <Input
                       type="number"
-                      value={newKPI.currentValue}
-                      onChange={(e) => setNewKPI({ ...newKPI, currentValue: e.target.value })}
+                      value={newKPI.current_value}
+                      onChange={(e) => setNewKPI({ ...newKPI, current_value: Number(e.target.value) })}
                       placeholder="0"
                     />
                   </div>
@@ -230,8 +212,8 @@ export const KPITracking = () => {
                     <Label>Target Value</Label>
                     <Input
                       type="number"
-                      value={newKPI.targetValue}
-                      onChange={(e) => setNewKPI({ ...newKPI, targetValue: e.target.value })}
+                      value={newKPI.target_value}
+                      onChange={(e) => setNewKPI({ ...newKPI, target_value: Number(e.target.value) })}
                       placeholder="0"
                     />
                   </div>
@@ -253,9 +235,11 @@ export const KPITracking = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
                         <SelectItem value="monthly">Monthly</SelectItem>
                         <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="annually">Annually</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -264,7 +248,7 @@ export const KPITracking = () => {
                 <Button 
                   onClick={handleAddKPI} 
                   className="w-full"
-                  disabled={!newKPI.name || !newKPI.category || !newKPI.currentValue || !newKPI.targetValue}
+                  disabled={!newKPI.name || !newKPI.target_value}
                 >
                   Add KPI
                 </Button>
@@ -285,7 +269,7 @@ export const KPITracking = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {kpis.filter(k => k.status === 'on-track').length}
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'on-track').length}
             </div>
           </CardContent>
         </Card>
@@ -299,7 +283,7 @@ export const KPITracking = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {kpis.filter(k => k.status === 'at-risk').length}
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'at-risk').length}
             </div>
           </CardContent>
         </Card>
@@ -313,7 +297,7 @@ export const KPITracking = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {kpis.filter(k => k.status === 'behind').length}
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'behind').length}
             </div>
           </CardContent>
         </Card>
@@ -333,68 +317,75 @@ export const KPITracking = () => {
         </Card>
       </div>
 
-      {/* KPI Categories */}
-      {Object.entries(groupedKPIs).map(([category, categoryKPIs]) => (
-        <Card key={category}>
-          <CardHeader>
-            <CardTitle className="text-lg">{category} KPIs</CardTitle>
-            <CardDescription>
-              Key performance indicators for {category.toLowerCase()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categoryKPIs.map((kpi) => {
-                const StatusIcon = getStatusIcon(kpi.status);
-                const TrendIcon = getTrendIcon(kpi.trend);
-                const progress = getProgressPercentage(kpi.currentValue, kpi.targetValue);
-                
-                return (
-                  <Card key={kpi.id} className="border border-muted">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-sm">{kpi.name}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Updated {new Date(kpi.lastUpdated).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <TrendIcon className={`h-4 w-4 ${
-                              kpi.trend === 'up' ? 'text-green-600' : 
-                              kpi.trend === 'down' ? 'text-red-600' : 'text-gray-600'
-                            }`} />
-                            <Badge variant="outline" className={`text-xs ${getStatusColor(kpi.status)}`}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {kpi.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Current: {kpi.unit}{kpi.currentValue.toLocaleString()}</span>
-                            <span>Target: {kpi.unit}{kpi.targetValue.toLocaleString()}</span>
-                          </div>
-                          <Progress value={progress} className="h-2" />
-                          <div className="text-xs text-muted-foreground text-center">
-                            {progress.toFixed(1)}% of target achieved
-                          </div>
-                        </div>
-                        
-                        <div className="text-xs text-muted-foreground">
-                          Frequency: {kpi.frequency}
-                        </div>
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {kpis.length === 0 ? (
+          <Card className="col-span-full p-8 text-center">
+            <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h4 className="text-lg font-semibold mb-2">No KPIs Defined</h4>
+            <p className="text-muted-foreground mb-4">Start tracking your key performance indicators by creating your first KPI.</p>
+            <Dialog open={isAddingKPI} onOpenChange={setIsAddingKPI}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First KPI
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </Card>
+        ) : (
+          kpis.map((kpi) => {
+            const StatusIcon = getStatusIcon(kpi.current_value, kpi.target_value);
+            const TrendIcon = getTrendIcon(kpi.current_value, kpi.target_value);
+            const progress = getProgressPercentage(kpi.current_value, kpi.target_value);
+            const status = getKPIStatus(kpi.current_value, kpi.target_value);
+            
+            return (
+              <Card key={kpi.id} className="border border-muted">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-sm">{kpi.name}</h4>
+                        {kpi.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {kpi.description}
+                          </p>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                      <div className="flex items-center gap-2">
+                        <TrendIcon className={`h-4 w-4 ${
+                          status === 'on-track' ? 'text-green-600' : 
+                          status === 'at-risk' ? 'text-yellow-600' : 'text-red-600'
+                        }`} />
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(kpi.current_value, kpi.target_value)}`}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {status.replace('-', ' ')}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Current: {kpi.current_value.toLocaleString()}{kpi.unit}</span>
+                        <span>Target: {kpi.target_value.toLocaleString()}{kpi.unit}</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                      <div className="text-xs text-muted-foreground text-center">
+                        {progress.toFixed(1)}% of target achieved
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground">
+                      Frequency: {kpi.frequency}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };

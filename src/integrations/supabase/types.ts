@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_items: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cash_flow_projections: {
+        Row: {
+          actual_amount: number | null
+          category: string
+          company_id: string
+          created_at: string
+          id: string
+          month: number
+          notes: string | null
+          projected_amount: number
+          subcategory: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          actual_amount?: number | null
+          category: string
+          company_id: string
+          created_at?: string
+          id?: string
+          month: number
+          notes?: string | null
+          projected_amount?: number
+          subcategory?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          actual_amount?: number | null
+          category?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          projected_amount?: number
+          subcategory?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       chart_of_accounts: {
         Row: {
           account_code: string
@@ -95,6 +179,90 @@ export type Database = {
         }
         Relationships: []
       }
+      kpis: {
+        Row: {
+          company_id: string
+          created_at: string
+          current_value: number | null
+          description: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          target_value: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          target_value: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          target_value?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      market_analysis: {
+        Row: {
+          analysis_type: string
+          company_id: string
+          created_at: string
+          data_unit: string | null
+          data_value: number | null
+          date_analyzed: string | null
+          description: string | null
+          id: string
+          source: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_type: string
+          company_id: string
+          created_at?: string
+          data_unit?: string | null
+          data_value?: number | null
+          date_analyzed?: string | null
+          description?: string | null
+          id?: string
+          source?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_type?: string
+          company_id?: string
+          created_at?: string
+          data_unit?: string | null
+          data_value?: number | null
+          date_analyzed?: string | null
+          description?: string | null
+          id?: string
+          source?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       monthly_budgets: {
         Row: {
           account_id: string
@@ -161,6 +329,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monthly_reviews: {
+        Row: {
+          challenges_faced: string | null
+          company_id: string
+          created_at: string
+          expenses_actual: number | null
+          expenses_target: number | null
+          id: string
+          key_achievements: string | null
+          lessons_learned: string | null
+          next_month_focus: string | null
+          revenue_actual: number | null
+          revenue_target: number | null
+          review_month: number
+          review_year: number
+          updated_at: string
+        }
+        Insert: {
+          challenges_faced?: string | null
+          company_id: string
+          created_at?: string
+          expenses_actual?: number | null
+          expenses_target?: number | null
+          id?: string
+          key_achievements?: string | null
+          lessons_learned?: string | null
+          next_month_focus?: string | null
+          revenue_actual?: number | null
+          revenue_target?: number | null
+          review_month: number
+          review_year: number
+          updated_at?: string
+        }
+        Update: {
+          challenges_faced?: string | null
+          company_id?: string
+          created_at?: string
+          expenses_actual?: number | null
+          expenses_target?: number | null
+          id?: string
+          key_achievements?: string | null
+          lessons_learned?: string | null
+          next_month_focus?: string | null
+          revenue_actual?: number | null
+          revenue_target?: number | null
+          review_month?: number
+          review_year?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       products: {
         Row: {
@@ -278,6 +497,81 @@ export type Database = {
           token_expires_at?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      revenue_forecasts: {
+        Row: {
+          actual_amount: number | null
+          company_id: string
+          created_at: string
+          forecasted_amount: number
+          id: string
+          month: number
+          notes: string | null
+          product_id: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          actual_amount?: number | null
+          company_id: string
+          created_at?: string
+          forecasted_amount?: number
+          id?: string
+          month: number
+          notes?: string | null
+          product_id?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          actual_amount?: number | null
+          company_id?: string
+          created_at?: string
+          forecasted_amount?: number
+          id?: string
+          month?: number
+          notes?: string | null
+          product_id?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      strategic_objectives: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          target_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          target_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          target_date?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,102 +9,102 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { Plus, Target, Calendar, User, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
 
-interface StrategicGoal {
+interface StrategicObjective {
   id: string;
   title: string;
   description: string;
-  category: string;
-  priority: 'high' | 'medium' | 'low';
-  owner: string;
-  dueDate: string;
-  progress: number;
-  status: 'not-started' | 'in-progress' | 'completed' | 'on-hold';
+  target_date: string;
+  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  created_at: string;
 }
 
 export const StrategicPlanning = () => {
   const { toast } = useToast();
-  const [goals, setGoals] = useState<StrategicGoal[]>([
-    {
-      id: '1',
-      title: 'Expand to New Market Segment',
-      description: 'Launch product line targeting SMB customers with simplified pricing',
-      category: 'Growth',
-      priority: 'high',
-      owner: 'Marketing Team',
-      dueDate: '2024-06-30',
-      progress: 35,
-      status: 'in-progress'
-    },
-    {
-      id: '2',
-      title: 'Improve Customer Retention',
-      description: 'Implement customer success program to reduce churn by 20%',
-      category: 'Customer',
-      priority: 'high',
-      owner: 'Customer Success',
-      dueDate: '2024-03-31',
-      progress: 60,
-      status: 'in-progress'
-    },
-    {
-      id: '3',
-      title: 'Digital Transformation',
-      description: 'Migrate legacy systems to cloud-based infrastructure',
-      category: 'Technology',
-      priority: 'medium',
-      owner: 'IT Team',
-      dueDate: '2024-12-31',
-      progress: 15,
-      status: 'in-progress'
-    }
-  ]);
-  
-  const [isAddingGoal, setIsAddingGoal] = useState(false);
-  const [newGoal, setNewGoal] = useState({
+  const { currentCompany } = useCompany();
+  const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddingObjective, setIsAddingObjective] = useState(false);
+  const [newObjective, setNewObjective] = useState({
     title: '',
     description: '',
-    category: '',
+    target_date: '',
     priority: 'medium' as const,
-    owner: '',
-    dueDate: ''
+    status: 'not_started' as const
   });
 
-  const categories = ['Growth', 'Customer', 'Technology', 'Operations', 'Financial', 'People'];
+  useEffect(() => {
+    if (currentCompany) {
+      fetchObjectives();
+    }
+  }, [currentCompany]);
 
-  const handleAddGoal = () => {
-    const goal: StrategicGoal = {
-      id: Date.now().toString(),
-      title: newGoal.title,
-      description: newGoal.description,
-      category: newGoal.category,
-      priority: newGoal.priority,
-      owner: newGoal.owner,
-      dueDate: newGoal.dueDate,
-      progress: 0,
-      status: 'not-started'
-    };
-    
-    setGoals([...goals, goal]);
-    setIsAddingGoal(false);
-    setNewGoal({
-      title: '',
-      description: '',
-      category: '',
-      priority: 'medium',
-      owner: '',
-      dueDate: ''
-    });
-    
-    toast({
-      title: "Strategic goal added",
-      description: `${newGoal.title} has been added to your strategic plan.`
-    });
+  const fetchObjectives = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('strategic_objectives')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setObjectives((data as StrategicObjective[]) || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading objectives",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddObjective = async () => {
+    if (!currentCompany || !newObjective.title) return;
+
+    try {
+      const { error } = await supabase
+        .from('strategic_objectives')
+        .insert([{
+          ...newObjective,
+          company_id: currentCompany.id
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Strategic objective added",
+        description: `${newObjective.title} has been added to your strategic plan.`
+      });
+      
+      setNewObjective({
+        title: '',
+        description: '',
+        target_date: '',
+        priority: 'medium',
+        status: 'not_started'
+      });
+      setIsAddingObjective(false);
+      fetchObjectives();
+    } catch (error: any) {
+      toast({
+        title: "Error adding objective",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
+      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
+      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
       case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       case 'low': return 'text-green-600 bg-green-50 border-green-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
@@ -114,17 +114,19 @@ export const StrategicPlanning = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'in-progress': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'on-hold': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'in_progress': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'on_hold': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
-  const groupedGoals = goals.reduce((acc, goal) => {
-    if (!acc[goal.category]) acc[goal.category] = [];
-    acc[goal.category].push(goal);
-    return acc;
-  }, {} as Record<string, StrategicGoal[]>);
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading strategic objectives...</div>;
+  }
+
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -137,26 +139,26 @@ export const StrategicPlanning = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <Dialog open={isAddingGoal} onOpenChange={setIsAddingGoal}>
+          <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Strategic Goal
+                Add Strategic Objective
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Add Strategic Goal</DialogTitle>
+                <DialogTitle>Add Strategic Objective</DialogTitle>
                 <DialogDescription>
-                  Create a new strategic goal or initiative
+                  Create a new strategic objective or initiative
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Goal Title</Label>
+                  <Label>Objective Title</Label>
                   <Input
-                    value={newGoal.title}
-                    onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
+                    value={newObjective.title}
+                    onChange={(e) => setNewObjective({ ...newObjective, title: e.target.value })}
                     placeholder="e.g., Expand to New Markets"
                   />
                 </div>
@@ -164,67 +166,44 @@ export const StrategicPlanning = () => {
                 <div>
                   <Label>Description</Label>
                   <Textarea
-                    value={newGoal.description}
-                    onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })}
-                    placeholder="Describe the goal, objectives, and expected outcomes..."
+                    value={newObjective.description}
+                    onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
+                    placeholder="Describe the objective, goals, and expected outcomes..."
                     rows={3}
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Category</Label>
-                    <Select value={newGoal.category} onValueChange={(value) => setNewGoal({ ...newGoal, category: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label>Priority</Label>
-                    <Select value={newGoal.priority} onValueChange={(value: any) => setNewGoal({ ...newGoal, priority: value })}>
+                    <Select value={newObjective.priority} onValueChange={(value: any) => setNewObjective({ ...newObjective, priority: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
                         <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Owner</Label>
-                    <Input
-                      value={newGoal.owner}
-                      onChange={(e) => setNewGoal({ ...newGoal, owner: e.target.value })}
-                      placeholder="Team or person responsible"
-                    />
-                  </div>
-                  <div>
-                    <Label>Due Date</Label>
+                    <Label>Target Date</Label>
                     <Input
                       type="date"
-                      value={newGoal.dueDate}
-                      onChange={(e) => setNewGoal({ ...newGoal, dueDate: e.target.value })}
+                      value={newObjective.target_date}
+                      onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
                     />
                   </div>
                 </div>
                 
                 <Button 
-                  onClick={handleAddGoal} 
+                  onClick={handleAddObjective} 
                   className="w-full"
-                  disabled={!newGoal.title || !newGoal.category || !newGoal.owner}
+                  disabled={!newObjective.title}
                 >
-                  Add Strategic Goal
+                  Add Strategic Objective
                 </Button>
               </div>
             </DialogContent>
@@ -238,12 +217,12 @@ export const StrategicPlanning = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Total Goals
+              Total Objectives
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {goals.length}
+              {objectives.length}
             </div>
           </CardContent>
         </Card>
@@ -257,7 +236,7 @@ export const StrategicPlanning = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {goals.filter(g => g.status === 'in-progress').length}
+              {objectives.filter(o => o.status === 'in_progress').length}
             </div>
           </CardContent>
         </Card>
@@ -271,86 +250,69 @@ export const StrategicPlanning = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {goals.filter(g => g.status === 'completed').length}
+              {objectives.filter(o => o.status === 'completed').length}
             </div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg Progress
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Target className="h-4 w-4 text-red-600" />
+              Critical Priority
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length)}%
+            <div className="text-2xl font-bold text-red-600">
+              {objectives.filter(o => o.priority === 'critical').length}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Strategic Goals by Category */}
-      {Object.entries(groupedGoals).map(([category, categoryGoals]) => (
-        <Card key={category}>
-          <CardHeader>
-            <CardTitle className="text-lg">{category} Goals</CardTitle>
-            <CardDescription>
-              Strategic initiatives in {category.toLowerCase()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {categoryGoals.map((goal) => (
-                <Card key={goal.id} className="border border-muted">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{goal.title}</h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {goal.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <Badge variant="outline" className={`text-xs ${getPriorityColor(goal.priority)}`}>
-                            {goal.priority}
-                          </Badge>
-                          <Badge variant="outline" className={`text-xs ${getStatusColor(goal.status)}`}>
-                            {goal.status.replace('-', ' ')}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span>{goal.owner}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-muted-foreground" />
-                            <span>{new Date(goal.dueDate).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">{goal.progress}% complete</div>
-                          <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${goal.progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
+      {/* Strategic Objectives */}
+      <div className="space-y-4">
+        {objectives.length === 0 ? (
+          <Card className="p-8 text-center">
+            <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h4 className="text-lg font-semibold mb-2">No Strategic Objectives</h4>
+            <p className="text-muted-foreground mb-4">Start by creating your first strategic objective to guide your business planning.</p>
+            <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Objective
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </Card>
+        ) : (
+          objectives.map((objective) => (
+            <Card key={objective.id} className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h4 className="text-lg font-semibold mb-2">{objective.title}</h4>
+                  <p className="text-muted-foreground mb-3">{objective.description}</p>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {objective.target_date ? new Date(objective.target_date).toLocaleDateString() : 'No target date'}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge className={getPriorityColor(objective.priority)}>
+                    {objective.priority}
+                  </Badge>
+                  <Badge className={getStatusColor(objective.status)}>
+                    {objective.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 };

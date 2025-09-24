@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,57 +10,26 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, CheckSquare, Clock, User, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ActionItem {
   id: string;
   title: string;
   description: string;
-  assignee: string;
-  dueDate: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'todo' | 'in-progress' | 'completed';
+  assigned_to: string;
+  due_date: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'pending' | 'in_progress' | 'completed' | 'overdue';
   category: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export const ActionItems = () => {
   const { toast } = useToast();
-  const [actionItems, setActionItems] = useState<ActionItem[]>([
-    {
-      id: '1',
-      title: 'Review Q1 financial performance',
-      description: 'Analyze revenue, expenses, and variance reports from Q1',
-      assignee: 'Finance Team',
-      dueDate: '2024-02-15',
-      priority: 'high',
-      status: 'in-progress',
-      category: 'Financial',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      title: 'Update customer onboarding process',
-      description: 'Streamline the new customer setup workflow based on recent feedback',
-      assignee: 'Customer Success',
-      dueDate: '2024-02-20',
-      priority: 'medium',
-      status: 'todo',
-      category: 'Operations',
-      createdAt: '2024-01-10'
-    },
-    {
-      id: '3',
-      title: 'Prepare board presentation',
-      description: 'Create comprehensive business review slides for monthly board meeting',
-      assignee: 'CEO',
-      dueDate: '2024-01-30',
-      priority: 'high',
-      status: 'completed',
-      category: 'Strategic',
-      createdAt: '2024-01-01'
-    }
-  ]);
-  
+  const { currentCompany } = useCompany();
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddingAction, setIsAddingAction] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -68,55 +37,107 @@ export const ActionItems = () => {
   const [newAction, setNewAction] = useState({
     title: '',
     description: '',
-    assignee: '',
-    dueDate: '',
+    assigned_to: '',
+    due_date: '',
     priority: 'medium' as const,
     category: ''
   });
 
   const categories = ['Strategic', 'Financial', 'Operations', 'Marketing', 'Technology', 'HR'];
 
-  const handleAddAction = () => {
-    const action: ActionItem = {
-      id: Date.now().toString(),
-      title: newAction.title,
-      description: newAction.description,
-      assignee: newAction.assignee,
-      dueDate: newAction.dueDate,
-      priority: newAction.priority,
-      status: 'todo',
-      category: newAction.category,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    
-    setActionItems([...actionItems, action]);
-    setIsAddingAction(false);
-    setNewAction({
-      title: '',
-      description: '',
-      assignee: '',
-      dueDate: '',
-      priority: 'medium',
-      category: ''
-    });
-    
-    toast({
-      title: "Action item added",
-      description: `${newAction.title} has been added to your action items.`
-    });
+  useEffect(() => {
+    if (currentCompany) {
+      fetchActionItems();
+    }
+  }, [currentCompany]);
+
+  const fetchActionItems = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('action_items')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setActionItems((data as ActionItem[]) || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading action items",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStatusChange = (id: string, completed: boolean) => {
-    setActionItems(actionItems.map(item => 
-      item.id === id 
-        ? { ...item, status: completed ? 'completed' : 'todo' }
-        : item
-    ));
+  const handleAddAction = async () => {
+    if (!currentCompany || !newAction.title) return;
+
+    try {
+      const { error } = await supabase
+        .from('action_items')
+        .insert([{
+          ...newAction,
+          company_id: currentCompany.id
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Action item added",
+        description: `${newAction.title} has been added to your action items.`
+      });
+      
+      setNewAction({
+        title: '',
+        description: '',
+        assigned_to: '',
+        due_date: '',
+        priority: 'medium',
+        category: ''
+      });
+      setIsAddingAction(false);
+      fetchActionItems();
+    } catch (error: any) {
+      toast({
+        title: "Error adding action item",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStatusChange = async (id: string, completed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('action_items')
+        .update({ status: completed ? 'completed' : 'pending' })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setActionItems(actionItems.map(item => 
+        item.id === id 
+          ? { ...item, status: completed ? 'completed' : 'pending' as const }
+          : item
+      ));
+    } catch (error: any) {
+      toast({
+        title: "Error updating action item",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
+      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
+      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
       case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       case 'low': return 'text-green-600 bg-green-50 border-green-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
@@ -126,13 +147,14 @@ export const ActionItems = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'in-progress': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'in_progress': return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'overdue': return 'text-red-600 bg-red-50 border-red-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date() && actionItems.find(item => item.dueDate === dueDate)?.status !== 'completed';
+  const isOverdue = (dueDate: string, status: string) => {
+    return new Date(dueDate) < new Date() && status !== 'completed';
   };
 
   const filteredItems = actionItems.filter(item => {
@@ -142,10 +164,19 @@ export const ActionItems = () => {
   });
 
   const groupedItems = filteredItems.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+    const category = item.category || 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
     return acc;
   }, {} as Record<string, ActionItem[]>);
+
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading action items...</div>;
+  }
+
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -213,9 +244,10 @@ export const ActionItems = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
                         <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -223,17 +255,17 @@ export const ActionItems = () => {
                     <Label>Due Date</Label>
                     <Input
                       type="date"
-                      value={newAction.dueDate}
-                      onChange={(e) => setNewAction({ ...newAction, dueDate: e.target.value })}
+                      value={newAction.due_date}
+                      onChange={(e) => setNewAction({ ...newAction, due_date: e.target.value })}
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <Label>Assignee</Label>
+                  <Label>Assigned To</Label>
                   <Input
-                    value={newAction.assignee}
-                    onChange={(e) => setNewAction({ ...newAction, assignee: e.target.value })}
+                    value={newAction.assigned_to}
+                    onChange={(e) => setNewAction({ ...newAction, assigned_to: e.target.value })}
                     placeholder="Person or team responsible"
                   />
                 </div>
@@ -241,7 +273,7 @@ export const ActionItems = () => {
                 <Button 
                   onClick={handleAddAction} 
                   className="w-full"
-                  disabled={!newAction.title || !newAction.category || !newAction.assignee}
+                  disabled={!newAction.title || !newAction.category}
                 >
                   Add Action Item
                 </Button>
@@ -262,8 +294,8 @@ export const ActionItems = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
@@ -277,6 +309,7 @@ export const ActionItems = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
                 <SelectItem value="high">High</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
@@ -293,7 +326,7 @@ export const ActionItems = () => {
           <Card className="p-3">
             <div className="text-sm font-medium text-blue-600">In Progress</div>
             <div className="text-xl font-bold text-blue-600">
-              {actionItems.filter(item => item.status === 'in-progress').length}
+              {actionItems.filter(item => item.status === 'in_progress').length}
             </div>
           </Card>
           <Card className="p-3">
@@ -305,80 +338,100 @@ export const ActionItems = () => {
           <Card className="p-3">
             <div className="text-sm font-medium text-red-600">Overdue</div>
             <div className="text-xl font-bold text-red-600">
-              {actionItems.filter(item => isOverdue(item.dueDate)).length}
+              {actionItems.filter(item => isOverdue(item.due_date, item.status)).length}
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Action Items by Category */}
-      {Object.entries(groupedItems).map(([category, categoryItems]) => (
-        <Card key={category}>
-          <CardHeader>
-            <CardTitle className="text-lg">{category} Action Items</CardTitle>
-            <CardDescription>
-              Tasks and action items for {category.toLowerCase()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {categoryItems.map((item) => (
-                <Card key={item.id} className={`border ${
-                  isOverdue(item.dueDate) ? 'border-red-200 bg-red-50/50' : 'border-muted'
-                }`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={item.status === 'completed'}
-                        onCheckedChange={(checked) => handleStatusChange(item.id, checked as boolean)}
-                        className="mt-1"
-                      />
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <h4 className={`font-semibold ${item.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
-                              {item.title}
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {item.description}
-                            </p>
+      {/* Action Items */}
+      {actionItems.length === 0 ? (
+        <Card className="p-8 text-center">
+          <CheckSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h4 className="text-lg font-semibold mb-2">No Action Items</h4>
+          <p className="text-muted-foreground mb-4">Start by creating your first action item to track tasks and deliverables.</p>
+          <Dialog open={isAddingAction} onOpenChange={setIsAddingAction}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Action Item
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+        </Card>
+      ) : Object.entries(groupedItems).length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-muted-foreground">No action items match your current filters.</p>
+        </Card>
+      ) : (
+        Object.entries(groupedItems).map(([category, categoryItems]) => (
+          <Card key={category}>
+            <CardHeader>
+              <CardTitle className="text-lg">{category} Action Items</CardTitle>
+              <CardDescription>
+                Tasks and action items for {category.toLowerCase()}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {categoryItems.map((item) => (
+                  <Card key={item.id} className={`border ${
+                    isOverdue(item.due_date, item.status) ? 'border-red-200 bg-red-50/50' : 'border-muted'
+                  }`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={item.status === 'completed'}
+                          onCheckedChange={(checked) => handleStatusChange(item.id, checked as boolean)}
+                          className="mt-1"
+                        />
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <h4 className={`font-semibold ${item.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                                {item.title}
+                              </h4>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {item.description}
+                              </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {isOverdue(item.due_date, item.status) && (
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                              )}
+                              <Badge variant="outline" className={`text-xs ${getPriorityColor(item.priority)}`}>
+                                {item.priority}
+                              </Badge>
+                              <Badge variant="outline" className={`text-xs ${getStatusColor(item.status)}`}>
+                                {item.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
                           </div>
                           
-                          <div className="flex items-center gap-2">
-                            {isOverdue(item.dueDate) && (
-                              <AlertTriangle className="h-4 w-4 text-red-600" />
-                            )}
-                            <Badge variant="outline" className={`text-xs ${getPriorityColor(item.priority)}`}>
-                              {item.priority}
-                            </Badge>
-                            <Badge variant="outline" className={`text-xs ${getStatusColor(item.status)}`}>
-                              {item.status.replace('-', ' ')}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>{item.assignee}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span className={isOverdue(item.dueDate) ? 'text-red-600 font-medium' : ''}>
-                              Due: {new Date(item.dueDate).toLocaleDateString()}
-                            </span>
+                          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              <span>{item.assigned_to || 'Unassigned'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span className={isOverdue(item.due_date, item.status) ? 'text-red-600 font-medium' : ''}>
+                                Due: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
     </div>
   );
 };
