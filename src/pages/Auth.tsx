@@ -14,7 +14,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const { user, signIn, signUp } = useAuth();
+  const { user, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
@@ -45,6 +45,15 @@ const Auth = () => {
     
     setIsLoading(false);
   };
+
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
