@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
     // Sync Items (Products/Services)
     console.log('Syncing items from QBO')
-    const itemsResponse = await fetch(`${baseUrl}/items`, { headers })
+    const itemsResponse = await fetch(`${baseUrl}/item`, { headers })
     if (!itemsResponse.ok) {
       throw new Error(`Failed to fetch items: ${itemsResponse.statusText}`)
     }
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
 
     // Sync Chart of Accounts
     console.log('Syncing accounts from QBO')
-    const accountsResponse = await fetch(`${baseUrl}/accounts`, { headers })
+    const accountsResponse = await fetch(`${baseUrl}/account`, { headers })
     if (!accountsResponse.ok) {
       throw new Error(`Failed to fetch accounts: ${accountsResponse.statusText}`)
     }
