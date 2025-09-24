@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, DollarSign, TrendingUp, TrendingDown, Calculator } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, DollarSign, TrendingUp, TrendingDown, Calculator, Building2 } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { QBOFinancialData } from '@/components/integrations/QBOFinancialData';
 
 import React from 'react';
 
@@ -174,12 +176,35 @@ export const FinancialPlanning = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-semibold">Financial Planning & Budget</h3>
+          <h3 className="text-xl font-semibold">Financial Planning</h3>
           <p className="text-sm text-muted-foreground">
-            Plan your annual budget with monthly breakdown
+            View your QuickBooks Online data and manage your budget planning
           </p>
         </div>
-        <div className="flex items-center gap-4">
+      </div>
+
+      {/* Financial Data Tabs */}
+      <Tabs defaultValue="qbo-data" className="w-full">
+        <TabsList>
+          <TabsTrigger value="qbo-data">QuickBooks Online Data</TabsTrigger>
+          <TabsTrigger value="budget-planning">Budget Planning</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="qbo-data">
+          <QBOFinancialData />
+        </TabsContent>
+        
+        <TabsContent value="budget-planning">
+          <div className="space-y-6">
+            {/* Budget Planning Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h4 className="text-lg font-semibold">Budget Planning</h4>
+                <p className="text-sm text-muted-foreground">
+                  Plan your annual budget with monthly breakdown
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
           <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -258,10 +283,10 @@ export const FinancialPlanning = () => {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      {/* Summary Cards */}
+            {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -391,9 +416,12 @@ export const FinancialPlanning = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
+          </CardContent>
+        </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
