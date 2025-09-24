@@ -87,8 +87,12 @@ Deno.serve(async (req) => {
 
     const itemsData = await itemsResponse.json()
     const items: QBOItem[] = itemsData.QueryResponse?.Item || []
+    
+    console.log('QBO Items Response:', JSON.stringify(itemsData, null, 2))
+    console.log(`Found ${items.length} items from QBO`)
 
     for (const item of items) {
+      console.log(`Syncing item: ${item.Name} (ID: ${item.Id})`)
       const { error } = await supabase
         .from('products')
         .upsert({
@@ -106,6 +110,8 @@ Deno.serve(async (req) => {
 
       if (error) {
         console.error(`Error syncing item ${item.Name}:`, error)
+      } else {
+        console.log(`Successfully synced item: ${item.Name}`)
       }
     }
 
@@ -118,8 +124,12 @@ Deno.serve(async (req) => {
 
     const accountsData = await accountsResponse.json()
     const accounts: QBOAccount[] = accountsData.QueryResponse?.Account || []
+    
+    console.log('QBO Accounts Response:', JSON.stringify(accountsData, null, 2))
+    console.log(`Found ${accounts.length} accounts from QBO`)
 
     for (const account of accounts) {
+      console.log(`Syncing account: ${account.Name} (ID: ${account.Id})`)
       const { error } = await supabase
         .from('chart_of_accounts')
         .upsert({
@@ -136,6 +146,8 @@ Deno.serve(async (req) => {
 
       if (error) {
         console.error(`Error syncing account ${account.Name}:`, error)
+      } else {
+        console.log(`Successfully synced account: ${account.Name}`)
       }
     }
 
