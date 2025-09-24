@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -43,9 +44,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else {
           setHasBetaAccess(false);
           setIsAdmin(false);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -66,21 +66,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const checkUserPermissions = async (userId: string) => {
     try {
+      console.log('Checking permissions for user:', userId);
+      
       // Check beta access
-      const { data: betaData } = await supabase.rpc('has_beta_access', {
+      const { data: betaData, error: betaError } = await supabase.rpc('has_beta_access', {
         user_id: userId
       });
+      console.log('Beta access result:', betaData, 'Error:', betaError);
       setHasBetaAccess(betaData || false);
 
       // Check admin status
-      const { data: adminData } = await supabase.rpc('is_admin', {
+      const { data: adminData, error: adminError } = await supabase.rpc('is_admin', {
         user_id: userId
       });
+      console.log('Admin status result:', adminData, 'Error:', adminError);
       setIsAdmin(adminData || false);
     } catch (error) {
       console.error('Error checking user permissions:', error);
       setHasBetaAccess(false);
       setIsAdmin(false);
+    } finally {
+      setLoading(false);
     }
   };
 
