@@ -56,6 +56,111 @@ export type Database = {
         }
         Relationships: []
       }
+      ar_tracker: {
+        Row: {
+          balance_due: number
+          client_name: string
+          company_id: string
+          created_at: string
+          days_outstanding: number | null
+          due_date: string
+          id: string
+          invoice_amount: number
+          invoice_date: string
+          invoice_number: string
+          notes: string | null
+          paid_amount: number | null
+          payment_terms: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          balance_due: number
+          client_name: string
+          company_id: string
+          created_at?: string
+          days_outstanding?: number | null
+          due_date: string
+          id?: string
+          invoice_amount: number
+          invoice_date: string
+          invoice_number: string
+          notes?: string | null
+          paid_amount?: number | null
+          payment_terms?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          balance_due?: number
+          client_name?: string
+          company_id?: string
+          created_at?: string
+          days_outstanding?: number | null
+          due_date?: string
+          id?: string
+          invoice_amount?: number
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_amount?: number | null
+          payment_terms?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budget_plans: {
+        Row: {
+          account_name: string
+          actual_amount: number | null
+          budget_type: string
+          budgeted_amount: number | null
+          category: string
+          company_id: string
+          created_at: string
+          id: string
+          month_number: number
+          subcategory: string | null
+          updated_at: string
+          variance_amount: number | null
+          variance_percent: number | null
+          year: number
+        }
+        Insert: {
+          account_name: string
+          actual_amount?: number | null
+          budget_type?: string
+          budgeted_amount?: number | null
+          category: string
+          company_id: string
+          created_at?: string
+          id?: string
+          month_number: number
+          subcategory?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          variance_percent?: number | null
+          year: number
+        }
+        Update: {
+          account_name?: string
+          actual_amount?: number | null
+          budget_type?: string
+          budgeted_amount?: number | null
+          category?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          month_number?: number
+          subcategory?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          variance_percent?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
       cash_flow_projections: {
         Row: {
           actual_amount: number | null
@@ -179,6 +284,225 @@ export type Database = {
         }
         Relationships: []
       }
+      habits_tracker: {
+        Row: {
+          company_id: string
+          completed: boolean | null
+          created_at: string
+          date_tracked: string
+          habit_category: string | null
+          habit_name: string
+          id: string
+          notes: string | null
+          streak_count: number | null
+          target_frequency: string | null
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          company_id: string
+          completed?: boolean | null
+          created_at?: string
+          date_tracked: string
+          habit_category?: string | null
+          habit_name: string
+          id?: string
+          notes?: string | null
+          streak_count?: number | null
+          target_frequency?: string | null
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          company_id?: string
+          completed?: boolean | null
+          created_at?: string
+          date_tracked?: string
+          habit_category?: string | null
+          habit_name?: string
+          id?: string
+          notes?: string | null
+          streak_count?: number | null
+          target_frequency?: string | null
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      implementation_plan: {
+        Row: {
+          actual_completion_date: string | null
+          actual_start_date: string | null
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          initiative_name: string
+          notes: string | null
+          planned_completion_date: string | null
+          planned_start_date: string | null
+          priority: string | null
+          progress_percentage: number | null
+          responsible_person: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_completion_date?: string | null
+          actual_start_date?: string | null
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          initiative_name: string
+          notes?: string | null
+          planned_completion_date?: string | null
+          planned_start_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
+          responsible_person?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_completion_date?: string | null
+          actual_start_date?: string | null
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          initiative_name?: string
+          notes?: string | null
+          planned_completion_date?: string | null
+          planned_start_date?: string | null
+          priority?: string | null
+          progress_percentage?: number | null
+          responsible_person?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      income_statements: {
+        Row: {
+          budget_amount: number | null
+          category: string
+          company_id: string
+          created_at: string
+          current_month: number | null
+          id: string
+          line_item: string
+          month_number: number
+          statement_type: string
+          subcategory: string | null
+          updated_at: string
+          variance_amount: number | null
+          year: number
+          year_to_date: number | null
+        }
+        Insert: {
+          budget_amount?: number | null
+          category: string
+          company_id: string
+          created_at?: string
+          current_month?: number | null
+          id?: string
+          line_item: string
+          month_number: number
+          statement_type?: string
+          subcategory?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          year: number
+          year_to_date?: number | null
+        }
+        Update: {
+          budget_amount?: number | null
+          category?: string
+          company_id?: string
+          created_at?: string
+          current_month?: number | null
+          id?: string
+          line_item?: string
+          month_number?: number
+          statement_type?: string
+          subcategory?: string | null
+          updated_at?: string
+          variance_amount?: number | null
+          year?: number
+          year_to_date?: number | null
+        }
+        Relationships: []
+      }
+      job_planner: {
+        Row: {
+          actual_completion_date: string | null
+          actual_cost: number | null
+          actual_hours: number | null
+          actual_start_date: string | null
+          client_name: string | null
+          company_id: string
+          created_at: string
+          estimated_cost: number | null
+          estimated_hours: number | null
+          hourly_rate: number | null
+          id: string
+          job_name: string
+          job_type: string | null
+          notes: string | null
+          planned_completion_date: string | null
+          planned_start_date: string | null
+          profitability: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_completion_date?: string | null
+          actual_cost?: number | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          client_name?: string | null
+          company_id: string
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          hourly_rate?: number | null
+          id?: string
+          job_name: string
+          job_type?: string | null
+          notes?: string | null
+          planned_completion_date?: string | null
+          planned_start_date?: string | null
+          profitability?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_completion_date?: string | null
+          actual_cost?: number | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          client_name?: string | null
+          company_id?: string
+          created_at?: string
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          hourly_rate?: number | null
+          id?: string
+          job_name?: string
+          job_type?: string | null
+          notes?: string | null
+          planned_completion_date?: string | null
+          planned_start_date?: string | null
+          profitability?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kpis: {
         Row: {
           company_id: string
@@ -221,6 +545,51 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_funnel: {
+        Row: {
+          average_value: number | null
+          company_id: string
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          leads_count: number | null
+          month_number: number
+          notes: string | null
+          stage_name: string
+          stage_order: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          average_value?: number | null
+          company_id: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          leads_count?: number | null
+          month_number: number
+          notes?: string | null
+          stage_name: string
+          stage_order: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          average_value?: number | null
+          company_id?: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          leads_count?: number | null
+          month_number?: number
+          notes?: string | null
+          stage_name?: string
+          stage_order?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       market_analysis: {
         Row: {
           analysis_type: string
@@ -259,6 +628,108 @@ export type Database = {
           id?: string
           source?: string | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing_plan: {
+        Row: {
+          actual_leads: number | null
+          actual_spend: number | null
+          campaign_end_date: string | null
+          campaign_name: string
+          campaign_start_date: string | null
+          company_id: string
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          marketing_channel: string
+          notes: string | null
+          planned_budget: number | null
+          planned_leads: number | null
+          roi: number | null
+          status: string | null
+          target_audience: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_leads?: number | null
+          actual_spend?: number | null
+          campaign_end_date?: string | null
+          campaign_name: string
+          campaign_start_date?: string | null
+          company_id: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          marketing_channel: string
+          notes?: string | null
+          planned_budget?: number | null
+          planned_leads?: number | null
+          roi?: number | null
+          status?: string | null
+          target_audience?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_leads?: number | null
+          actual_spend?: number | null
+          campaign_end_date?: string | null
+          campaign_name?: string
+          campaign_start_date?: string | null
+          company_id?: string
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          marketing_channel?: string
+          notes?: string | null
+          planned_budget?: number | null
+          planned_leads?: number | null
+          roi?: number | null
+          status?: string | null
+          target_audience?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mbp_config: {
+        Row: {
+          budget_type: string | null
+          company_id: string
+          created_at: string
+          file_type: string | null
+          fiscal_year: number
+          fiscal_year_start: string
+          id: string
+          insurance_inclusion: string | null
+          planning_fiscal_year: string | null
+          tracking_period: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget_type?: string | null
+          company_id: string
+          created_at?: string
+          file_type?: string | null
+          fiscal_year?: number
+          fiscal_year_start?: string
+          id?: string
+          insurance_inclusion?: string | null
+          planning_fiscal_year?: string | null
+          tracking_period?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget_type?: string | null
+          company_id?: string
+          created_at?: string
+          file_type?: string | null
+          fiscal_year?: number
+          fiscal_year_start?: string
+          id?: string
+          insurance_inclusion?: string | null
+          planning_fiscal_year?: string | null
+          tracking_period?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -377,6 +848,111 @@ export type Database = {
           revenue_target?: number | null
           review_month?: number
           review_year?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organizational_structure: {
+        Row: {
+          company_id: string
+          created_at: string
+          department: string | null
+          employee_name: string | null
+          employment_type: string | null
+          id: string
+          position_title: string
+          reports_to_position: string | null
+          required_skills: string | null
+          responsibilities: string | null
+          salary_range: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          department?: string | null
+          employee_name?: string | null
+          employment_type?: string | null
+          id?: string
+          position_title: string
+          reports_to_position?: string | null
+          required_skills?: string | null
+          responsibilities?: string | null
+          salary_range?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          department?: string | null
+          employee_name?: string | null
+          employment_type?: string | null
+          id?: string
+          position_title?: string
+          reports_to_position?: string | null
+          required_skills?: string | null
+          responsibilities?: string | null
+          salary_range?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      production_planning: {
+        Row: {
+          actual_cost: number | null
+          actual_end_date: string | null
+          actual_hours: number | null
+          actual_start_date: string | null
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          planned_cost: number | null
+          planned_end_date: string | null
+          planned_hours: number | null
+          planned_start_date: string | null
+          production_type: string
+          project_name: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          actual_end_date?: string | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          planned_cost?: number | null
+          planned_end_date?: string | null
+          planned_hours?: number | null
+          planned_start_date?: string | null
+          production_type: string
+          project_name: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_cost?: number | null
+          actual_end_date?: string | null
+          actual_hours?: number | null
+          actual_start_date?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          planned_cost?: number | null
+          planned_end_date?: string | null
+          planned_hours?: number | null
+          planned_start_date?: string | null
+          production_type?: string
+          project_name?: string
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -539,6 +1115,150 @@ export type Database = {
         }
         Relationships: []
       }
+      revenue_produced: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_total_production: boolean | null
+          month_number: number | null
+          produced_revenue: number | null
+          production_name: string
+          production_type: string
+          target_revenue: number | null
+          updated_at: string
+          variance_revenue: number | null
+          week_number: number | null
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_total_production?: boolean | null
+          month_number?: number | null
+          produced_revenue?: number | null
+          production_name: string
+          production_type: string
+          target_revenue?: number | null
+          updated_at?: string
+          variance_revenue?: number | null
+          week_number?: number | null
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_total_production?: boolean | null
+          month_number?: number | null
+          produced_revenue?: number | null
+          production_name?: string
+          production_type?: string
+          target_revenue?: number | null
+          updated_at?: string
+          variance_revenue?: number | null
+          week_number?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
+      sales_pipeline: {
+        Row: {
+          actual_close_date: string | null
+          client_name: string | null
+          company_id: string
+          created_at: string
+          estimated_close_date: string | null
+          estimated_value: number | null
+          id: string
+          opportunity_name: string
+          probability: number | null
+          stage: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_close_date?: string | null
+          client_name?: string | null
+          company_id: string
+          created_at?: string
+          estimated_close_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          opportunity_name: string
+          probability?: number | null
+          stage: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_close_date?: string | null
+          client_name?: string | null
+          company_id?: string
+          created_at?: string
+          estimated_close_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          opportunity_name?: string
+          probability?: number | null
+          stage?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sales_plans: {
+        Row: {
+          actual_revenue: number | null
+          company_id: string
+          created_at: string
+          id: string
+          is_total_plan: boolean | null
+          month_number: number | null
+          notes: string | null
+          plan_name: string
+          plan_type: string
+          planned_revenue: number | null
+          updated_at: string
+          variance_revenue: number | null
+          week_number: number | null
+          year: number
+        }
+        Insert: {
+          actual_revenue?: number | null
+          company_id: string
+          created_at?: string
+          id?: string
+          is_total_plan?: boolean | null
+          month_number?: number | null
+          notes?: string | null
+          plan_name: string
+          plan_type: string
+          planned_revenue?: number | null
+          updated_at?: string
+          variance_revenue?: number | null
+          week_number?: number | null
+          year: number
+        }
+        Update: {
+          actual_revenue?: number | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_total_plan?: boolean | null
+          month_number?: number | null
+          notes?: string | null
+          plan_name?: string
+          plan_type?: string
+          planned_revenue?: number | null
+          updated_at?: string
+          variance_revenue?: number | null
+          week_number?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
       strategic_objectives: {
         Row: {
           company_id: string
@@ -679,6 +1399,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      victories_wins: {
+        Row: {
+          category: string | null
+          company_id: string
+          created_at: string
+          date_achieved: string
+          description: string | null
+          id: string
+          impact_level: string | null
+          lessons_learned: string | null
+          team_members: string | null
+          updated_at: string
+          victory_title: string
+        }
+        Insert: {
+          category?: string | null
+          company_id: string
+          created_at?: string
+          date_achieved: string
+          description?: string | null
+          id?: string
+          impact_level?: string | null
+          lessons_learned?: string | null
+          team_members?: string | null
+          updated_at?: string
+          victory_title: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          date_achieved?: string
+          description?: string | null
+          id?: string
+          impact_level?: string | null
+          lessons_learned?: string | null
+          team_members?: string | null
+          updated_at?: string
+          victory_title?: string
+        }
+        Relationships: []
       }
     }
     Views: {
