@@ -1007,30 +1007,45 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          beta_access_status: string | null
+          beta_approved_at: string | null
+          beta_approved_by: string | null
+          beta_requested_at: string | null
           company_name: string | null
           created_at: string
           display_name: string | null
           id: string
           updated_at: string
           user_id: string
+          user_role: Database["public"]["Enums"]["app_role"] | null
         }
         Insert: {
           avatar_url?: string | null
+          beta_access_status?: string | null
+          beta_approved_at?: string | null
+          beta_approved_by?: string | null
+          beta_requested_at?: string | null
           company_name?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
           updated_at?: string
           user_id: string
+          user_role?: Database["public"]["Enums"]["app_role"] | null
         }
         Update: {
           avatar_url?: string | null
+          beta_access_status?: string | null
+          beta_approved_at?: string | null
+          beta_approved_by?: string | null
+          beta_requested_at?: string | null
           company_name?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
           updated_at?: string
           user_id?: string
+          user_role?: Database["public"]["Enums"]["app_role"] | null
         }
         Relationships: []
       }
@@ -1609,6 +1624,14 @@ export type Database = {
           token_expires_at: string
         }[]
       }
+      has_beta_access: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
       store_qbo_connection: {
         Args: {
           p_access_token: string
@@ -1638,7 +1661,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1765,6 +1788,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
