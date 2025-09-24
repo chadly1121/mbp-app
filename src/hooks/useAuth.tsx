@@ -81,11 +81,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       console.log('Admin status result:', adminData, 'Error:', adminError);
       setIsAdmin(adminData || false);
+      
+      console.log('Permissions check completed successfully');
     } catch (error) {
       console.error('Error checking user permissions:', error);
       setHasBetaAccess(false);
       setIsAdmin(false);
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
