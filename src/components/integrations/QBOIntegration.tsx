@@ -34,13 +34,11 @@ export const QBOIntegration = () => {
     if (!currentCompany) return;
 
     try {
-      // Check if there's a QBO connection for this company
-      // Since types aren't updated yet, we'll handle this gracefully
-      const { data, error } = await (supabase as any)
-        .from('qbo_connections')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .eq('is_active', true)
+      // Use secure function to check connection status (no sensitive data exposed)
+      const { data, error } = await supabase
+        .rpc('get_qbo_connection_status', {
+          p_company_id: currentCompany.id
+        })
         .maybeSingle();
 
       if (error) {

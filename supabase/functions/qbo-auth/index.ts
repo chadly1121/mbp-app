@@ -100,22 +100,18 @@ Deno.serve(async (req) => {
       const tokenData = await tokenResponse.json()
       console.log('Token exchange successful')
 
-      // Store QBO credentials in database (create table if needed)
-      const { error: upsertError } = await supabase
-        .from('qbo_connections')
-        .upsert({
-          company_id: companyId,
-          user_id: user.id,
-          qbo_company_id: realmId,
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          is_active: true,
-          last_sync_at: null
+      // Store QBO credentials securely using security definer function
+      const { data: connectionId, error: storeError } = await supabase
+        .rpc('store_qbo_connection', {
+          p_company_id: companyId,
+          p_qbo_company_id: realmId,
+          p_access_token: tokenData.access_token,
+          p_refresh_token: tokenData.refresh_token,
+          p_token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
         })
 
-      if (upsertError) {
-        console.error('Database upsert error:', upsertError)
+      if (storeError) {
+        console.error('Database store error:', storeError)
         throw new Error('Failed to save connection')
       }
 

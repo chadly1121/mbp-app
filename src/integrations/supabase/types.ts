@@ -1531,6 +1531,48 @@ export type Database = {
         Args: { company_id_param: string }
         Returns: undefined
       }
+      get_qbo_connection_status: {
+        Args: { p_company_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string
+          token_expires_at: string
+        }[]
+      }
+      get_qbo_tokens: {
+        Args: { p_company_id: string }
+        Returns: {
+          access_token: string
+          qbo_company_id: string
+          refresh_token: string
+          token_expires_at: string
+        }[]
+      }
+      store_qbo_connection: {
+        Args: {
+          p_access_token: string
+          p_company_id: string
+          p_qbo_company_id: string
+          p_refresh_token: string
+          p_token_expires_at: string
+        }
+        Returns: string
+      }
+      update_qbo_last_sync: {
+        Args: { p_company_id: string }
+        Returns: undefined
+      }
+      update_qbo_tokens: {
+        Args: {
+          p_access_token: string
+          p_company_id: string
+          p_refresh_token: string
+          p_token_expires_at: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -22,6 +22,21 @@ interface QBOAccount {
   Active: boolean
 }
 
+interface QBOTokens {
+  access_token: string
+  refresh_token: string
+  token_expires_at: string
+  qbo_company_id: string
+}
+
+interface QBOConnectionStatus {
+  id: string
+  is_active: boolean
+  last_sync_at: string | null
+  token_expires_at: string
+  created_at: string
+}
+
 interface QBOProfitLossRow {
   group?: string
   ColData: Array<{
@@ -67,29 +82,42 @@ Deno.serve(async (req) => {
       throw new Error('Company ID is required')
     }
 
-    // Get QBO connection details
-    const { data: connection, error: connectionError } = await supabase
-      .from('qbo_connections')
-      .select('*')
-      .eq('company_id', companyId)
-      .eq('user_id', user.id)
-      .eq('is_active', true)
+    // Get QBO connection tokens securely
+    const { data: tokenDataRaw, error: tokenError } = await supabase
+      .rpc('get_qbo_tokens', {
+        p_company_id: companyId
+      })
       .single()
 
-    if (connectionError || !connection) {
+    if (tokenError || !tokenDataRaw) {
       throw new Error('No active QBO connection found')
     }
+
+    const tokenData = tokenDataRaw as QBOTokens
+
+    // Get connection status (non-sensitive data)
+    const { data: connectionStatusRaw, error: statusError } = await supabase
+      .rpc('get_qbo_connection_status', {
+        p_company_id: companyId
+      })
+      .single()
+
+    if (statusError || !connectionStatusRaw) {
+      throw new Error('No QBO connection status found')
+    }
+
+    const connectionStatus = connectionStatusRaw as QBOConnectionStatus
 
     console.log('Starting QBO sync for company:', companyId)
 
     // Check if token needs refresh
-    let accessToken = connection.access_token
-    if (new Date(connection.token_expires_at) <= new Date()) {
+    let accessToken = tokenData.access_token
+    if (new Date(tokenData.token_expires_at) <= new Date()) {
       console.log('Refreshing expired token')
-      accessToken = await refreshToken(supabase, connection)
+      accessToken = await refreshToken(supabase, companyId, tokenData.refresh_token)
     }
 
-    const baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${connection.qbo_company_id}`
+    const baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.qbo_company_id}`
     const headers = {
       'Authorization': `Bearer ${accessToken}`,
       'Accept': 'application/json'
@@ -473,11 +501,11 @@ Deno.serve(async (req) => {
       console.log('Sample P&L data created')
     }
 
-    // Update last sync time
+    // Update last sync time using secure function
     await supabase
-      .from('qbo_connections')
-      .update({ last_sync_at: new Date().toISOString() })
-      .eq('id', connection.id)
+      .rpc('update_qbo_last_sync', {
+        p_company_id: companyId
+      })
 
     console.log('QBO sync completed successfully')
 
@@ -505,7 +533,7 @@ Deno.serve(async (req) => {
   }
 })
 
-async function refreshToken(supabase: any, connection: any): Promise<string> {
+async function refreshToken(supabase: any, companyId: string, refreshToken: string): Promise<string> {
   const clientId = Deno.env.get('QBO_CLIENT_ID')
   const clientSecret = Deno.env.get('QBO_CLIENT_SECRET')
 
@@ -518,7 +546,7 @@ async function refreshToken(supabase: any, connection: any): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: connection.refresh_token
+      refresh_token: refreshToken
     })
   })
 
@@ -528,15 +556,14 @@ async function refreshToken(supabase: any, connection: any): Promise<string> {
 
   const data = await response.json()
 
-  // Update stored tokens
+  // Update stored tokens using secure function
   await supabase
-    .from('qbo_connections')
-    .update({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token || connection.refresh_token,
-      token_expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString()
+    .rpc('update_qbo_tokens', {
+      p_company_id: companyId,
+      p_access_token: data.access_token,
+      p_refresh_token: data.refresh_token || refreshToken,
+      p_token_expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString()
     })
-    .eq('id', connection.id)
 
   return data.access_token
 }
