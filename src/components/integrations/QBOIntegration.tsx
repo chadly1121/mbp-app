@@ -147,7 +147,8 @@ export const QBOIntegration = () => {
 
     try {
       // Use secure function to update connection status instead of direct table access
-      const { error } = await supabase.rpc('update_qbo_connection_status', {
+      // Type assertion needed until Supabase types are regenerated
+      const { error } = await (supabase as any).rpc('update_qbo_connection_status', {
         p_company_id: currentCompany.id,
         p_is_active: false
       });

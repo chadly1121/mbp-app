@@ -1562,6 +1562,10 @@ export type Database = {
         }
         Returns: string
       }
+      update_qbo_connection_status: {
+        Args: { p_company_id: string; p_is_active: boolean }
+        Returns: undefined
+      }
       update_qbo_last_sync: {
         Args: { p_company_id: string }
         Returns: undefined
