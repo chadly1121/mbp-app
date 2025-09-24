@@ -18,6 +18,8 @@ import { MarketingPlan } from "./tabs/MarketingPlan";
 import { ARTracker } from "./tabs/ARTracker";
 import { OrganizationalStructure } from "./tabs/OrganizationalStructure";
 import { HabitsTracker } from "./tabs/HabitsTracker";
+import { VictoriesWins } from "./tabs/VictoriesWins";
+import { ImplementationPlan } from "./tabs/ImplementationPlan";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -32,7 +34,9 @@ import {
   Megaphone,
   CreditCard,
   Building,
-  Activity
+  Activity,
+  Trophy,
+  Rocket
 } from "lucide-react";
 
 export const MBPTabs = () => {
@@ -134,6 +138,18 @@ export const MBPTabs = () => {
       label: "Habits Tracker",
       icon: Activity,
       shortLabel: "Habits"
+    },
+    {
+      id: "victories",
+      label: "Victories & Wins",
+      icon: Trophy,
+      shortLabel: "Victories"
+    },
+    {
+      id: "implementation",
+      label: "Implementation",
+      icon: Rocket,
+      shortLabel: "Implement"
     }
   ];
 
@@ -228,6 +244,14 @@ export const MBPTabs = () => {
           
           <TabsContent value="habits" className="mt-0">
             <HabitsTracker />
+          </TabsContent>
+          
+          <TabsContent value="victories" className="mt-0">
+            <VictoriesWins />
+          </TabsContent>
+          
+          <TabsContent value="implementation" className="mt-0">
+            <ImplementationPlan />
           </TabsContent>
         </div>
       </Tabs>

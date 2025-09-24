@@ -57,51 +57,96 @@ export const FinancialPlanning = () => {
   }, [currentCompany, selectedYear]);
 
   const loadBudgetData = async () => {
-    // This would load from your budget table
-    // For now, showing mock data structure
-    const mockData: BudgetLine[] = [
-      {
-        id: '1',
-        category: 'Revenue',
-        subcategory: 'Product Sales',
-        jan: 50000, feb: 52000, mar: 55000, apr: 58000, may: 60000, jun: 62000,
-        jul: 65000, aug: 67000, sep: 70000, oct: 72000, nov: 75000, dec: 80000,
-        total: 766000
-      },
-      {
-        id: '2',
-        category: 'Operating Expenses',
-        subcategory: 'Office Rent',
-        jan: 5000, feb: 5000, mar: 5000, apr: 5000, may: 5000, jun: 5000,
-        jul: 5000, aug: 5000, sep: 5000, oct: 5000, nov: 5000, dec: 5000,
-        total: 60000
-      }
-    ];
-    setBudgetLines(mockData);
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('budget_plans')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('year', selectedYear)
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+
+      // Group by category and subcategory, then create annual lines
+      const groupedData = (data || []).reduce((acc: any, item: any) => {
+        const key = `${item.category}-${item.subcategory || item.account_name}`;
+        if (!acc[key]) {
+          acc[key] = {
+            id: key,
+            category: item.category,
+            subcategory: item.subcategory || item.account_name,
+            jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+            jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0,
+            total: 0
+          };
+        }
+        
+        // Map month number to month name
+        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        const monthKey = monthNames[item.month_number - 1];
+        acc[key][monthKey] = item.budgeted_amount;
+        acc[key].total += item.budgeted_amount;
+        
+        return acc;
+      }, {});
+
+      setBudgetLines(Object.values(groupedData));
+    } catch (error: any) {
+      toast({
+        title: "Error loading budget data",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleAddBudgetLine = () => {
-    const total = Object.values(monthlyValues).reduce((sum, val) => sum + val, 0);
-    const newLine: BudgetLine = {
-      id: Date.now().toString(),
-      category,
-      subcategory,
-      ...monthlyValues,
-      total
-    };
-    setBudgetLines([...budgetLines, newLine]);
-    setIsAddingLine(false);
-    setCategory('');
-    setSubcategory('');
-    setMonthlyValues({
-      jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
-      jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
-    });
-    
-    toast({
-      title: "Budget line added",
-      description: `${category} - ${subcategory} has been added to your budget.`
-    });
+  const handleAddBudgetLine = async () => {
+    if (!currentCompany) return;
+
+    try {
+      // Create budget entries for each month
+      const budgetEntries = Object.entries(monthlyValues).map(([month, amount], index) => ({
+        company_id: currentCompany.id,
+        category,
+        subcategory,
+        account_name: subcategory,
+        year: selectedYear,
+        month_number: index + 1,
+        budgeted_amount: amount,
+        actual_amount: 0,
+        variance_amount: -amount,
+        variance_percent: amount > 0 ? -100 : 0
+      }));
+
+      const { error } = await supabase
+        .from('budget_plans')
+        .insert(budgetEntries);
+
+      if (error) throw error;
+
+      toast({
+        title: "Budget line added",
+        description: `${category} - ${subcategory} has been added to your budget.`
+      });
+
+      setIsAddingLine(false);
+      setCategory('');
+      setSubcategory('');
+      setMonthlyValues({
+        jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+        jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
+      });
+      
+      loadBudgetData();
+    } catch (error: any) {
+      toast({
+        title: "Error adding budget line",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const calculateCategoryTotals = (cat: string) => {

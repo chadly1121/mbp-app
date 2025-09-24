@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, TrendingUp, TrendingDown, Target, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Target, CheckCircle, AlertTriangle, Plus } from 'lucide-react';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface MonthlyMetric {
   name: string;
@@ -21,9 +28,83 @@ interface MonthlyHighlight {
   description: string;
 }
 
+interface MonthlyReviewData {
+  id: string;
+  review_month: number;
+  review_year: number;
+  revenue_actual: number;
+  revenue_target: number;
+  expenses_actual: number;
+  expenses_target: number;
+  key_achievements?: string;
+  challenges_faced?: string;
+  lessons_learned?: string;
+  next_month_focus?: string;
+}
+
 export const MonthlyReview = () => {
-  const [selectedMonth, setSelectedMonth] = useState('2024-01');
-  const [selectedYear, setSelectedYear] = useState('2024');
+  const { currentCompany } = useCompany();
+  const { toast } = useToast();
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [reviewData, setReviewData] = useState<MonthlyReviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const [editData, setEditData] = useState({
+    revenue_actual: 0,
+    revenue_target: 0,
+    expenses_actual: 0,
+    expenses_target: 0,
+    key_achievements: '',
+    challenges_faced: '',
+    lessons_learned: '',
+    next_month_focus: ''
+  });
+
+  useEffect(() => {
+    if (currentCompany) {
+      fetchMonthlyReview();
+    }
+  }, [currentCompany, selectedMonth, selectedYear]);
+
+  const fetchMonthlyReview = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('monthly_reviews')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('review_month', selectedMonth)
+        .eq('review_year', selectedYear)
+        .maybeSingle();
+
+      if (error) throw error;
+      setReviewData(data);
+      
+      if (data) {
+        setEditData({
+          revenue_actual: data.revenue_actual || 0,
+          revenue_target: data.revenue_target || 0,
+          expenses_actual: data.expenses_actual || 0,
+          expenses_target: data.expenses_target || 0,
+          key_achievements: data.key_achievements || '',
+          challenges_faced: data.challenges_faced || '',
+          lessons_learned: data.lessons_learned || '',
+          next_month_focus: data.next_month_focus || ''
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error loading monthly review",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Mock data for monthly review
   const monthlyMetrics: MonthlyMetric[] = [
@@ -162,10 +243,10 @@ export const MonthlyReview = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <Select value={`${selectedYear}-${selectedMonth.split('-')[1]}`} onValueChange={(value) => {
+          <Select value={`${selectedYear}-${selectedMonth.toString().padStart(2, '0')}`} onValueChange={(value) => {
             const [year, month] = value.split('-');
-            setSelectedYear(year);
-            setSelectedMonth(value);
+            setSelectedYear(parseInt(year));
+            setSelectedMonth(parseInt(month));
           }}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -177,6 +258,18 @@ export const MonthlyReview = () => {
               <SelectItem value="2024-04">April 2024</SelectItem>
               <SelectItem value="2024-05">May 2024</SelectItem>
               <SelectItem value="2024-06">June 2024</SelectItem>
+              <SelectItem value="2024-07">July 2024</SelectItem>
+              <SelectItem value="2024-08">August 2024</SelectItem>
+              <SelectItem value="2024-09">September 2024</SelectItem>
+              <SelectItem value="2024-10">October 2024</SelectItem>
+              <SelectItem value="2024-11">November 2024</SelectItem>
+              <SelectItem value="2024-12">December 2024</SelectItem>
+              <SelectItem value="2025-01">January 2025</SelectItem>
+              <SelectItem value="2025-02">February 2025</SelectItem>
+              <SelectItem value="2025-03">March 2025</SelectItem>
+              <SelectItem value="2025-04">April 2025</SelectItem>
+              <SelectItem value="2025-05">May 2025</SelectItem>
+              <SelectItem value="2025-06">June 2025</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">
@@ -226,7 +319,7 @@ export const MonthlyReview = () => {
         <CardHeader>
           <CardTitle>Key Performance Metrics</CardTitle>
           <CardDescription>
-            Actual vs target performance for {new Date(selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            Actual vs target performance for {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </CardDescription>
         </CardHeader>
         <CardContent>

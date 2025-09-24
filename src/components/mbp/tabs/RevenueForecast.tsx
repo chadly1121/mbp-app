@@ -69,57 +69,110 @@ export const RevenueForecast = () => {
   };
 
   const loadForecastData = async () => {
-    // Mock data for now - would load from revenue forecast table
-    const mockData: RevenueForecastLine[] = [
-      {
-        id: '1',
-        product: 'Product A',
-        unitPrice: 199.99,
-        jan: 100, feb: 110, mar: 120, apr: 130, may: 140, jun: 150,
-        jul: 160, aug: 170, sep: 180, oct: 190, nov: 200, dec: 210,
-        totalUnits: 1860,
-        totalRevenue: 371980.4
-      },
-      {
-        id: '2',
-        product: 'Service B',
-        unitPrice: 49.99,
-        jan: 50, feb: 55, mar: 60, apr: 65, may: 70, jun: 75,
-        jul: 80, aug: 85, sep: 90, oct: 95, nov: 100, dec: 105,
-        totalUnits: 930,
-        totalRevenue: 46490.7
-      }
-    ];
-    setForecastLines(mockData);
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('revenue_forecasts')
+        .select(`
+          *,
+          products (name, unit_price)
+        `)
+        .eq('company_id', currentCompany.id)
+        .eq('year', selectedYear)
+        .order('product_id', { ascending: true });
+
+      if (error) throw error;
+
+      // Group by product and create annual lines
+      const groupedData = (data || []).reduce((acc: any, item: any) => {
+        const productName = item.products?.name || `Product ${item.product_id}`;
+        const productPrice = item.products?.unit_price || 0;
+        
+        if (!acc[productName]) {
+          acc[productName] = {
+            id: productName,
+            product: productName,
+            unitPrice: productPrice,
+            jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+            jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0,
+            totalUnits: 0,
+            totalRevenue: 0
+          };
+        }
+        
+        // Map month number to month name and calculate units from forecasted amount
+        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        const monthKey = monthNames[item.month - 1];
+        const units = productPrice > 0 ? Math.round(item.forecasted_amount / productPrice) : 0;
+        
+        acc[productName][monthKey] = units;
+        acc[productName].totalUnits += units;
+        acc[productName].totalRevenue += item.forecasted_amount;
+        
+        return acc;
+      }, {});
+
+      setForecastLines(Object.values(groupedData));
+    } catch (error: any) {
+      toast({
+        title: "Error loading forecast data",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleAddForecastLine = () => {
-    const totalUnits = Object.values(monthlyUnits).reduce((sum, val) => sum + val, 0);
-    const price = parseFloat(unitPrice);
-    const totalRevenue = totalUnits * price;
-    
-    const newLine: RevenueForecastLine = {
-      id: Date.now().toString(),
-      product: selectedProduct,
-      unitPrice: price,
-      ...monthlyUnits,
-      totalUnits,
-      totalRevenue
-    };
-    
-    setForecastLines([...forecastLines, newLine]);
-    setIsAddingLine(false);
-    setSelectedProduct('');
-    setUnitPrice('');
-    setMonthlyUnits({
-      jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
-      jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
-    });
-    
-    toast({
-      title: "Revenue forecast added",
-      description: `${selectedProduct} forecast has been added.`
-    });
+  const handleAddForecastLine = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const price = parseFloat(unitPrice);
+      let productId = null;
+
+      // Find or create product
+      if (selectedProduct !== 'custom') {
+        const product = products.find(p => p.name === selectedProduct);
+        productId = product?.id;
+      }
+
+      // Create forecast entries for each month
+      const forecastEntries = Object.entries(monthlyUnits).map(([month, units], index) => ({
+        company_id: currentCompany.id,
+        product_id: productId,
+        year: selectedYear,
+        month: index + 1,
+        forecasted_amount: units * price,
+        actual_amount: 0
+      }));
+
+      const { error } = await supabase
+        .from('revenue_forecasts')
+        .insert(forecastEntries);
+
+      if (error) throw error;
+
+      toast({
+        title: "Revenue forecast added",
+        description: `${selectedProduct} forecast has been added.`
+      });
+
+      setIsAddingLine(false);
+      setSelectedProduct('');
+      setUnitPrice('');
+      setMonthlyUnits({
+        jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
+        jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0
+      });
+      
+      loadForecastData();
+    } catch (error: any) {
+      toast({
+        title: "Error adding forecast",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const calculateMonthlyTotals = () => {
