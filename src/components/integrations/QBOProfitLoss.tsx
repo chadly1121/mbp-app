@@ -200,9 +200,14 @@ export const QBOProfitLoss = () => {
             </SelectContent>
           </Select>
           
+          <Button variant="outline" onClick={loadPLData} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
           <Button onClick={handleSync} disabled={syncing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync Data'}
+            {syncing ? 'Syncing...' : 'Sync P&L Data'}
           </Button>
         </div>
       </div>
