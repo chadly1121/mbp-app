@@ -143,14 +143,14 @@ export const QBOIntegration = () => {
   };
 
   const handleDisconnect = async () => {
-    if (!connection) return;
+    if (!connection || !currentCompany) return;
 
     try {
-      // Use type assertion for now since types aren't updated yet
-      const { error } = await (supabase as any)
-        .from('qbo_connections')
-        .update({ is_active: false })
-        .eq('id', connection.id);
+      // Use secure function to update connection status instead of direct table access
+      const { error } = await supabase.rpc('update_qbo_connection_status', {
+        p_company_id: currentCompany.id,
+        p_is_active: false
+      });
 
       if (error) throw error;
 
