@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       }
 
       const clientId = Deno.env.get('QBO_CLIENT_ID')
-      const redirectUri = `${url.origin}/qbo-callback`
+      const redirectUri = 'https://8f2c79e4-ad38-4a63-8713-6daa4559b5a1.lovableproject.com/qbo-callback'
       
       const scope = 'com.intuit.quickbooks.accounting'
       const state = `${user.id}:${companyId}`
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       // Exchange code for access token
       const clientId = Deno.env.get('QBO_CLIENT_ID')
       const clientSecret = Deno.env.get('QBO_CLIENT_SECRET')
-      const redirectUri = `${url.origin}/qbo-callback`
+      const redirectUri = 'https://8f2c79e4-ad38-4a63-8713-6daa4559b5a1.lovableproject.com/qbo-callback'
 
       const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
         method: 'POST',
