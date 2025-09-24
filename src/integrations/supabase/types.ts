@@ -1076,6 +1076,86 @@ export type Database = {
         }
         Relationships: []
       }
+      qbo_profit_loss: {
+        Row: {
+          account_id: string | null
+          account_name: string
+          account_type: string
+          budget_current_month: number | null
+          budget_quarter_to_date: number | null
+          budget_year_to_date: number | null
+          company_id: string
+          created_at: string
+          current_month: number | null
+          fiscal_month: number
+          fiscal_quarter: number | null
+          fiscal_year: number
+          id: string
+          qbo_account_id: string | null
+          quarter_to_date: number | null
+          report_date: string
+          updated_at: string
+          variance_current_month: number | null
+          variance_quarter_to_date: number | null
+          variance_year_to_date: number | null
+          year_to_date: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          account_name: string
+          account_type: string
+          budget_current_month?: number | null
+          budget_quarter_to_date?: number | null
+          budget_year_to_date?: number | null
+          company_id: string
+          created_at?: string
+          current_month?: number | null
+          fiscal_month: number
+          fiscal_quarter?: number | null
+          fiscal_year: number
+          id?: string
+          qbo_account_id?: string | null
+          quarter_to_date?: number | null
+          report_date: string
+          updated_at?: string
+          variance_current_month?: number | null
+          variance_quarter_to_date?: number | null
+          variance_year_to_date?: number | null
+          year_to_date?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string
+          account_type?: string
+          budget_current_month?: number | null
+          budget_quarter_to_date?: number | null
+          budget_year_to_date?: number | null
+          company_id?: string
+          created_at?: string
+          current_month?: number | null
+          fiscal_month?: number
+          fiscal_quarter?: number | null
+          fiscal_year?: number
+          id?: string
+          qbo_account_id?: string | null
+          quarter_to_date?: number | null
+          report_date?: string
+          updated_at?: string
+          variance_current_month?: number | null
+          variance_quarter_to_date?: number | null
+          variance_year_to_date?: number | null
+          year_to_date?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qbo_profit_loss_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_forecasts: {
         Row: {
           actual_amount: number | null

@@ -7,13 +7,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, DollarSign, TrendingUp, TrendingDown, Calculator, Building2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, DollarSign, TrendingUp, TrendingDown, Calculator, Building2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { QBOFinancialData } from '@/components/integrations/QBOFinancialData';
+import { QBOProfitLoss } from '@/components/integrations/QBOProfitLoss';
 
 import React from 'react';
+
+interface QBOAccount {
+  id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  qbo_id: string;
+  is_active: boolean;
+}
+
+interface QBOProduct {
+  id: string;
+  name: string;
+  description: string;
+  unit_price: number;
+  qbo_id: string;
+  product_type: string;
+}
 
 interface BudgetLine {
   id: string;
@@ -38,8 +58,12 @@ export const FinancialPlanning = () => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
+  const [accounts, setAccounts] = useState<QBOAccount[]>([]);
+  const [products, setProducts] = useState<QBOProduct[]>([]);
   const [isAddingLine, setIsAddingLine] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Form state
   const [category, setCategory] = useState('');
@@ -55,8 +79,49 @@ export const FinancialPlanning = () => {
   useEffect(() => {
     if (currentCompany) {
       loadBudgetData();
+      loadQBOData();
     }
   }, [currentCompany, selectedYear]);
+
+  const loadQBOData = async () => {
+    if (!currentCompany) return;
+
+    try {
+      setLoading(true);
+      
+      // Load QBO accounts
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('chart_of_accounts')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .not('qbo_id', 'is', null)
+        .order('account_type', { ascending: true })
+        .order('account_name', { ascending: true });
+
+      if (accountsError) throw accountsError;
+
+      // Load QBO products/services
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .not('qbo_id', 'is', null)
+        .order('name', { ascending: true });
+
+      if (productsError) throw productsError;
+
+      setAccounts(accountsData || []);
+      setProducts(productsData || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading QBO data",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadBudgetData = async () => {
     if (!currentCompany) return;
@@ -165,6 +230,28 @@ export const FinancialPlanning = () => {
     return revenue - expenses;
   };
 
+  const getAccountTypeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'asset': return 'bg-blue-100 text-blue-800';
+      case 'liability': return 'bg-red-100 text-red-800';
+      case 'equity': return 'bg-purple-100 text-purple-800';
+      case 'revenue': return 'bg-green-100 text-green-800';
+      case 'expense': return 'bg-orange-100 text-orange-800';
+      case 'service': return 'bg-cyan-100 text-cyan-800';
+      case 'inventory': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const groupedAccounts = accounts.reduce((acc, account) => {
+    if (!showInactiveAccounts && !account.is_active) return acc;
+    
+    const type = account.account_type;
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(account);
+    return acc;
+  }, {} as Record<string, QBOAccount[]>);
+
   const groupedLines = budgetLines.reduce((acc, line) => {
     if (!acc[line.category]) acc[line.category] = [];
     acc[line.category].push(line);
@@ -191,7 +278,124 @@ export const FinancialPlanning = () => {
         </TabsList>
         
         <TabsContent value="qbo-data">
-          <QBOFinancialData />
+          <Tabs defaultValue="financial-overview" className="w-full">
+            <TabsList>
+              <TabsTrigger value="financial-overview">P&L Statement</TabsTrigger>
+              <TabsTrigger value="chart-of-accounts">Chart of Accounts</TabsTrigger>
+              <TabsTrigger value="products-services">Products & Services</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="financial-overview">
+              <QBOProfitLoss />
+            </TabsContent>
+            
+            <TabsContent value="chart-of-accounts">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Chart of Accounts</CardTitle>
+                  <CardDescription>
+                    Your synced chart of accounts from QuickBooks Online
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {Object.entries(groupedAccounts).map(([accountType, typeAccounts]) => (
+                      <div key={accountType}>
+                        <h4 className="font-semibold text-lg mb-3 capitalize">
+                          {accountType} ({typeAccounts.length})
+                        </h4>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Account Name</TableHead>
+                                <TableHead>Code</TableHead>
+                                <TableHead>QBO ID</TableHead>
+                                <TableHead>Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {typeAccounts.map((account) => (
+                                <TableRow key={account.id}>
+                                  <TableCell className="font-medium">
+                                    {account.account_name}
+                                  </TableCell>
+                                  <TableCell>{account.account_code}</TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {account.qbo_id}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant={account.is_active ? "default" : "secondary"}
+                                      className={account.is_active ? "bg-green-100 text-green-800" : ""}
+                                    >
+                                      {account.is_active ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="products-services">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Products & Services</CardTitle>
+                  <CardDescription>
+                    Your synced products and services from QuickBooks Online
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead>QBO ID</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {products.map((product) => (
+                          <TableRow key={product.id}>
+                            <TableCell className="font-medium">
+                              {product.name}
+                            </TableCell>
+                            <TableCell>{product.description || '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={getAccountTypeColor(product.product_type)}>
+                                {product.product_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {product.unit_price ? `$${product.unit_price.toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {product.qbo_id}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {products.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No products or services found. Try syncing your QBO data.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
         
         <TabsContent value="budget-planning">

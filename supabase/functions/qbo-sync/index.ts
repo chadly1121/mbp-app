@@ -22,6 +22,23 @@ interface QBOAccount {
   Active: boolean
 }
 
+interface QBOProfitLossRow {
+  group?: string
+  ColData: Array<{
+    value?: string
+    id?: string
+  }>
+}
+
+interface QBOProfitLossReport {
+  Header?: {
+    ReportName: string
+    StartPeriod: string
+    EndPeriod: string
+  }
+  Rows?: QBOProfitLossRow[]
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -151,6 +168,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Sync P&L Report Data
+    console.log('Syncing P&L report data from QBO')
+    let plDataCount = 0
+    
+    try {
+      // Get current date for report
+      const currentDate = new Date()
+      const fiscalYear = currentDate.getFullYear()
+      const currentMonth = currentDate.getMonth() + 1 // 1-12
+      const currentQuarter = Math.ceil(currentMonth / 3)
+      
+      // Get YTD P&L report
+      const startDate = `${fiscalYear}-01-01`
+      const endDate = currentDate.toISOString().split('T')[0]
+      
+      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Month`
+      console.log('Fetching P&L report from:', plUrl)
+      
+      const plResponse = await fetch(plUrl, { headers })
+      if (plResponse.ok) {
+        const plData = await plResponse.json()
+        const report: QBOProfitLossReport = plData.QueryResponse?.Report || {}
+        
+        console.log('P&L Report Response:', JSON.stringify(plData, null, 2))
+        
+        if (report.Rows) {
+          // Process P&L data
+          plDataCount = await processProfitLossData(supabase, companyId, report, fiscalYear, currentMonth, currentQuarter, currentDate)
+        }
+      } else {
+        console.warn('Failed to fetch P&L report:', plResponse.statusText)
+      }
+    } catch (error) {
+      console.error('Error syncing P&L data:', error)
+    }
+
     // Update last sync time
     await supabase
       .from('qbo_connections')
@@ -163,7 +216,8 @@ Deno.serve(async (req) => {
       success: true, 
       itemsCount: items.length,
       accountsCount: accounts.length,
-      message: `Synced ${items.length} items and ${accounts.length} accounts from QuickBooks Online`,
+      plDataCount: plDataCount,
+      message: `Synced ${items.length} items, ${accounts.length} accounts, and ${plDataCount} P&L entries from QuickBooks Online`,
       itemsFound: items.map(i => ({ name: i.Name, id: i.Id, type: i.Type })),
       accountsFound: accounts.map(a => ({ name: a.Name, id: a.Id, type: a.AccountType }))
     }), {
@@ -216,6 +270,120 @@ async function refreshToken(supabase: any, connection: any): Promise<string> {
     .eq('id', connection.id)
 
   return data.access_token
+}
+
+async function processProfitLossData(
+  supabase: any, 
+  companyId: string, 
+  report: QBOProfitLossReport, 
+  fiscalYear: number,
+  currentMonth: number,
+  currentQuarter: number,
+  reportDate: Date
+): Promise<number> {
+  let processedCount = 0
+  
+  if (!report.Rows) return processedCount
+
+  // First, clear existing P&L data for this fiscal year
+  await supabase
+    .from('qbo_profit_loss')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('fiscal_year', fiscalYear)
+
+  for (const row of report.Rows) {
+    if (!row.ColData || row.ColData.length === 0) continue
+    
+    // Skip header and total rows
+    if (row.group || !row.ColData[0]?.value) continue
+    
+    const accountName = row.ColData[0]?.value
+    if (!accountName || accountName.includes('Total') || accountName.includes('NET')) continue
+    
+    // Determine account type from the account name or position in report
+    let accountType = 'expense'
+    if (accountName.toLowerCase().includes('income') || 
+        accountName.toLowerCase().includes('sales') || 
+        accountName.toLowerCase().includes('revenue')) {
+      accountType = 'revenue'
+    } else if (accountName.toLowerCase().includes('cost')) {
+      accountType = 'cost_of_goods_sold'
+    }
+    
+    // Find matching account in chart_of_accounts
+    const { data: chartAccount } = await supabase
+      .from('chart_of_accounts')
+      .select('id, qbo_id')
+      .eq('company_id', companyId)
+      .eq('account_name', accountName)
+      .single()
+    
+    // Process monthly data from ColData (typically columns 1-12 are months, 13 is YTD total)
+    let yearToDateAmount = 0
+    let currentMonthAmount = 0
+    let quarterToDateAmount = 0
+    
+    // Extract YTD amount (usually the last column)
+    if (row.ColData.length > 1) {
+      const ytdValue = row.ColData[row.ColData.length - 1]?.value
+      if (ytdValue && !isNaN(parseFloat(ytdValue))) {
+        yearToDateAmount = parseFloat(ytdValue)
+      }
+    }
+    
+    // Extract current month amount (varies by report structure)
+    if (currentMonth <= row.ColData.length - 1) {
+      const monthValue = row.ColData[currentMonth]?.value
+      if (monthValue && !isNaN(parseFloat(monthValue))) {
+        currentMonthAmount = parseFloat(monthValue)
+      }
+    }
+    
+    // Calculate quarter-to-date (sum of months in current quarter)
+    const quarterStartMonth = (currentQuarter - 1) * 3 + 1
+    for (let m = quarterStartMonth; m <= currentMonth && m < row.ColData.length; m++) {
+      const monthValue = row.ColData[m]?.value
+      if (monthValue && !isNaN(parseFloat(monthValue))) {
+        quarterToDateAmount += parseFloat(monthValue)
+      }
+    }
+    
+    // Insert P&L data
+    const plEntry = {
+      company_id: companyId,
+      account_id: chartAccount?.id || null,
+      account_name: accountName,
+      account_type: accountType,
+      qbo_account_id: chartAccount?.qbo_id || null,
+      report_date: reportDate.toISOString().split('T')[0],
+      fiscal_year: fiscalYear,
+      fiscal_quarter: currentQuarter,
+      fiscal_month: currentMonth,
+      current_month: currentMonthAmount,
+      quarter_to_date: quarterToDateAmount,
+      year_to_date: yearToDateAmount,
+      budget_current_month: 0,
+      budget_quarter_to_date: 0,
+      budget_year_to_date: 0,
+      variance_current_month: currentMonthAmount,
+      variance_quarter_to_date: quarterToDateAmount,
+      variance_year_to_date: yearToDateAmount
+    }
+    
+    const { error } = await supabase
+      .from('qbo_profit_loss')
+      .insert(plEntry)
+    
+    if (error) {
+      console.error(`Error inserting P&L data for ${accountName}:`, error)
+    } else {
+      console.log(`Successfully synced P&L data for: ${accountName}`)
+      processedCount++
+    }
+  }
+  
+  return processedCount
 }
 
 function mapQBOAccountType(qboType: string): string {
