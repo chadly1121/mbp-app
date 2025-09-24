@@ -1,5 +1,7 @@
-import { DollarSign, TrendingUp, Users, ShoppingCart } from "lucide-react";
+import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany, CompanyProvider } from "@/hooks/useCompany";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
@@ -8,12 +10,32 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import FilterBar from "@/components/dashboard/FilterBar";
 import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
+import CompanySetup from "@/components/company/CompanySetup";
+import MBPDashboard from "@/components/mbp/MBPDashboard";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const [activeSection, setActiveSection] = useState('dashboard');
+  const [activeSection, setActiveSection] = useState('mbp');
+  const { signOut } = useAuth();
+
+  return (
+    <CompanyProvider>
+      <IndexContent activeSection={activeSection} setActiveSection={setActiveSection} signOut={signOut} />
+    </CompanyProvider>
+  );
+};
+
+const IndexContent = ({ activeSection, setActiveSection, signOut }: {
+  activeSection: string;
+  setActiveSection: (section: string) => void;
+  signOut: () => void;
+}) => {
+  const { currentCompany } = useCompany();
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'mbp':
+        return <MBPDashboard />;
       case 'analytics':
         return <AnalyticsSection />;
       case 'growth':
@@ -75,20 +97,28 @@ const Index = () => {
       <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
       
       <div className="flex-1 flex flex-col">
-        <DashboardHeader />
+        <div className="h-header border-b border-border/40 flex items-center justify-between px-6">
+          <CompanySetup />
+          <Button variant="ghost" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
         
         <main className="flex-1 px-6 py-8 overflow-auto">
           <div className="max-w-7xl mx-auto space-y-8">
             <div>
               <h2 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-                {activeSection === 'dashboard' ? 'Executive Dashboard' :
+                {activeSection === 'mbp' ? 'Monthly Business Planning' :
+                 activeSection === 'dashboard' ? 'Executive Dashboard' :
                  activeSection === 'analytics' ? 'Analytics Overview' :
                  activeSection === 'growth' ? 'Growth Metrics' :
                  activeSection === 'revenue' ? 'Revenue Analysis' :
                  'Dashboard'}
               </h2>
               <p className="text-muted-foreground">
-                {activeSection === 'dashboard' ? 'Your business performance at a glance' :
+                {activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
+                 activeSection === 'dashboard' ? 'Your business performance at a glance' :
                  activeSection === 'analytics' ? 'Detailed analytics and insights' :
                  activeSection === 'growth' ? 'Track your growth goals and KPIs' :
                  activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
@@ -96,7 +126,7 @@ const Index = () => {
               </p>
             </div>
 
-            <FilterBar onFilterChange={() => {}} />
+            {activeSection !== 'mbp' && <FilterBar onFilterChange={() => {}} />}
             
             {renderContent()}
           </div>

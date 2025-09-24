@@ -1,4 +1,4 @@
-import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText } from "lucide-react";
+import { Home, BarChart3, PieChart, TrendingUp, Users, Settings, FileText, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -12,7 +12,8 @@ const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'mbp', label: 'MBP Dashboard', icon: DollarSign },
+    { id: 'dashboard', label: 'Executive', icon: Home },
     { id: 'revenue', label: 'Revenue', icon: BarChart3 },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'growth', label: 'Growth', icon: TrendingUp },
