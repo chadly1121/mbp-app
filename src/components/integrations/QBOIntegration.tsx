@@ -36,9 +36,9 @@ export const QBOIntegration = () => {
     if (!currentCompany) return;
 
     try {
-      // Use secure function to check connection status (no sensitive data exposed)
+      // Use enhanced secure function that doesn't expose sensitive tokens
       const { data, error } = await supabase
-        .rpc('get_qbo_connection_status', {
+        .rpc('get_qbo_connection_status_safe', {
           p_company_id: currentCompany.id
         });
 

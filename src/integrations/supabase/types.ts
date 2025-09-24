@@ -1527,11 +1527,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_qbo_connection: {
+        Args: { p_company_id: string }
+        Returns: boolean
+      }
       create_default_chart_of_accounts: {
         Args: { company_id_param: string }
         Returns: undefined
       }
       get_qbo_connection_status: {
+        Args: { p_company_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string
+          qbo_company_id: string
+          token_expires_at: string
+          updated_at: string
+        }[]
+      }
+      get_qbo_connection_status_safe: {
         Args: { p_company_id: string }
         Returns: {
           created_at: string
