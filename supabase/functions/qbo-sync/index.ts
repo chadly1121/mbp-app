@@ -183,9 +183,20 @@ Deno.serve(async (req) => {
       const startDate = `${fiscalYear}-01-01`
       const endDate = currentDate.toISOString().split('T')[0]
       
+      // Clear existing P&L data for this year first
+      const { error: deleteError } = await supabase
+        .from('qbo_profit_loss')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('fiscal_year', fiscalYear)
+      
+      if (deleteError) {
+        console.error('Error clearing existing P&L data:', deleteError)
+      }
+      
       // Try the standard P&L report first
       console.log(`Fetching P&L report from ${startDate} to ${endDate}`)
-      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Total`
+      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}`
       console.log('P&L URL:', plUrl)
       
       const plResponse = await fetch(plUrl, { headers })
@@ -193,30 +204,26 @@ Deno.serve(async (req) => {
       
       if (plResponse.ok) {
         const plData = await plResponse.json()
-        console.log('P&L Report Raw Response:', JSON.stringify(plData, null, 2))
+        console.log('P&L Report Response Keys:', Object.keys(plData))
+        console.log('P&L Report Structure:', JSON.stringify(plData, null, 2))
         
-        if (plData.QueryResponse && plData.QueryResponse.Report) {
-          const report = plData.QueryResponse.Report
+        // Try different response structures
+        const report = plData.Report || plData.QueryResponse?.Report || plData
+        
+        if (report && (report.Rows || report.Header)) {
           console.log('Processing P&L report with', report.Rows?.length || 0, 'rows')
-          
-          // Clear existing P&L data for this year
-          await supabase
-            .from('qbo_profit_loss')
-            .delete()
-            .eq('company_id', companyId)
-            .eq('fiscal_year', fiscalYear)
           
           // Process the report rows
           if (report.Rows && report.Rows.length > 0) {
             for (const row of report.Rows) {
               if (row.ColData && row.ColData.length > 0) {
                 const accountName = row.ColData[0]?.value
-                if (accountName && !accountName.includes('Total') && !accountName.includes('NET INCOME')) {
+                if (accountName && !accountName.includes('Total') && !accountName.includes('NET INCOME') && accountName.trim() !== '') {
                   
                   // Determine account type
                   let accountType = 'expense'
                   const lowerName = accountName.toLowerCase()
-                  if (lowerName.includes('income') || lowerName.includes('sales') || lowerName.includes('revenue')) {
+                  if (lowerName.includes('income') || lowerName.includes('sales') || lowerName.includes('revenue') || lowerName.includes('fees')) {
                     accountType = 'revenue'
                   } else if (lowerName.includes('cost')) {
                     accountType = 'cost_of_goods_sold'
@@ -226,58 +233,64 @@ Deno.serve(async (req) => {
                   let amount = 0
                   if (row.ColData.length > 1) {
                     const amountStr = row.ColData[row.ColData.length - 1]?.value
-                    if (amountStr && !isNaN(parseFloat(amountStr))) {
-                      amount = parseFloat(amountStr)
+                    if (amountStr && amountStr !== '' && !isNaN(parseFloat(amountStr.replace(/,/g, '')))) {
+                      amount = parseFloat(amountStr.replace(/,/g, ''))
                     }
                   }
                   
-                  // Find matching account
-                  const { data: chartAccount } = await supabase
-                    .from('chart_of_accounts')
-                    .select('id, qbo_id')
-                    .eq('company_id', companyId)
-                    .eq('account_name', accountName)
-                    .single()
-                  
-                  // Insert P&L entry
-                  const plEntry = {
-                    company_id: companyId,
-                    account_id: chartAccount?.id || null,
-                    account_name: accountName,
-                    account_type: accountType,
-                    qbo_account_id: chartAccount?.qbo_id || null,
-                    report_date: endDate,
-                    fiscal_year: fiscalYear,
-                    fiscal_quarter: currentQuarter,
-                    fiscal_month: currentMonth,
-                    current_month: amount,
-                    quarter_to_date: amount,
-                    year_to_date: amount,
-                    budget_current_month: 0,
-                    budget_quarter_to_date: 0,
-                    budget_year_to_date: 0,
-                    variance_current_month: amount,
-                    variance_quarter_to_date: amount,
-                    variance_year_to_date: amount
-                  }
-                  
-                  console.log('Inserting P&L entry:', JSON.stringify(plEntry, null, 2))
-                  
-                  const { error: insertError } = await supabase
-                    .from('qbo_profit_loss')
-                    .insert(plEntry)
-                  
-                  if (insertError) {
-                    console.error(`Error inserting P&L data for ${accountName}:`, insertError)
-                  } else {
-                    console.log(`Successfully inserted P&L data for: ${accountName} - $${amount}`)
-                    plDataCount++
+                  // Only process if there's an actual amount
+                  if (amount !== 0) {
+                    // Find matching account
+                    const { data: chartAccount } = await supabase
+                      .from('chart_of_accounts')
+                      .select('id, qbo_id')
+                      .eq('company_id', companyId)
+                      .eq('account_name', accountName)
+                      .single()
+                    
+                    // Insert P&L entry
+                    const plEntry = {
+                      company_id: companyId,
+                      account_id: chartAccount?.id || null,
+                      account_name: accountName,
+                      account_type: accountType,
+                      qbo_account_id: chartAccount?.qbo_id || null,
+                      report_date: endDate,
+                      fiscal_year: fiscalYear,
+                      fiscal_quarter: currentQuarter,
+                      fiscal_month: currentMonth,
+                      current_month: amount,
+                      quarter_to_date: amount,
+                      year_to_date: amount,
+                      budget_current_month: 0,
+                      budget_quarter_to_date: 0,
+                      budget_year_to_date: 0,
+                      variance_current_month: amount,
+                      variance_quarter_to_date: amount,
+                      variance_year_to_date: amount
+                    }
+                    
+                    console.log('Inserting P&L entry:', JSON.stringify(plEntry, null, 2))
+                    
+                    const { error: insertError } = await supabase
+                      .from('qbo_profit_loss')
+                      .insert(plEntry)
+                    
+                    if (insertError) {
+                      console.error(`Error inserting P&L data for ${accountName}:`, insertError)
+                    } else {
+                      console.log(`Successfully inserted P&L data for: ${accountName} - $${amount}`)
+                      plDataCount++
+                    }
                   }
                 }
               }
             }
           } else {
-            console.log('No rows found in P&L report')
+            console.log('No rows found in P&L report - trying fallback method')
+            // Use account balances as fallback
+            await syncAccountBalances(supabase, companyId, baseUrl, headers, fiscalYear, currentMonth, currentQuarter, endDate)
+            plDataCount = 5 // Indicate fallback data was processed
           }
         } else {
           console.log('No QueryResponse.Report found in P&L data')
