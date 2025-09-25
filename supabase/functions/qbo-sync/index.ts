@@ -283,27 +283,27 @@ Deno.serve(async (req) => {
     
     console.log(`Successfully synced ${syncedCount} out of ${accounts.length} accounts from PRODUCTION QBO`)
 
-    // Sync Invoices for AR Tracker
-    console.log('Syncing invoices from QBO')
+    // Sync Customer Balances for AR Tracker (aggregated by customer to avoid sub-account duplication)
+    console.log('Syncing customer balances from QBO')
     let invoicesCount = 0
     
     try {
-      // Only get recent invoices with outstanding balance (last 18 months)
       const cutoffDate = new Date()
       cutoffDate.setMonth(cutoffDate.getMonth() - 18)
       const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
       
-      console.log(`Syncing invoices from ${cutoffDateStr} forward with outstanding balances`)
+      console.log(`Syncing customer balances from ${cutoffDateStr} forward`)
       
-      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0' AND TxnDate >= '${cutoffDateStr}' ORDER BY TxnDate DESC`, { headers })
-      if (!invoicesResponse.ok) {
-        console.error('QBO Invoices API error:', invoicesResponse.status, invoicesResponse.statusText)
+      // Get all customers with their current balances
+      const customersResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Customer WHERE Active = true`, { headers })
+      
+      if (!customersResponse.ok) {
+        console.error('QBO Customers API error:', customersResponse.status, customersResponse.statusText)
       } else {
-        const invoicesData = await invoicesResponse.json()
-        const invoices = invoicesData.QueryResponse?.Invoice || []
+        const customersData = await customersResponse.json()
+        const customers = customersData.QueryResponse?.Customer || []
         
-        console.log(`Found ${invoices.length} recent unpaid invoices from QBO (since ${cutoffDateStr})`)
-        console.log('Sample invoice data:', JSON.stringify(invoices[0], null, 2))
+        console.log(`Found ${customers.length} active customers from QBO`)
         
         // Clear existing AR tracker data for this company
         const { error: deleteError } = await supabase
@@ -312,71 +312,87 @@ Deno.serve(async (req) => {
           .eq('company_id', companyId)
         
         if (deleteError) {
-          console.error('Error clearing existing AR data:', deleteError)
+          console.error('Error clearing AR tracker data:', deleteError)
         }
         
-        for (const invoice of invoices) {
-          const customerName = invoice.CustomerRef?.name || 'Unknown Customer'
-          const invoiceAmount = parseFloat(invoice.TotalAmt || 0)
-          const balance = parseFloat(invoice.Balance || 0)
-          const paidAmount = invoiceAmount - balance
-          
-          // Only process invoices with actual outstanding balance
-          if (balance <= 0.01) { // Allow for small rounding differences
-            console.log(`Skipping invoice ${invoice.DocNumber} - balance too small: $${balance}`)
-            continue
-          }
-          
-          // Skip voided or deleted invoices
-          if (invoice.Voided === true || invoice.Active === false) {
-            console.log(`Skipping voided/inactive invoice ${invoice.DocNumber}`)
-            continue
-          }
-          
-          console.log(`Processing invoice ${invoice.DocNumber}: $${invoiceAmount} total, $${balance} balance, $${paidAmount} paid`)
-          
-          // Calculate days outstanding
-          const dueDate = new Date(invoice.DueDate || invoice.TxnDate)
-          const today = new Date()
-          const daysOutstanding = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-          
-          // Determine status based on balance and due date  
-          let status: 'pending' | 'partial' | 'paid' | 'overdue' = 'pending'
-          if (paidAmount > 0 && balance > 0) {
-            status = 'partial'
-          } else if (balance > 0 && daysOutstanding > 0) {
-            status = 'overdue'
-          } else if (balance > 0) {
-            status = 'pending'
-          }
-
-          const { error } = await supabase
-            .from('ar_tracker')
-            .insert({
+        // Process each customer with balance
+        for (const customer of customers) {
+          try {
+            const customerName = customer.Name || 'Unknown Customer'
+            const balance = parseFloat(customer.Balance || 0)
+            
+            // Skip customers with no balance
+            if (balance < 0.01) {
+              continue
+            }
+            
+            // Get the most recent invoice for this customer to get payment terms and due date info
+            const customerInvoicesResponse = await fetch(
+              `${baseUrl}/query?query=SELECT * FROM Invoice WHERE CustomerRef = '${customer.Id}' AND Balance > '0' AND TxnDate >= '${cutoffDateStr}' ORDER BY TxnDate DESC MAXRESULTS 1`, 
+              { headers }
+            )
+            
+            let invoiceNumber = 'Multiple'
+            let invoiceDate = new Date().toISOString().split('T')[0]
+            let dueDate = invoiceDate
+            let paymentTerms = 'Net 30'
+            
+            if (customerInvoicesResponse.ok) {
+              const invoiceData = await customerInvoicesResponse.json()
+              const recentInvoice = invoiceData.QueryResponse?.Invoice?.[0]
+              
+              if (recentInvoice) {
+                invoiceNumber = recentInvoice.DocNumber || 'Multiple'
+                invoiceDate = recentInvoice.TxnDate || invoiceDate
+                dueDate = recentInvoice.DueDate || invoiceDate
+                paymentTerms = recentInvoice.SalesTermRef?.name || 'Net 30'
+              }
+            }
+            
+            // Calculate days outstanding from oldest due date
+            const today = new Date()
+            const dueDateObj = new Date(dueDate)
+            const daysOutstanding = Math.floor((today.getTime() - dueDateObj.getTime()) / (1000 * 60 * 60 * 24))
+            
+            // Determine status based on days outstanding
+            let status = 'current'
+            if (daysOutstanding > 30 && balance > 0) {
+              status = 'overdue'
+            }
+            
+            const arData = {
               company_id: companyId,
-              invoice_number: invoice.DocNumber || invoice.Id,
+              invoice_number: invoiceNumber,
               client_name: customerName,
-              invoice_date: invoice.TxnDate,
-              due_date: invoice.DueDate || invoice.TxnDate,
-              invoice_amount: invoiceAmount,
-              paid_amount: paidAmount,
+              invoice_date: invoiceDate,
+              due_date: dueDate,
+              invoice_amount: balance,
+              paid_amount: 0,
               balance_due: balance,
               days_outstanding: daysOutstanding,
               status: status,
-              payment_terms: invoice.SalesTermRef?.name || 'Net 30',
-              notes: `QBO Invoice ID: ${invoice.Id}`
-            })
-
-          if (error) {
-            console.error(`Error syncing invoice ${invoice.DocNumber}:`, error)
-          } else {
-            console.log(`Successfully synced invoice: ${invoice.DocNumber} - ${customerName}`)
-            invoicesCount++
+              payment_terms: paymentTerms,
+              notes: `QBO Customer ID: ${customer.Id} - Aggregated Balance`
+            }
+            
+            const { error: insertError } = await supabase
+              .from('ar_tracker')
+              .insert(arData)
+            
+            if (insertError) {
+              console.error(`Error inserting AR data for customer ${customerName}:`, insertError)
+            } else {
+              console.log(`Successfully synced customer: ${customerName} - $${balance}`)
+              invoicesCount++
+            }
+            
+          } catch (error) {
+            console.error('Error processing customer:', error)
           }
         }
       }
     } catch (error) {
-      console.error('Error syncing invoices:', error)
+      console.error('Error syncing customer balances:', error)
     }
 
     // Sync P&L Report Data
