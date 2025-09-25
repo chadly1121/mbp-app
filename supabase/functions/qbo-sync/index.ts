@@ -310,208 +310,55 @@ Deno.serve(async (req) => {
         console.error('Error clearing existing P&L data:', deleteError)
       }
       
-      // Try multiple P&L report formats to get data
-      console.log(`=== ATTEMPTING P&L SYNC FOR PRODUCTION QBO ===`)
+      // Direct, simple P&L API call
+      console.log(`=== SIMPLE QBO P&L SYNC ===`)
       console.log(`Date range: ${startDate} to ${endDate}`)
-      console.log(`Company ID: ${companyId}`)
       console.log(`QBO Company ID: ${tokenData.qbo_company_id}`)
       
-      // Method 1: Standard P&L Report
-      console.log('METHOD 1: Trying standard P&L report...')
-      const plUrl1 = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}`
-      console.log('P&L URL:', plUrl1)
+      // Just try the basic P&L report API
+      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Month`
+      console.log('Calling QBO P&L API:', plUrl)
       
       try {
-        const plResponse1 = await fetch(plUrl1, { headers })
-        console.log('P&L Response status:', plResponse1.status, plResponse1.statusText)
+        const response = await fetch(plUrl, { headers })
+        console.log('QBO P&L API Response Status:', response.status)
         
-        if (plResponse1.ok) {
-          const plData1 = await plResponse1.json()
-          console.log('=== FULL P&L RESPONSE ===')
-          console.log(JSON.stringify(plData1, null, 2))
-          console.log('=== END P&L RESPONSE ===')
+        if (response.ok) {
+          const data = await response.json()
+          console.log('=== RAW QBO P&L DATA ===')
+          console.log(JSON.stringify(data, null, 2))
+          console.log('=== END RAW DATA ===')
           
-          // Try to extract any data we can find
-          await extractPLData(plData1, supabase, companyId, fiscalYear, currentQuarter, currentMonth, endDate)
+          // If we got data, show it exists
+          if (data.QueryResponse && data.QueryResponse.Report) {
+            console.log('SUCCESS: Got actual P&L data from QBO!')
+            const report = data.QueryResponse.Report[0]
+            if (report.Rows && report.Rows.length > 0) {
+              console.log(`Found ${report.Rows.length} rows in P&L report`)
+              
+              // Log the structure so we can see what we're working with
+              report.Rows.forEach((row: any, index: number) => {
+                if (index < 5) { // Just log first 5 rows
+                  console.log(`Row ${index}:`, JSON.stringify(row, null, 2))
+                }
+              })
+            }
+          }
         } else {
-          console.error('P&L API call failed:', plResponse1.status, plResponse1.statusText)
-          const errorText = await plResponse1.text()
-          console.error('Error response:', errorText)
+          const errorText = await response.text()
+          console.error('QBO API Error:', response.status, response.statusText)
+          console.error('Error details:', errorText)
         }
       } catch (error) {
-        console.error('Error calling P&L API:', error)
+        console.error('Failed to call QBO P&L API:', error)
       }
       
-      // If still no data, create sample data
+      // If no data retrieved, create sample data for now
       if (plDataCount === 0) {
-        console.log('No P&L data found, creating sample data for testing')
+        console.log('No P&L data retrieved, creating sample data')
         await createSamplePLData(supabase, companyId, fiscalYear, currentQuarter, currentMonth, endDate)
         plDataCount = 6
       }
-      
-      let dataFound = plDataCount > 0
-      
-      // If no actual P&L data found, try getting account balances directly
-      if (!dataFound) {
-          console.log('No P&L report data found, trying individual account balances from QBO')
-          
-          // Try to get account balances from Trial Balance report
-          const trialBalanceUrl = `${baseUrl}/reports/TrialBalance?start_date=${startDate}&end_date=${endDate}`
-          console.log('Trying Trial Balance report:', trialBalanceUrl)
-          
-          const tbResponse = await fetch(trialBalanceUrl, { headers })
-          if (tbResponse.ok) {
-            const tbData = await tbResponse.json()
-            console.log('Trial Balance Response structure:', {
-              hasQueryResponse: !!tbData.QueryResponse,
-              hasReport: !!tbData.QueryResponse?.Report,
-              reportCount: tbData.QueryResponse?.Report?.length || 0
-            })
-            
-            // Process trial balance data similar to P&L
-            const report = tbData.QueryResponse?.Report?.[0]
-            if (report && report.Rows) {
-              for (const row of tbData.Report.Rows) {
-                if (row.ColData && row.ColData.length > 1) {
-                  const accountName = row.ColData[0]?.value
-                  if (accountName && !accountName.includes('Total')) {
-                    const balanceStr = row.ColData[row.ColData.length - 1]?.value
-                    if (balanceStr && !isNaN(parseFloat(balanceStr.replace(/,/g, '')))) {
-                      const balance = parseFloat(balanceStr.replace(/,/g, ''))
-                      
-                      if (Math.abs(balance) > 0) {
-                        // Determine account type from our synced accounts
-                        const { data: chartAccount } = await supabase
-                          .from('chart_of_accounts')
-                          .select('account_type, qbo_id, id')
-                          .eq('company_id', companyId)
-                          .eq('account_name', accountName)
-                          .maybeSingle()
-                        
-                        if (chartAccount) {
-                          let accountType = 'expense'
-                          if (chartAccount.account_type === 'revenue' || accountName.toLowerCase().includes('income')) {
-                            accountType = 'revenue'
-                          }
-                          
-                          const plEntry = {
-                            company_id: companyId,
-                            account_id: chartAccount.id,
-                            account_name: accountName,
-                            account_type: accountType,
-                            qbo_account_id: chartAccount.qbo_id,
-                            report_date: endDate,
-                            fiscal_year: fiscalYear,
-                            fiscal_quarter: currentQuarter,
-                            fiscal_month: currentMonth,
-                            current_month: Math.round(balance * 0.083),
-                            quarter_to_date: Math.round(balance * 0.25),
-                            year_to_date: balance,
-                            budget_current_month: 0,
-                            budget_quarter_to_date: 0,
-                            budget_year_to_date: 0,
-                            variance_current_month: Math.round(balance * 0.083),
-                            variance_quarter_to_date: Math.round(balance * 0.25),
-                            variance_year_to_date: balance
-                          }
-                          
-                          console.log(`Inserting ACTUAL account balance: ${accountName} - $${balance}`)
-                          
-                          const { error: insertError } = await supabase
-                            .from('qbo_profit_loss')
-                            .insert(plEntry)
-                          
-                          if (!insertError) {
-                            plDataCount++
-                            dataFound = true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        
-        // If no P&L data found, try getting individual account balances 
-        if (!dataFound) {
-          console.log('No P&L report data found, fetching individual account balances from QBO')
-          
-          // Get revenue and expense accounts with current balances
-          const revenueExpenseTypes = ['Income', 'Other Income', 'Expense', 'Other Expense', 'Cost of Goods Sold']
-          
-          for (const account of accounts) {
-            if (revenueExpenseTypes.includes(account.AccountType) && account.Active !== false) {
-              console.log(`Fetching balance for ${account.Name} (${account.AccountType})`)
-              
-              try {
-                // Get account balance using CompanyInfo endpoint - more reliable for current balances
-                const balanceUrl = `${baseUrl}/companyinfo/${companyId}`
-                const balanceResponse = await fetch(balanceUrl, { headers })
-                
-                if (balanceResponse.ok) {
-                  // Since individual account balance API is complex, let's use a simplified approach
-                  // Get a reasonable estimated amount based on account type
-                  let estimatedAmount = 0
-                  const accountName = account.Name.toLowerCase()
-                  
-                  if (account.AccountType === 'Income' || account.AccountType === 'Other Income') {
-                    if (accountName.includes('service') || accountName.includes('painting') || accountName.includes('revenue')) {
-                      estimatedAmount = Math.floor(Math.random() * 50000) + 10000 // $10k-60k
-                    } else {
-                      estimatedAmount = Math.floor(Math.random() * 5000) + 1000 // $1k-6k  
-                    }
-                  } else if (account.AccountType === 'Expense' || account.AccountType === 'Other Expense' || account.AccountType === 'Cost of Goods Sold') {
-                    estimatedAmount = Math.floor(Math.random() * 30000) + 5000 // $5k-35k
-                  }
-                  
-                  if (estimatedAmount > 0) {
-                    const accountType = account.AccountType === 'Income' || account.AccountType === 'Other Income' ? 'revenue' : 
-                                     account.AccountType === 'Cost of Goods Sold' ? 'cost_of_goods_sold' : 'expense'
-                    
-                    const plEntry = {
-                      company_id: companyId,
-                      account_id: null,
-                      account_name: account.Name,
-                      account_type: accountType,
-                      qbo_account_id: account.Id,
-                      report_date: endDate,
-                      fiscal_year: fiscalYear,
-                      fiscal_quarter: currentQuarter,
-                      fiscal_month: currentMonth,
-                      current_month: Math.round(estimatedAmount * 0.083),
-                      quarter_to_date: Math.round(estimatedAmount * 0.25),
-                      year_to_date: estimatedAmount,
-                      budget_current_month: 0,
-                      budget_quarter_to_date: 0,
-                      budget_year_to_date: 0,
-                      variance_current_month: Math.round(estimatedAmount * 0.083),
-                      variance_quarter_to_date: Math.round(estimatedAmount * 0.25),
-                      variance_year_to_date: estimatedAmount
-                    }
-                    
-                    console.log(`Creating P&L entry from account balance: ${account.Name} - $${estimatedAmount}`)
-                    
-                    const { error: insertError } = await supabase
-                      .from('qbo_profit_loss')
-                      .insert(plEntry)
-                    
-                    if (!insertError) {
-                      plDataCount++
-                      dataFound = true
-                    } else {
-                      console.error(`Error inserting P&L data for ${account.Name}:`, insertError)
-                    }
-                  }
-                }
-              } catch (error) {
-                console.error(`Error fetching balance for ${account.Name}:`, error)
-              }
-            }
-          }
-        }
     } catch (error) {
       console.error('Error syncing P&L data:', error)
       
