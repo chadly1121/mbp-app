@@ -349,12 +349,14 @@ Deno.serve(async (req) => {
                     const amount = parseFloat(amountStr.replace(/,/g, ''))
                     
                     if (!isNaN(amount) && Math.abs(amount) > 0) {
-                      // Determine account type based on parent section
+                      // Determine account type based on parent section more precisely
                       let accountType = 'expense'
                       const lowerGroup = parentGroup.toLowerCase()
                       
-                      if (lowerGroup.includes('income')) {
-                        accountType = 'revenue'
+                      if (lowerGroup === 'income') {
+                        accountType = 'revenue'  // Main business revenue only
+                      } else if (lowerGroup === 'other income') {
+                        accountType = 'other_income'  // Separate from main revenue
                       } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
                         accountType = 'cost_of_goods_sold'
                       }
