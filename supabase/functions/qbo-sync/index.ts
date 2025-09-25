@@ -366,13 +366,13 @@ Deno.serve(async (req) => {
               client_name: customerName,
               invoice_date: invoiceDate,
               due_date: dueDate,
-              invoice_amount: balance,
-              paid_amount: 0,
-              balance_due: balance,
+              invoice_amount: balance, // Only the outstanding balance, not original invoice total
+              paid_amount: 0, // We don't track individual payments at customer level
+              balance_due: balance, // This is the actual AR amount we care about
               days_outstanding: daysOutstanding,
               status: status,
               payment_terms: paymentTerms,
-              notes: `QBO Customer ID: ${customer.Id} - Aggregated Balance`
+              notes: `QBO Customer ID: ${customer.Id} - Outstanding Balance Only`
             }
             
             const { error: insertError } = await supabase
