@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Banknote, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface CashFlowData {
   month: string;
@@ -17,65 +20,82 @@ interface CashFlowData {
 }
 
 export const CashFlowPlanning = () => {
+  const { currentCompany } = useCompany();
+  const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  
-  // Mock cash flow data - would be calculated from revenue forecast and expense budget
-  const cashFlowData: CashFlowData[] = [
-    {
-      month: 'Jan',
-      openingBalance: 50000,
-      cashInflows: 85000,
-      cashOutflows: 72000,
-      netCashFlow: 13000,
-      closingBalance: 63000,
-      cumulativeCashFlow: 13000
-    },
-    {
-      month: 'Feb',
-      openingBalance: 63000,
-      cashInflows: 89000,
-      cashOutflows: 75000,
-      netCashFlow: 14000,
-      closingBalance: 77000,
-      cumulativeCashFlow: 27000
-    },
-    {
-      month: 'Mar',
-      openingBalance: 77000,
-      cashInflows: 95000,
-      cashOutflows: 82000,
-      netCashFlow: 13000,
-      closingBalance: 90000,
-      cumulativeCashFlow: 40000
-    },
-    {
-      month: 'Apr',
-      openingBalance: 90000,
-      cashInflows: 98000,
-      cashOutflows: 85000,
-      netCashFlow: 13000,
-      closingBalance: 103000,
-      cumulativeCashFlow: 53000
-    },
-    {
-      month: 'May',
-      openingBalance: 103000,
-      cashInflows: 102000,
-      cashOutflows: 88000,
-      netCashFlow: 14000,
-      closingBalance: 117000,
-      cumulativeCashFlow: 67000
-    },
-    {
-      month: 'Jun',
-      openingBalance: 117000,
-      cashInflows: 105000,
-      cashOutflows: 92000,
-      netCashFlow: 13000,
-      closingBalance: 130000,
-      cumulativeCashFlow: 80000
+  const [cashFlowData, setCashFlowData] = useState<CashFlowData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentCompany) {
+      fetchCashFlowData();
     }
-  ];
+  }, [currentCompany, selectedYear]);
+
+  const fetchCashFlowData = async () => {
+    if (!currentCompany) return;
+
+    try {
+      // Fetch revenue forecasts for the year
+      const { data: revenueForecast, error: revenueError } = await supabase
+        .from('revenue_forecasts')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('year', selectedYear)
+        .order('month');
+
+      // Fetch budget plans for expenses
+      const { data: budgetPlans, error: budgetError } = await supabase
+        .from('budget_plans')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('year', selectedYear)
+        .eq('category', 'Expenses')
+        .order('month_number');
+
+      if (revenueError) throw revenueError;
+      if (budgetError) throw budgetError;
+
+      // Calculate cash flow data from forecasts and budgets
+      const monthlyData: CashFlowData[] = [];
+      let runningBalance = 50000; // Starting balance - could be configurable
+
+      for (let month = 1; month <= 12; month++) {
+        const monthName = new Date(selectedYear, month - 1).toLocaleDateString('en-US', { month: 'short' });
+        
+        const monthRevenue = revenueForecast?.filter(r => r.month === month)
+          .reduce((sum, r) => sum + (r.forecasted_amount || 0), 0) || 0;
+        
+        const monthExpenses = budgetPlans?.filter(b => b.month_number === month)
+          .reduce((sum, b) => sum + (b.budgeted_amount || 0), 0) || 0;
+
+        const netCashFlow = monthRevenue - monthExpenses;
+        const closingBalance = runningBalance + netCashFlow;
+
+        monthlyData.push({
+          month: monthName,
+          openingBalance: runningBalance,
+          cashInflows: monthRevenue,
+          cashOutflows: monthExpenses,
+          netCashFlow: netCashFlow,
+          closingBalance: closingBalance,
+          cumulativeCashFlow: closingBalance - 50000 // Cumulative from starting balance
+        });
+
+        runningBalance = closingBalance;
+      }
+
+      setCashFlowData(monthlyData);
+    } catch (error: any) {
+      toast({
+        title: "Error loading cash flow data",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalInflows = cashFlowData.reduce((sum, data) => sum + data.cashInflows, 0);
   const totalOutflows = cashFlowData.reduce((sum, data) => sum + data.cashOutflows, 0);
@@ -91,6 +111,14 @@ export const CashFlowPlanning = () => {
 
   const healthStatus = getHealthStatus(finalBalance);
   const HealthIcon = healthStatus.icon;
+
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading cash flow data...</div>;
+  }
+
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -257,25 +285,51 @@ export const CashFlowPlanning = () => {
               Cash Flow Alerts
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
-              <div>
-                <div className="font-medium text-yellow-800">Seasonal Dip Expected</div>
-                <div className="text-sm text-yellow-700">
-                  Q1 typically shows slower cash inflows. Consider maintaining higher reserves.
+          <CardContent>
+            <div className="space-y-3">
+              {finalBalance < 25000 && (
+                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-red-800">Low Cash Warning</div>
+                    <div className="text-sm text-red-700">
+                      Ending cash balance is below recommended minimum. Consider increasing inflows or reducing expenses.
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-              <div>
-                <div className="font-medium text-green-800">Strong Growth Trend</div>
-                <div className="text-sm text-green-700">
-                  Monthly inflows showing consistent 5% growth pattern.
+              )}
+              
+              {totalNetCashFlow < 0 && (
+                <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-yellow-800">Negative Cash Flow</div>
+                    <div className="text-sm text-yellow-700">
+                      Total outflows exceed inflows for this year. Review revenue projections and expense budgets.
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+              
+              {totalNetCashFlow > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-green-800">Positive Cash Flow</div>
+                    <div className="text-sm text-green-700">
+                      Strong cash generation expected for {selectedYear}. Consider investment opportunities.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {cashFlowData.length === 0 && (
+                <div className="text-center py-6">
+                  <Banknote className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">No cash flow data available</p>
+                  <p className="text-sm text-muted-foreground">Add revenue forecasts and budget plans to see cash flow projections.</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -287,20 +341,26 @@ export const CashFlowPlanning = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Operating Cash Flow Ratio</span>
-              <span className="font-semibold text-green-600">1.18</span>
+              <span className="text-sm font-medium">Average Monthly Inflow</span>
+              <span className="font-semibold">${cashFlowData.length > 0 ? (totalInflows / cashFlowData.length).toLocaleString() : '0'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Cash Conversion Cycle</span>
-              <span className="font-semibold">32 days</span>
+              <span className="text-sm font-medium">Average Monthly Outflow</span>
+              <span className="font-semibold">${cashFlowData.length > 0 ? (totalOutflows / cashFlowData.length).toLocaleString() : '0'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Free Cash Flow Margin</span>
-              <span className="font-semibold text-green-600">15.2%</span>
+              <span className="text-sm font-medium">Cash Flow Ratio</span>
+              <span className={`font-semibold ${totalOutflows > 0 ? (totalInflows / totalOutflows >= 1.1 ? 'text-green-600' : 'text-red-600') : ''}`}>
+                {totalOutflows > 0 ? (totalInflows / totalOutflows).toFixed(2) : 'N/A'}
+              </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Cash Coverage Ratio</span>
-              <span className="font-semibold">2.8x</span>
+              <span className="text-sm font-medium">Months of Coverage</span>
+              <span className="font-semibold">
+                {totalOutflows > 0 && cashFlowData.length > 0 
+                  ? Math.round((finalBalance / (totalOutflows / cashFlowData.length)) * 10) / 10 
+                  : 'N/A'} months
+              </span>
             </div>
           </CardContent>
         </Card>
