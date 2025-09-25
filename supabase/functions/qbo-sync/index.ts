@@ -232,19 +232,33 @@ Deno.serve(async (req) => {
 
     // Sync Chart of Accounts
     console.log('Syncing accounts from QBO')
-    const accountsResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Account`, { headers })
+    const accountsResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Account WHERE Active IN (true,false)`, { headers })
     if (!accountsResponse.ok) {
+      console.error('QBO Accounts API error:', accountsResponse.status, accountsResponse.statusText)
+      const errorText = await accountsResponse.text()
+      console.error('QBO Accounts error response:', errorText)
       throw new Error(`Failed to fetch accounts: ${accountsResponse.statusText}`)
     }
 
     const accountsData = await accountsResponse.json()
     const accounts: QBOAccount[] = accountsData.QueryResponse?.Account || []
     
-    console.log('QBO Accounts Response:', JSON.stringify(accountsData, null, 2))
-    console.log(`Found ${accounts.length} accounts from QBO`)
+    console.log('QBO Accounts Response structure:', {
+      hasQueryResponse: !!accountsData.QueryResponse,
+      accountCount: accounts.length,
+      sampleAccount: accounts[0] ? {
+        Id: accounts[0].Id,
+        Name: accounts[0].Name,
+        AccountType: accounts[0].AccountType,
+        AccountSubType: accounts[0].AccountSubType,
+        Active: accounts[0].Active
+      } : null
+    })
+    console.log(`Found ${accounts.length} PRODUCTION accounts from QBO`)
 
+    let syncedCount = 0
     for (const account of accounts) {
-      console.log(`Syncing account: ${account.Name} (ID: ${account.Id})`)
+      console.log(`Syncing account: ${account.Name} (ID: ${account.Id}, Type: ${account.AccountType}, SubType: ${account.AccountSubType})`)
       const { error } = await supabase
         .from('chart_of_accounts')
         .upsert({
@@ -263,8 +277,11 @@ Deno.serve(async (req) => {
         console.error(`Error syncing account ${account.Name}:`, error)
       } else {
         console.log(`Successfully synced account: ${account.Name}`)
+        syncedCount++
       }
     }
+    
+    console.log(`Successfully synced ${syncedCount} out of ${accounts.length} accounts from PRODUCTION QBO`)
 
     // Sync P&L Report Data
     console.log('Syncing P&L report data from QBO')
