@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Plus, Calendar, DollarSign, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CreditCard, RefreshCw, Calendar, DollarSign, AlertCircle } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -32,27 +28,7 @@ export const ARTracker = () => {
   const { toast } = useToast();
   const [arRecords, setARRecords] = useState<ARRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
-  const [newRecord, setNewRecord] = useState({
-    invoice_number: '',
-    client_name: '',
-    invoice_date: '',
-    due_date: '',
-    invoice_amount: '',
-    paid_amount: '',
-    payment_terms: 'Net 30',
-    notes: ''
-  });
-
-  const paymentTermsOptions = [
-    'Net 15',
-    'Net 30', 
-    'Net 45',
-    'Net 60',
-    'Due on Receipt',
-    'COD'
-  ];
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (currentCompany) {
@@ -83,71 +59,43 @@ export const ARTracker = () => {
     }
   };
 
-  const createARRecord = async () => {
-    if (!currentCompany || !newRecord.invoice_number || !newRecord.client_name) return;
+  const syncFromQBO = async () => {
+    if (!currentCompany) return;
 
+    setSyncing(true);
     try {
-      const invoiceAmount = parseFloat(newRecord.invoice_amount);
-      const paidAmount = newRecord.paid_amount ? parseFloat(newRecord.paid_amount) : 0;
-      const balanceDue = invoiceAmount - paidAmount;
-      
-      // Calculate days outstanding
-      const dueDate = new Date(newRecord.due_date);
-      const today = new Date();
-      const daysOutstanding = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Determine status
-      let status: 'pending' | 'partial' | 'paid' | 'overdue' = 'pending';
-      if (balanceDue === 0) {
-        status = 'paid';
-      } else if (paidAmount > 0) {
-        status = 'partial';
-      } else if (daysOutstanding > 0) {
-        status = 'overdue';
+      const response = await fetch('/supabase/functions/v1/qbo-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ companyId: currentCompany.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to sync with QuickBooks');
       }
 
-      const { error } = await supabase
-        .from('ar_tracker')
-        .insert([{
-          company_id: currentCompany.id,
-          invoice_number: newRecord.invoice_number,
-          client_name: newRecord.client_name,
-          invoice_date: newRecord.invoice_date,
-          due_date: newRecord.due_date,
-          invoice_amount: invoiceAmount,
-          paid_amount: paidAmount,
-          balance_due: balanceDue,
-          days_outstanding: daysOutstanding,
-          status: status,
-          payment_terms: newRecord.payment_terms,
-          notes: newRecord.notes
-        }]);
-
-      if (error) throw error;
-
+      const result = await response.json();
+      
       toast({
-        title: "AR record created",
-        description: `Invoice ${newRecord.invoice_number} has been added to your AR tracker.`,
+        title: "Sync completed",
+        description: `Successfully synced ${result.invoicesCount || 0} invoices from QuickBooks Online.`,
       });
 
-      setNewRecord({
-        invoice_number: '',
-        client_name: '',
-        invoice_date: '',
-        due_date: '',
-        invoice_amount: '',
-        paid_amount: '',
-        payment_terms: 'Net 30',
-        notes: ''
-      });
-      setIsDialogOpen(false);
+      // Refresh the AR records
       fetchARRecords();
     } catch (error: any) {
+      console.error('Sync error:', error);
       toast({
-        title: "Error creating AR record",
-        description: error.message,
+        title: "Sync failed",
+        description: error.message || "Failed to sync with QuickBooks Online. Please check your connection.",
         variant: "destructive",
       });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -171,7 +119,53 @@ export const ARTracker = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">Loading AR records...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <CreditCard className="h-6 w-6" />
+              Accounts Receivable Tracker
+            </h2>
+            <p className="text-muted-foreground">
+              Track outstanding invoices synced from QuickBooks Online
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, j) => (
+                    <div key={j}>
+                      <Skeleton className="h-4 w-20 mb-1" />
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (!currentCompany) {
@@ -187,113 +181,17 @@ export const ARTracker = () => {
             Accounts Receivable Tracker
           </h2>
           <p className="text-muted-foreground">
-            Track outstanding invoices and monitor payment collections
+            Track outstanding invoices synced from QuickBooks Online
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add AR Record</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="invoice_number">Invoice Number</Label>
-                  <Input
-                    id="invoice_number"
-                    value={newRecord.invoice_number}
-                    onChange={(e) => setNewRecord({ ...newRecord, invoice_number: e.target.value })}
-                    placeholder="e.g., INV-001"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="client_name">Client Name</Label>
-                  <Input
-                    id="client_name"
-                    value={newRecord.client_name}
-                    onChange={(e) => setNewRecord({ ...newRecord, client_name: e.target.value })}
-                    placeholder="e.g., ABC Company"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="invoice_date">Invoice Date</Label>
-                  <Input
-                    id="invoice_date"
-                    type="date"
-                    value={newRecord.invoice_date}
-                    onChange={(e) => setNewRecord({ ...newRecord, invoice_date: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="due_date">Due Date</Label>
-                  <Input
-                    id="due_date"
-                    type="date"
-                    value={newRecord.due_date}
-                    onChange={(e) => setNewRecord({ ...newRecord, due_date: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="invoice_amount">Invoice Amount</Label>
-                  <Input
-                    id="invoice_amount"
-                    type="number"
-                    value={newRecord.invoice_amount}
-                    onChange={(e) => setNewRecord({ ...newRecord, invoice_amount: e.target.value })}
-                    placeholder="e.g., 5000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="paid_amount">Paid Amount</Label>
-                  <Input
-                    id="paid_amount"
-                    type="number"
-                    value={newRecord.paid_amount}
-                    onChange={(e) => setNewRecord({ ...newRecord, paid_amount: e.target.value })}
-                    placeholder="e.g., 0"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="payment_terms">Payment Terms</Label>
-                <Select value={newRecord.payment_terms} onValueChange={(value) => setNewRecord({ ...newRecord, payment_terms: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentTermsOptions.map((term) => (
-                      <SelectItem key={term} value={term}>
-                        {term}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={newRecord.notes}
-                  onChange={(e) => setNewRecord({ ...newRecord, notes: e.target.value })}
-                  placeholder="Additional notes about the invoice..."
-                />
-              </div>
-              <Button onClick={createARRecord} className="w-full" disabled={!newRecord.invoice_number || !newRecord.client_name}>
-                Add AR Record
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={syncFromQBO} disabled={syncing}>
+          {syncing ? (
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -330,8 +228,18 @@ export const ARTracker = () => {
       {arRecords.length === 0 ? (
         <Card className="p-8 text-center">
           <CreditCard className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h4 className="text-lg font-semibold mb-2">No AR Records Yet</h4>
-          <p className="text-muted-foreground">Start by adding your first invoice to track accounts receivable.</p>
+          <h4 className="text-lg font-semibold mb-2">No Invoices Found</h4>
+          <p className="text-muted-foreground mb-4">
+            No outstanding invoices found. Click "Sync from QuickBooks" to import your invoices.
+          </p>
+          <Button onClick={syncFromQBO} disabled={syncing}>
+            {syncing ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
+          </Button>
         </Card>
       ) : (
         <div className="grid gap-4">

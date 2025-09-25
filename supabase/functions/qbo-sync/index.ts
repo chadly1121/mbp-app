@@ -283,6 +283,80 @@ Deno.serve(async (req) => {
     
     console.log(`Successfully synced ${syncedCount} out of ${accounts.length} accounts from PRODUCTION QBO`)
 
+    // Sync Invoices for AR Tracker
+    console.log('Syncing invoices from QBO')
+    let invoicesCount = 0
+    
+    try {
+      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE TxnDate >= '2024-01-01'`, { headers })
+      if (!invoicesResponse.ok) {
+        console.error('QBO Invoices API error:', invoicesResponse.status, invoicesResponse.statusText)
+      } else {
+        const invoicesData = await invoicesResponse.json()
+        const invoices = invoicesData.QueryResponse?.Invoice || []
+        
+        console.log(`Found ${invoices.length} invoices from QBO`)
+        
+        // Clear existing AR tracker data for this company
+        const { error: deleteError } = await supabase
+          .from('ar_tracker')
+          .delete()
+          .eq('company_id', companyId)
+        
+        if (deleteError) {
+          console.error('Error clearing existing AR data:', deleteError)
+        }
+        
+        for (const invoice of invoices) {
+          const customerName = invoice.CustomerRef?.name || 'Unknown Customer'
+          const invoiceAmount = parseFloat(invoice.TotalAmt || 0)
+          const balance = parseFloat(invoice.Balance || invoiceAmount)
+          const paidAmount = invoiceAmount - balance
+          
+          // Calculate days outstanding
+          const dueDate = new Date(invoice.DueDate || invoice.TxnDate)
+          const today = new Date()
+          const daysOutstanding = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+          
+          // Determine status
+          let status: 'pending' | 'partial' | 'paid' | 'overdue' = 'pending'
+          if (balance === 0) {
+            status = 'paid'
+          } else if (paidAmount > 0) {
+            status = 'partial'
+          } else if (daysOutstanding > 0) {
+            status = 'overdue'
+          }
+
+          const { error } = await supabase
+            .from('ar_tracker')
+            .insert({
+              company_id: companyId,
+              invoice_number: invoice.DocNumber || invoice.Id,
+              client_name: customerName,
+              invoice_date: invoice.TxnDate,
+              due_date: invoice.DueDate || invoice.TxnDate,
+              invoice_amount: invoiceAmount,
+              paid_amount: paidAmount,
+              balance_due: balance,
+              days_outstanding: daysOutstanding,
+              status: status,
+              payment_terms: invoice.SalesTermRef?.name || 'Net 30',
+              notes: `QBO Invoice ID: ${invoice.Id}`
+            })
+
+          if (error) {
+            console.error(`Error syncing invoice ${invoice.DocNumber}:`, error)
+          } else {
+            console.log(`Successfully synced invoice: ${invoice.DocNumber} - ${customerName}`)
+            invoicesCount++
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing invoices:', error)
+    }
+
     // Sync P&L Report Data
     console.log('Syncing P&L report data from QBO')
     let plDataCount = 0
@@ -489,8 +563,9 @@ Deno.serve(async (req) => {
       success: true, 
       itemsCount: items.length,
       accountsCount: accounts.length,
+      invoicesCount: invoicesCount,
       plDataCount: plDataCount,
-      message: `Synced ${items.length} items, ${accounts.length} accounts, and ${plDataCount} P&L entries from QuickBooks Online`,
+      message: `Synced ${items.length} items, ${accounts.length} accounts, ${invoicesCount} invoices, and ${plDataCount} P&L entries from QuickBooks Online`,
       itemsFound: items.map(i => ({ name: i.Name, id: i.Id, type: i.Type })),
       accountsFound: accounts.map(a => ({ name: a.Name, id: a.Id, type: a.AccountType }))
     }), {
