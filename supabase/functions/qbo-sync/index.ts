@@ -324,9 +324,10 @@ Deno.serve(async (req) => {
         let dataFound = false
         
         // First try to parse actual P&L report data
-        if (plData.Report && plData.Report.Rows) {
-          console.log('Processing actual P&L report from QBO')
-          const rows = plData.Report.Rows
+        const report = plData.QueryResponse?.Report?.[0]
+        if (report && report.Rows) {
+          console.log('Processing PRODUCTION P&L report from QBO')
+          const rows = report.Rows
           
           for (const row of rows) {
             if (row.ColData && row.ColData.length > 1) {
