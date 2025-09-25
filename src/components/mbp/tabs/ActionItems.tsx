@@ -1,436 +1,361 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, CheckSquare, Clock, User, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Plus, User, Clock, AlertTriangle, CheckSquare } from 'lucide-react';
+
+import { BaseMBPTab } from '@/components/mbp/shared/BaseMBPTab';
+import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
+import { DataTable } from '@/components/mbp/tabs/shared/DataTable';
 import { useCompany } from '@/hooks/useCompany';
-import { supabase } from '@/integrations/supabase/client';
-import { ActionItem as ActionItemType, SelectChangeHandler, LoadingState } from '@/types/supabase';
-import { handleSupabaseError, normalizeError } from '@/utils/errorHandling';
+import { useActionItems } from '@/hooks/useActionItems';
+import {
+  ActionItem,
+  ActionItemFormData,
+  ActionItemFilters,
+  ACTION_ITEM_CATEGORIES,
+  ACTION_ITEM_PRIORITIES,
+  ACTION_ITEM_STATUSES,
+  isActionItemOverdue,
+  getActionItemPriorityColor,
+  getActionItemStatusColor,
+} from '@/types/actionItems';
 
-interface NewActionForm {
-  title: string;
-  description: string;
-  assigned_to: string;
-  due_date: string;
-  priority: ActionItemType['priority'];
-  category: string;
-}
+const initialFormData: ActionItemFormData = {
+  title: '',
+  description: '',
+  assigned_to: '',
+  due_date: '',
+  priority: 'medium',
+  category: '',
+};
 
-const CATEGORIES = ['Strategic', 'Financial', 'Operations', 'Marketing', 'Technology', 'HR'] as const;
+const initialFilters: ActionItemFilters = {
+  status: 'all',
+  priority: 'all',
+  category: 'all',
+};
 
 export const ActionItems = () => {
-  const { toast } = useToast();
   const { currentCompany } = useCompany();
-  const [actionItems, setActionItems] = useState<ActionItemType[]>([]);
-  const [loadingState, setLoadingState] = useState<LoadingState>({ isLoading: true, error: null });
   const [isAddingAction, setIsAddingAction] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterPriority, setFilterPriority] = useState<string>('all');
-  
-  const [newAction, setNewAction] = useState<NewActionForm>({
-    title: '',
-    description: '',
-    assigned_to: '',
-    due_date: '',
-    priority: 'medium',
-    category: ''
-  });
+  const [filters, setFilters] = useState<ActionItemFilters>(initialFilters);
+  const [formData, setFormData] = useState<ActionItemFormData>(initialFormData);
 
-  const fetchActionItems = useCallback(async () => {
-    if (!currentCompany) return;
+  const {
+    actionItems,
+    filteredActionItems,
+    loading,
+    error,
+    refetch,
+    createActionItem,
+    updateActionItem,
+    deleteActionItem,
+    toggleCompletion,
+    creating,
+  } = useActionItems(filters);
 
-    setLoadingState({ isLoading: true, error: null });
-    
-    try {
-      const { data, error } = await supabase
-        .from('action_items')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .order('created_at', { ascending: false });
+  // Statistics
+  const stats = useMemo(() => {
+    if (!actionItems) return { total: 0, inProgress: 0, completed: 0, overdue: 0 };
 
-      if (error) throw error;
-      setActionItems((data as ActionItemType[]) || []);
-    } catch (error) {
-      const apiError = handleSupabaseError(error);
-      setLoadingState({ isLoading: false, error: apiError.message });
-      toast({
-        title: "Error loading action items",
-        description: apiError.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingState(prev => ({ ...prev, isLoading: false }));
-    }
-  }, [currentCompany, toast]);
+    return {
+      total: actionItems.length,
+      inProgress: actionItems.filter(item => item.status === 'in_progress').length,
+      completed: actionItems.filter(item => item.status === 'completed').length,
+      overdue: actionItems.filter(item => isActionItemOverdue(item.due_date, item.status)).length,
+    };
+  }, [actionItems]);
 
-  const handleAddAction = async () => {
-    if (!currentCompany || !newAction.title) return;
+  // Group items by category for display
+  const groupedItems = useMemo(() => {
+    return filteredActionItems.reduce((acc, item) => {
+      const category = item.category || 'General';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(item);
+      return acc;
+    }, {} as Record<string, ActionItem[]>);
+  }, [filteredActionItems]);
 
-    try {
-      const { error } = await supabase
-        .from('action_items')
-        .insert([{
-          ...newAction,
-          company_id: currentCompany.id
-        }]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentCompany || !formData.title) return;
 
-      if (error) throw error;
-      
-      toast({
-        title: "Action item added",
-        description: `${newAction.title} has been added to your action items.`
-      });
-      
-      setNewAction({
-        title: '',
-        description: '',
-        assigned_to: '',
-        due_date: '',
-        priority: 'medium',
-        category: ''
-      });
-      setIsAddingAction(false);
-      await fetchActionItems();
-    } catch (error) {
-      const apiError = handleSupabaseError(error);
-      toast({
-        title: "Error adding action item",
-        description: apiError.message,
-        variant: "destructive",
-      });
+    await createActionItem({
+      ...formData,
+      company_id: currentCompany.id,
+    });
+
+    setFormData(initialFormData);
+    setIsAddingAction(false);
+  };
+
+  const handleStatusChange = (id: string, completed: boolean) => {
+    toggleCompletion(id, completed);
+  };
+
+  const handleEdit = (item: ActionItem) => {
+    setFormData({
+      title: item.title,
+      description: item.description || '',
+      assigned_to: item.assigned_to || '',
+      due_date: item.due_date || '',
+      priority: item.priority,
+      category: item.category || '',
+    });
+    // TODO: Implement edit functionality
+  };
+
+  const handleDelete = (item: ActionItem) => {
+    if (confirm('Are you sure you want to delete this action item?')) {
+      deleteActionItem(item.id);
     }
   };
 
-  const handleStatusChange = async (id: string, completed: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('action_items')
-        .update({ status: completed ? 'completed' : 'pending' })
-        .eq('id', id);
+  const renderActionItem = (item: ActionItem) => (
+    <Card
+      key={item.id}
+      className={`border ${
+        isActionItemOverdue(item.due_date, item.status)
+          ? 'border-destructive/50 bg-destructive/5'
+          : 'border-border'
+      } p-4`}
+    >
+      <div className="flex items-start gap-3">
+        <Checkbox
+          checked={item.status === 'completed'}
+          onCheckedChange={(checked) => handleStatusChange(item.id, checked as boolean)}
+          className="mt-1"
+        />
 
-      if (error) throw error;
-      
-      setActionItems(actionItems.map(item => 
-        item.id === id 
-          ? { ...item, status: completed ? 'completed' : 'pending' as const }
-          : item
-      ));
-    } catch (error) {
-      const apiError = handleSupabaseError(error);
-      toast({
-        title: "Error updating action item",
-        description: apiError.message,
-        variant: "destructive",
-      });
-    }
-  };
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <h4
+                className={`font-semibold ${
+                  item.status === 'completed' ? 'line-through text-muted-foreground' : ''
+                }`}
+              >
+                {item.title}
+              </h4>
+              {item.description && (
+                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+              )}
+            </div>
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
-      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
+            <div className="flex items-center gap-2">
+              {isActionItemOverdue(item.due_date, item.status) && (
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              )}
+              <Badge variant="outline" className={`text-xs`}>
+                {item.priority}
+              </Badge>
+              <Badge variant="outline" className={`text-xs`}>
+                {item.status.replace('_', ' ')}
+              </Badge>
+            </div>
+          </div>
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'in_progress': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'overdue': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
-
-  const isOverdue = (dueDate: string, status: string) => {
-    return new Date(dueDate) < new Date() && status !== 'completed';
-  };
-
-  const filteredItems = actionItems.filter(item => {
-    if (filterStatus !== 'all' && item.status !== filterStatus) return false;
-    if (filterPriority !== 'all' && item.priority !== filterPriority) return false;
-    return true;
-  });
-
-  const groupedItems = filteredItems.reduce((acc, item) => {
-    const category = item.category || 'General';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, ActionItemType[]>);
-
-  if (loadingState.isLoading) {
-    return <div className="flex items-center justify-center p-8">Loading action items...</div>;
-  }
-
-  if (!currentCompany) {
-    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
-  }
+          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              <span>{item.assigned_to || 'Unassigned'}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span
+                className={
+                  isActionItemOverdue(item.due_date, item.status)
+                    ? 'text-destructive font-medium'
+                    : ''
+                }
+              >
+                Due: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-semibold">Action Items & Tasks</h3>
-          <p className="text-sm text-muted-foreground">
-            Track and manage your business action items and tasks
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Dialog open={isAddingAction} onOpenChange={setIsAddingAction}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Action Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add Action Item</DialogTitle>
-                <DialogDescription>
-                  Create a new action item or task
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Title</Label>
-                  <Input
-                    value={newAction.title}
-                    onChange={(e) => setNewAction({ ...newAction, title: e.target.value })}
-                    placeholder="e.g., Review monthly reports"
-                  />
-                </div>
-                
-                <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    value={newAction.description}
-                    onChange={(e) => setNewAction({ ...newAction, description: e.target.value })}
-                    placeholder="Describe what needs to be done..."
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Category</Label>
-                    <Select value={newAction.category} onValueChange={(value) => setNewAction({ ...newAction, category: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((category) => (
-                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Priority</Label>
-                    <Select value={newAction.priority} onValueChange={(value: ActionItemType['priority']) => setNewAction({ ...newAction, priority: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Due Date</Label>
-                    <Input
-                      type="date"
-                      value={newAction.due_date}
-                      onChange={(e) => setNewAction({ ...newAction, due_date: e.target.value })}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label>Assigned To</Label>
-                  <Input
-                    value={newAction.assigned_to}
-                    onChange={(e) => setNewAction({ ...newAction, assigned_to: e.target.value })}
-                    placeholder="Person or team responsible"
-                  />
-                </div>
-                
-                <Button 
-                  onClick={handleAddAction} 
-                  className="w-full"
-                  disabled={!newAction.title || !newAction.category}
-                >
-                  Add Action Item
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+    <BaseMBPTab
+      title="Action Items & Tasks"
+      description="Track and manage your business action items and tasks"
+      loading={loading}
+      error={error}
+      onRefresh={refetch}
+      onAdd={() => setIsAddingAction(true)}
+      addButtonLabel="Add Action Item"
+      isEmpty={!actionItems || actionItems.length === 0}
+      emptyStateTitle="No Action Items"
+      emptyStateDescription="Start by creating your first action item to track tasks and deliverables."
+    >
+      <div className="space-y-6">
+        {/* Filters & Summary */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <Label className="text-xs">Status</Label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {ACTION_ITEM_STATUSES.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace('_', ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-      {/* Filters & Summary */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex items-center gap-4">
-          <div>
-            <Label className="text-xs">Status</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <Label className="text-xs">Priority</Label>
+              <Select value={filters.priority} onValueChange={(value) => setFilters(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {ACTION_ITEM_PRIORITIES.map(priority => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          
-          <div>
-            <Label className="text-xs">Priority</Label>
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="grid grid-cols-4 gap-4 ml-auto">
+            <Card className="p-3">
+              <div className="text-sm font-medium">Total</div>
+              <div className="text-xl font-bold">{stats.total}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-blue-600">In Progress</div>
+              <div className="text-xl font-bold text-blue-600">{stats.inProgress}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-green-600">Completed</div>
+              <div className="text-xl font-bold text-green-600">{stats.completed}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-destructive">Overdue</div>
+              <div className="text-xl font-bold text-destructive">{stats.overdue}</div>
+            </Card>
           </div>
         </div>
-        
-        <div className="grid grid-cols-4 gap-4 ml-auto">
-          <Card className="p-3">
-            <div className="text-sm font-medium">Total</div>
-            <div className="text-xl font-bold">{actionItems.length}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-sm font-medium text-blue-600">In Progress</div>
-            <div className="text-xl font-bold text-blue-600">
-              {actionItems.filter(item => item.status === 'in_progress').length}
-            </div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-sm font-medium text-green-600">Completed</div>
-            <div className="text-xl font-bold text-green-600">
-              {actionItems.filter(item => item.status === 'completed').length}
-            </div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-sm font-medium text-red-600">Overdue</div>
-            <div className="text-xl font-bold text-red-600">
-              {actionItems.filter(item => isOverdue(item.due_date, item.status)).length}
-            </div>
-          </Card>
-        </div>
-      </div>
 
-      {/* Action Items */}
-      {actionItems.length === 0 ? (
-        <Card className="p-8 text-center">
-          <CheckSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h4 className="text-lg font-semibold mb-2">No Action Items</h4>
-          <p className="text-muted-foreground mb-4">Start by creating your first action item to track tasks and deliverables.</p>
-          <Dialog open={isAddingAction} onOpenChange={setIsAddingAction}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create First Action Item
-              </Button>
-            </DialogTrigger>
-          </Dialog>
-        </Card>
-      ) : Object.entries(groupedItems).length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-muted-foreground">No action items match your current filters.</p>
-        </Card>
-      ) : (
-        Object.entries(groupedItems).map(([category, categoryItems]) => (
-          <Card key={category}>
-            <CardHeader>
-              <CardTitle className="text-lg">{category} Action Items</CardTitle>
-              <CardDescription>
-                Tasks and action items for {category.toLowerCase()}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        {/* Action Items */}
+        {Object.entries(groupedItems).length === 0 ? (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">No action items match your current filters.</p>
+          </Card>
+        ) : (
+          Object.entries(groupedItems).map(([category, categoryItems]) => (
+            <Card key={category} className="p-6">
+              <h3 className="text-lg font-semibold mb-4">{category} Action Items</h3>
               <div className="space-y-3">
-                {categoryItems.map((item) => (
-                  <Card key={item.id} className={`border ${
-                    isOverdue(item.due_date, item.status) ? 'border-red-200 bg-red-50/50' : 'border-muted'
-                  }`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={item.status === 'completed'}
-                          onCheckedChange={(checked) => handleStatusChange(item.id, checked as boolean)}
-                          className="mt-1"
-                        />
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <h4 className={`font-semibold ${item.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
-                                {item.title}
-                              </h4>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {item.description}
-                              </p>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {isOverdue(item.due_date, item.status) && (
-                                <AlertTriangle className="h-4 w-4 text-red-600" />
-                              )}
-                              <Badge variant="outline" className={`text-xs ${getPriorityColor(item.priority)}`}>
-                                {item.priority}
-                              </Badge>
-                              <Badge variant="outline" className={`text-xs ${getStatusColor(item.status)}`}>
-                                {item.status.replace('_', ' ')}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span>{item.assigned_to || 'Unassigned'}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              <span className={isOverdue(item.due_date, item.status) ? 'text-red-600 font-medium' : ''}>
-                                Due: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {categoryItems.map(renderActionItem)}
               </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
-    </div>
+            </Card>
+          ))
+        )}
+
+        {/* Add Action Item Dialog */}
+        <FormDialog
+          open={isAddingAction}
+          onOpenChange={setIsAddingAction}
+          title="Add Action Item"
+          description="Create a new action item or task"
+          onSubmit={handleSubmit}
+          loading={creating}
+          submitDisabled={!formData.title}
+        >
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g., Review monthly reports"
+              />
+            </div>
+
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe what needs to be done..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Category</Label>
+                <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ACTION_ITEM_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Priority</Label>
+                <Select value={formData.priority} onValueChange={(value: ActionItem['priority']) => setFormData(prev => ({ ...prev, priority: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ACTION_ITEM_PRIORITIES.map(priority => (
+                      <SelectItem key={priority} value={priority}>
+                        {priority}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Assigned To</Label>
+              <Input
+                value={formData.assigned_to}
+                onChange={(e) => setFormData(prev => ({ ...prev, assigned_to: e.target.value }))}
+                placeholder="Person or team responsible"
+              />
+            </div>
+          </div>
+        </FormDialog>
+      </div>
+    </BaseMBPTab>
   );
 };
