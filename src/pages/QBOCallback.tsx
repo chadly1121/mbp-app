@@ -53,10 +53,18 @@ const QBOCallback = () => {
             description: "QuickBooks Online connected successfully.",
           });
           
-          // Redirect back to the main app after a short delay
-          setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 2000);
+          // Check if we're in a popup window
+          if (window.opener && window.opener !== window) {
+            // We're in a popup, close it after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 1500);
+          } else {
+            // Regular window, redirect back to the main app
+            setTimeout(() => {
+              navigate('/', { replace: true });
+            }, 2000);
+          }
         } else {
           throw new Error('OAuth flow did not complete successfully');
         }
@@ -70,10 +78,18 @@ const QBOCallback = () => {
           variant: "destructive",
         });
         
-        // Redirect back to the main app after a short delay
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 3000);
+        // Check if we're in a popup window
+        if (window.opener && window.opener !== window) {
+          // We're in a popup, close it after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 2000);
+        } else {
+          // Regular window, redirect back to the main app
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 3000);
+        }
       }
     };
 
