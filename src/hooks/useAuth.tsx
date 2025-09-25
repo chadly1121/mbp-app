@@ -3,6 +3,8 @@ import { User, Session } from '@supabase/supabase-js';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { handleSupabaseError, logError } from '@/utils/errorHandling';
+import { ApiError } from '@/types/common';
 import { BetaAccessPending } from '@/components/BetaAccessPending';
 
 interface AuthContextType {
@@ -11,8 +13,8 @@ interface AuthContextType {
   loading: boolean;
   hasBetaAccess: boolean;
   isAdmin: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: ApiError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: ApiError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -118,13 +120,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       return { error };
-    } catch (error: any) {
+    } catch (err) {
+      const apiError = handleSupabaseError(err);
+      logError(err, 'signUp');
       toast({
         title: "Sign Up Error",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
-      return { error };
+      return { error: apiError };
     }
   };
 
@@ -144,13 +148,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       return { error };
-    } catch (error: any) {
+    } catch (err) {
+      const apiError = handleSupabaseError(err);
+      logError(err, 'signIn');
       toast({
         title: "Sign In Error",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
-      return { error };
+      return { error: apiError };
     }
   };
 
@@ -168,10 +174,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           title: "Signed out successfully",
         });
       }
-    } catch (error: any) {
+    } catch (err) {
+      const apiError = handleSupabaseError(err);
+      logError(err, 'signOut');
       toast({
         title: "Sign Out Error",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
     }

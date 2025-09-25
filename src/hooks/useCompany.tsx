@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { handleSupabaseError, logError } from '@/utils/errorHandling';
+import { ApiError } from '@/types/common';
 
 import { Company } from '@/types/common';
 
@@ -10,7 +12,7 @@ interface CompanyContextType {
   currentCompany: Company | null;
   loading: boolean;
   setCurrentCompany: (company: Company | null) => void;
-  createCompany: (name: string, slug: string) => Promise<{ data?: Company; error?: any }>;
+  createCompany: (name: string, slug: string) => Promise<{ data?: Company; error?: ApiError }>;
   refreshCompanies: () => Promise<void>;
 }
 
@@ -53,10 +55,12 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       if (data && data.length > 0 && !currentCompany) {
         setCurrentCompany(data[0]);
       }
-    } catch (error: any) {
+    } catch (err) {
+      const apiError = handleSupabaseError(err);
+      logError(err, 'refreshCompanies');
       toast({
         title: "Error loading companies",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
     } finally {
@@ -69,7 +73,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
   }, [user]);
 
   const createCompany = async (name: string, slug: string) => {
-    if (!user) return { error: 'No user found' };
+    if (!user) return { error: handleSupabaseError(new Error('No user found')) };
 
     try {
       const { data, error } = await supabase
@@ -105,13 +109,15 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       });
 
       return { data };
-    } catch (error: any) {
+    } catch (err) {
+      const apiError = handleSupabaseError(err);
+      logError(err, 'createCompany');
       toast({
         title: "Error creating company",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
-      return { error };
+      return { error: apiError };
     }
   };
 
