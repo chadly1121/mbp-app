@@ -60,10 +60,16 @@ Deno.serve(async (req) => {
       }
 
       const clientId = Deno.env.get('QBO_CLIENT_ID')
+      if (!clientId) {
+        throw new Error('QBO_CLIENT_ID not configured')
+      }
+      
       const redirectUri = 'https://mbp-app.lovable.app/qbo-callback'
       
       const scope = 'com.intuit.quickbooks.accounting'
       const state = `${user.id}:${companyId}`
+      
+      console.log('Creating auth URL with:', { clientId: clientId.substring(0, 10) + '...', redirectUri, state })
       
       const authUrl = `https://appcenter.intuit.com/connect/oauth2?` +
         `client_id=${clientId}&` +
@@ -72,6 +78,8 @@ Deno.serve(async (req) => {
         `response_type=code&` +
         `access_type=offline&` +
         `state=${encodeURIComponent(state)}`
+
+      console.log('Generated auth URL:', authUrl.substring(0, 100) + '...')
 
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -88,13 +88,17 @@ export const QBOIntegration = () => {
       }
 
       const { authUrl } = await response.json();
+      console.log('Received auth URL from server, opening popup...');
       
       // Open QuickBooks OAuth in new window
+      console.log('Opening popup with URL:', authUrl.substring(0, 100) + '...');
       const popup = window.open(authUrl, 'qbo-oauth', 'width=600,height=600,scrollbars=yes,resizable=yes');
       
       if (!popup) {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
+
+      console.log('Popup opened successfully');
 
       // Listen for messages from the popup
       const handleMessage = (event: MessageEvent) => {
