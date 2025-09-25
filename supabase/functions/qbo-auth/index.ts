@@ -43,7 +43,14 @@ Deno.serve(async (req) => {
     )
 
     const url = new URL(req.url)
-    const action = url.searchParams.get('action')
+    let action = url.searchParams.get('action')
+    let requestBody = null
+    
+    // For POST requests, get action from body
+    if (req.method === 'POST' && !action) {
+      requestBody = await req.json()
+      action = requestBody.action
+    }
 
     if (action === 'connect') {
       // Initiate OAuth flow
@@ -72,10 +79,18 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'callback') {
-      // Handle OAuth callback
-      const code = url.searchParams.get('code')
-      const state = url.searchParams.get('state')
-      const realmId = url.searchParams.get('realmId')
+      // Handle OAuth callback - support both URL params and POST body
+      let code, state, realmId;
+      
+      if (req.method === 'POST' && requestBody) {
+        code = requestBody.code;
+        state = requestBody.state;
+        realmId = requestBody.realmId;
+      } else {
+        code = url.searchParams.get('code')
+        state = url.searchParams.get('state')
+        realmId = url.searchParams.get('realmId')
+      }
 
       if (!code || !state || !realmId) {
         throw new Error('Missing required OAuth parameters')
