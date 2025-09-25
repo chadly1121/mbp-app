@@ -93,10 +93,14 @@ Deno.serve(async (req) => {
 
     const { companyId } = await req.json()
     if (!companyId) {
+      console.error('No company ID provided in request')
       throw new Error('Company ID is required')
     }
+    
+    console.log('Starting QBO sync for company:', companyId, 'user:', user.id)
 
     // Get QBO connection tokens securely
+    console.log('Fetching QBO tokens for company:', companyId)
     const { data: tokenDataRaw, error: tokenError } = await supabase
       .rpc('get_qbo_tokens', {
         p_company_id: companyId
@@ -109,8 +113,11 @@ Deno.serve(async (req) => {
     }
     
     if (!tokenDataRaw) {
+      console.error('No QBO connection found for company:', companyId)
       throw new Error('No active QBO connection found - please reconnect to QuickBooks')
     }
+    
+    console.log('QBO tokens retrieved successfully')
 
     const tokenData = tokenDataRaw as QBOTokens
 
