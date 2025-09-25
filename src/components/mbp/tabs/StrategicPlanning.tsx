@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,52 +15,39 @@ import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown,
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
+import { StrategicObjective as StrategicObjectiveType, ChecklistItem as ChecklistItemType, LoadingState } from '@/types/supabase';
+import { handleSupabaseError } from '@/utils/errorHandling';
 
-interface ChecklistItem {
-  id: string;
-  item_text: string;
-  is_completed: boolean;
-  sort_order: number;
-  objective_id?: string;
-}
-
-interface StrategicObjective {
-  id: string;
+interface NewObjectiveForm {
   title: string;
   description: string;
   target_date: string;
-  status: string;
-  priority: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
   completion_percentage: number;
-  created_at: string;
-  checklist?: ChecklistItem[];
 }
 
 export const StrategicPlanning = () => {
   const { toast } = useToast();
   const { currentCompany } = useCompany();
-  const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [objectives, setObjectives] = useState<StrategicObjectiveType[]>([]);
+  const [loadingState, setLoadingState] = useState<LoadingState>({ isLoading: true, error: null });
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [editingObjective, setEditingObjective] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [newObjective, setNewObjective] = useState({
+  const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
     title: '',
     description: '',
     target_date: '',
-    priority: 'medium' as const,
-    status: 'not_started' as const,
+    priority: 'medium',
+    status: 'not_started',
     completion_percentage: 0
   });
 
-  useEffect(() => {
-    if (currentCompany) {
-      fetchObjectives();
-    }
-  }, [currentCompany]);
-
-  const fetchObjectives = async () => {
+  const fetchObjectives = useCallback(async () => {
     if (!currentCompany) return;
+
+    setLoadingState({ isLoading: true, error: null });
 
     try {
       const { data: objectivesData, error: objectivesError } = await supabase
@@ -73,7 +60,7 @@ export const StrategicPlanning = () => {
 
       // Fetch checklist items for all objectives
       const objectiveIds = objectivesData?.map(obj => obj.id) || [];
-      let checklistData: ChecklistItem[] = [];
+      let checklistData: ChecklistItemType[] = [];
       
       if (objectiveIds.length > 0) {
         const { data: checklistResponse, error: checklistError } = await supabase
@@ -85,6 +72,9 @@ export const StrategicPlanning = () => {
         if (checklistError) throw checklistError;
         checklistData = (checklistResponse || []).map(item => ({
           id: item.id,
+          company_id: currentCompany.id,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
           item_text: item.item_text,
           is_completed: item.is_completed,
           sort_order: item.sort_order,
@@ -93,30 +83,32 @@ export const StrategicPlanning = () => {
       }
 
       // Combine objectives with their checklist items
-      const objectivesWithChecklist: StrategicObjective[] = (objectivesData || []).map(objective => ({
+      const objectivesWithChecklist: StrategicObjectiveType[] = (objectivesData || []).map(objective => ({
         id: objective.id,
+        company_id: objective.company_id,
+        created_at: objective.created_at,
+        updated_at: objective.updated_at,
         title: objective.title,
         description: objective.description || '',
         target_date: objective.target_date || '',
-        status: objective.status || 'not_started',
-        priority: objective.priority || 'medium',
+        status: (objective.status || 'not_started') as 'not_started' | 'in_progress' | 'completed' | 'on_hold',
+        priority: (objective.priority || 'medium') as 'low' | 'medium' | 'high' | 'critical',
         completion_percentage: objective.completion_percentage || 0,
-        created_at: objective.created_at,
         checklist: checklistData.filter(item => item.objective_id === objective.id)
       }));
 
       setObjectives(objectivesWithChecklist);
-    } catch (error: any) {
-      console.error('Error fetching objectives:', error);
+      setLoadingState({ isLoading: false, error: null });
+    } catch (error) {
+      const apiError = handleSupabaseError(error);
+      setLoadingState({ isLoading: false, error: apiError.message });
       toast({
         title: "Error loading objectives",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [currentCompany, toast]);
 
   const handleAddObjective = async () => {
     if (!currentCompany || !newObjective.title) {
@@ -158,7 +150,7 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const handleUpdateObjective = async (objectiveId: string, updates: Partial<StrategicObjective>) => {
+  const handleUpdateObjective = async (objectiveId: string, updates: Partial<StrategicObjectiveType>) => {
     try {
       // Remove checklist from updates as it's not a column in the table
       const { checklist, ...dbUpdates } = updates;
@@ -214,7 +206,7 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItem>) => {
+  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItemType>) => {
     try {
       const { error } = await supabase
         .from('strategic_objective_checklist')
@@ -283,7 +275,7 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const ObjectiveCard = ({ objective }: { objective: StrategicObjective }) => {
+  const ObjectiveCard = ({ objective }: { objective: StrategicObjectiveType }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({
       ...objective,
@@ -560,7 +552,7 @@ export const StrategicPlanning = () => {
     );
   };
 
-  if (loading) {
+  if (loadingState.isLoading) {
     return <div className="flex items-center justify-center p-8">Loading strategic objectives...</div>;
   }
 

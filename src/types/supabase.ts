@@ -163,6 +163,57 @@ export interface ImplementationPlan extends BaseRecord {
   notes: string;
 }
 
+export interface ARRecord extends BaseRecord {
+  client_name: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  invoice_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  days_outstanding: number;
+  status: 'pending' | 'overdue' | 'paid' | 'partial';
+  payment_terms: string;
+  notes: string;
+}
+
+export interface LeadStage extends BaseRecord {
+  stage_name: string;
+  stage_order: number;
+  leads_count: number;
+  conversion_rate: number;
+  average_value: number;
+  year: number;
+  month_number: number;
+  notes: string;
+}
+
+export interface SalesPlan extends BaseRecord {
+  plan_name: string;
+  plan_type: string;
+  year: number;
+  month_number: number;
+  week_number: number;
+  planned_revenue: number;
+  actual_revenue: number;
+  variance_revenue: number;
+  is_total_plan: boolean;
+  notes: string;
+}
+
+export interface MonthlyReview extends BaseRecord {
+  review_month: number;
+  review_year: number;
+  revenue_actual: number;
+  revenue_target: number;
+  expenses_actual: number;
+  expenses_target: number;
+  key_achievements: string;
+  challenges_faced: string;
+  lessons_learned: string;
+  next_month_focus: string;
+}
+
 // Data processing utility types
 export interface GroupedData<T> {
   [key: string]: T[];
