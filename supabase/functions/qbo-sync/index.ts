@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
               customerName: customerName,
               totalBalance: balance,
               invoiceCount: 1,
-              mostRecentInvoice: invoice.DocNumber,
+              mostRecentInvoice: invoice.DocNumber || `INV-${Date.now()}`,
               oldestDueDate: invoice.DueDate || invoice.TxnDate,
               paymentTerms: invoice.SalesTermRef?.name || 'Net 30',
               recentDate: invoice.TxnDate
@@ -359,12 +359,15 @@ Deno.serve(async (req) => {
           const dueDateObj = new Date(customerData.oldestDueDate)
           const daysOutstanding = Math.floor((today.getTime() - dueDateObj.getTime()) / (1000 * 60 * 60 * 24))
           
-          let status = 'current'
+          let status = 'pending'
           if (daysOutstanding > 30) {
             status = 'overdue'
           }
           
-          const invoiceNumber = customerData.invoiceCount > 1 ? 'Multiple' : customerData.mostRecentInvoice
+          // Ensure invoice number is never null
+          const invoiceNumber = customerData.invoiceCount > 1 
+            ? 'Multiple Invoices' 
+            : (customerData.mostRecentInvoice || `INV-${customerId || 'Unknown'}`)
           
           const arData = {
             company_id: companyId,
