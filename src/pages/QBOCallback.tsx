@@ -33,20 +33,19 @@ const QBOCallback = () => {
         }
 
         // Call the edge function to handle the callback
-        const response = await supabase.functions.invoke('qbo-auth', {
-          body: {
-            action: 'callback',
-            code,
-            state,
-            realmId
+        const response = await fetch(`https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/qbo-auth?action=callback&code=${code}&state=${state}&realmId=${realmId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        if (response.error) {
-          throw new Error(response.error.message || 'Failed to complete OAuth flow');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to complete OAuth flow');
         }
 
-        const result = response.data;
+        const result = await response.json();
         
         if (result.success) {
           setStatus('success');
