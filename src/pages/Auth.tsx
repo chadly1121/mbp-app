@@ -8,12 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, Lock, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
   const { user, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -40,6 +42,12 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!captchaToken) {
+      alert('Please complete the CAPTCHA verification');
+      return;
+    }
+    
     setIsLoading(true);
     
     await signUp(email, password, displayName);
@@ -168,7 +176,24 @@ const Auth = () => {
                       className="bg-background/50 h-10 md:h-11 text-sm md:text-base"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-10 md:h-11 text-sm md:text-base" disabled={isLoading}>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Security Verification</Label>
+                    <Turnstile
+                      siteKey="1x00000000000000000000AA"
+                      onSuccess={(token) => setCaptchaToken(token)}
+                      onError={() => setCaptchaToken('')}
+                      onExpire={() => setCaptchaToken('')}
+                      options={{
+                        theme: 'auto',
+                        size: 'normal'
+                      }}
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-10 md:h-11 text-sm md:text-base" 
+                    disabled={isLoading || !captchaToken}
+                  >
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
                 </form>
