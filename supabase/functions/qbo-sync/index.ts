@@ -310,47 +310,57 @@ Deno.serve(async (req) => {
         console.error('Error clearing existing P&L data:', deleteError)
       }
       
-      // Direct, simple P&L API call
-      console.log(`=== SIMPLE QBO P&L SYNC ===`)
-      console.log(`Date range: ${startDate} to ${endDate}`)
+      // DIRECT P&L TEST - Let's see exactly what QBO returns
+      console.log(`=== TESTING REAL QBO P&L API ===`)
       console.log(`QBO Company ID: ${tokenData.qbo_company_id}`)
+      console.log(`Date range: ${startDate} to ${endDate}`)
       
-      // Just try the basic P&L report API
-      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Month`
-      console.log('Calling QBO P&L API:', plUrl)
+      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}`
+      console.log('Calling P&L URL:', plUrl)
       
       try {
         const response = await fetch(plUrl, { headers })
-        console.log('QBO P&L API Response Status:', response.status)
+        console.log('P&L Response Status:', response.status, response.statusText)
         
         if (response.ok) {
-          const data = await response.json()
-          console.log('=== RAW QBO P&L DATA ===')
-          console.log(JSON.stringify(data, null, 2))
-          console.log('=== END RAW DATA ===')
+          const plData = await response.json()
+          console.log('=== SUCCESS! Got P&L data from QBO ===')
+          console.log('Response keys:', Object.keys(plData))
           
-          // If we got data, show it exists
-          if (data.QueryResponse && data.QueryResponse.Report) {
-            console.log('SUCCESS: Got actual P&L data from QBO!')
-            const report = data.QueryResponse.Report[0]
-            if (report.Rows && report.Rows.length > 0) {
-              console.log(`Found ${report.Rows.length} rows in P&L report`)
+          if (plData.QueryResponse) {
+            console.log('QueryResponse keys:', Object.keys(plData.QueryResponse))
+            
+            if (plData.QueryResponse.Report) {
+              console.log('Number of reports:', plData.QueryResponse.Report.length)
+              const report = plData.QueryResponse.Report[0]
+              console.log('Report keys:', Object.keys(report))
+              console.log('Report header:', JSON.stringify(report.Header, null, 2))
               
-              // Log the structure so we can see what we're working with
-              report.Rows.forEach((row: any, index: number) => {
-                if (index < 5) { // Just log first 5 rows
-                  console.log(`Row ${index}:`, JSON.stringify(row, null, 2))
-                }
-              })
+              if (report.Rows) {
+                console.log(`Found ${report.Rows.length} top-level rows`)
+                
+                // Show structure of first few rows
+                report.Rows.slice(0, 3).forEach((row: any, i: number) => {
+                  console.log(`Row ${i} structure:`, Object.keys(row))
+                  if (row.ColData) {
+                    console.log(`Row ${i} ColData:`, row.ColData.map((col: any) => col.value))
+                  }
+                })
+              }
             }
           }
+          
+          // THIS IS THE KEY - let's save the raw response to see what we're working with
+          console.log('=== FULL RAW P&L RESPONSE ===')
+          console.log(JSON.stringify(plData, null, 2))
+          console.log('=== END RAW RESPONSE ===')
+          
         } else {
           const errorText = await response.text()
-          console.error('QBO API Error:', response.status, response.statusText)
-          console.error('Error details:', errorText)
+          console.error('P&L API failed:', response.status, errorText)
         }
       } catch (error) {
-        console.error('Failed to call QBO P&L API:', error)
+        console.error('Exception calling P&L API:', error)
       }
       
       // If no data retrieved, create sample data for now
