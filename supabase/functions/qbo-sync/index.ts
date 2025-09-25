@@ -318,14 +318,16 @@ Deno.serve(async (req) => {
           const today = new Date()
           const daysOutstanding = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
           
-          // Determine status
+          // Determine status based on balance and due date
           let status: 'pending' | 'partial' | 'paid' | 'overdue' = 'pending'
           if (balance === 0) {
             status = 'paid'
-          } else if (paidAmount > 0) {
+          } else if (paidAmount > 0 && balance > 0) {
             status = 'partial'
-          } else if (daysOutstanding > 0) {
+          } else if (balance > 0 && daysOutstanding > 0) {
             status = 'overdue'
+          } else if (balance > 0) {
+            status = 'pending'
           }
 
           const { error } = await supabase
