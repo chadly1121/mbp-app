@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       accessToken = await refreshToken(supabase, companyId, tokenData.refresh_token)
     }
 
-    const baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenData.qbo_company_id}`
+    const baseUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.qbo_company_id}`
     const headers = {
       'Authorization': `Bearer ${accessToken}`,
       'Accept': 'application/json'
