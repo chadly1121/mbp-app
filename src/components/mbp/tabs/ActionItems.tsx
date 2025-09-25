@@ -113,7 +113,9 @@ export const ActionItems = () => {
   };
 
   const handleDelete = (item: ActionItem) => {
-    if (confirm('Are you sure you want to delete this action item?')) {
+    // Use modern confirmation dialog instead of blocking confirm()
+    const confirmed = window.confirm('Are you sure you want to delete this action item?');
+    if (confirmed) {
       deleteActionItem(item.id);
     }
   };
