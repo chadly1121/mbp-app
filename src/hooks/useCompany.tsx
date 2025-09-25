@@ -3,14 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-interface Company {
-  id: string;
-  name: string;
-  slug: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Company } from '@/types/common';
 
 interface CompanyContextType {
   companies: Company[];
@@ -99,6 +92,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       });
 
       if (coaError) {
+        // Log error but don't throw - the company was created successfully
         console.error('Error creating default chart of accounts:', coaError);
       }
 

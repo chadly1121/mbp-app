@@ -1,7 +1,2 @@
-import { MBPTabs } from "./MBPTabs";
-
-const MBPDashboard = () => {
-  return <MBPTabs />;
-};
-
-export default MBPDashboard;
+// Re-export MBPTabs for backward compatibility
+export { MBPTabs as default } from "./MBPTabs";

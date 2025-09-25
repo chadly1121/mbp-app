@@ -31,21 +31,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Setting up auth state listener');
-    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          console.log('User found, checking permissions...');
           // Don't use async here - call the function separately
           checkUserPermissions(session.user.id);
         } else {
-          console.log('No user, setting states to false and not loading');
           setHasBetaAccess(false);
           setIsAdmin(false);
           setLoading(false);
@@ -54,17 +49,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     // Check for existing session
-    console.log('Checking for existing session...');
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Existing session check result:', session?.user?.id || 'no session');
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        console.log('Existing session found, checking permissions...');
         checkUserPermissions(session.user.id);
       } else {
-        console.log('No existing session, setting loading to false');
         setLoading(false);
       }
     }).catch((error) => {
@@ -77,29 +68,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const checkUserPermissions = async (userId: string) => {
     try {
-      console.log('Checking permissions for user:', userId);
-      
       // Check beta access
       const { data: betaData, error: betaError } = await supabase.rpc('has_beta_access', {
         user_id: userId
       });
-      console.log('Beta access result:', betaData, 'Error:', betaError);
       setHasBetaAccess(betaData || false);
 
       // Check admin status
       const { data: adminData, error: adminError } = await supabase.rpc('is_admin', {
         user_id: userId
       });
-      console.log('Admin status result:', adminData, 'Error:', adminError);
       setIsAdmin(adminData || false);
       
-      console.log('Permissions check completed successfully');
     } catch (error) {
       console.error('Error checking user permissions:', error);
       setHasBetaAccess(false);
       setIsAdmin(false);
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
     }
   };

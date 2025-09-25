@@ -23,7 +23,6 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (user && !loading) {
-      console.log('Redirecting authenticated user to home');
       navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);

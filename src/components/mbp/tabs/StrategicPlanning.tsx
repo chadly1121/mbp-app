@@ -119,9 +119,7 @@ export const StrategicPlanning = () => {
   };
 
   const handleAddObjective = async () => {
-    console.log('Adding objective:', { currentCompany, newObjective });
     if (!currentCompany || !newObjective.title) {
-      console.log('Missing requirements:', { currentCompany: !!currentCompany, title: !!newObjective.title });
       return;
     }
 
