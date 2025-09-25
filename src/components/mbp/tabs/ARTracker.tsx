@@ -64,18 +64,23 @@ export const ARTracker = () => {
 
     setSyncing(true);
     try {
-      const response = await fetch('/supabase/functions/v1/qbo-sync', {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/qbo-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Authorization': `Bearer ${session.session.access_token}`,
         },
         body: JSON.stringify({ companyId: currentCompany.id }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sync with QuickBooks');
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();

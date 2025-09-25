@@ -57,14 +57,25 @@ export const RevenueForecast = () => {
   }, [currentCompany, selectedYear]);
 
   const loadProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('company_id', currentCompany?.id)
-      .eq('is_active', true);
+    if (!currentCompany) return;
     
-    if (!error) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
       setProducts(data || []);
+    } catch (error: any) {
+      console.error('Error loading products:', error);
+      toast({
+        title: "Error loading products",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -74,26 +85,34 @@ export const RevenueForecast = () => {
     try {
       const { data, error } = await supabase
         .from('revenue_forecasts')
-        .select(`
-          *,
-          products (name, unit_price)
-        `)
+        .select('*')
         .eq('company_id', currentCompany.id)
         .eq('year', selectedYear)
-        .order('product_id', { ascending: true });
+        .order('month', { ascending: true });
 
       if (error) throw error;
 
+      // Get products separately to avoid join issues
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('company_id', currentCompany.id);
+
+      if (productsError) throw productsError;
+
+      const productsMap = new Map(productsData?.map(p => [p.id, p]) || []);
+
       // Group by product and create annual lines
       const groupedData = (data || []).reduce((acc: any, item: any) => {
-        const productName = item.products?.name || `Product ${item.product_id}`;
-        const productPrice = item.products?.unit_price || 0;
+        const product = item.product_id ? productsMap.get(item.product_id) : null;
+        const productName = product?.name || `Custom Product ${item.product_id || 'Unknown'}`;
+        const productPrice = product?.unit_price || 0;
         
         if (!acc[productName]) {
           acc[productName] = {
             id: productName,
             product: productName,
-            unitPrice: productPrice,
+            unitPrice: productPrice || (item.forecasted_amount > 0 ? item.forecasted_amount : 100), // Default price if none
             jan: 0, feb: 0, mar: 0, apr: 0, may: 0, jun: 0,
             jul: 0, aug: 0, sep: 0, oct: 0, nov: 0, dec: 0,
             totalUnits: 0,
@@ -104,7 +123,7 @@ export const RevenueForecast = () => {
         // Map month number to month name and calculate units from forecasted amount
         const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
         const monthKey = monthNames[item.month - 1];
-        const units = productPrice > 0 ? Math.round(item.forecasted_amount / productPrice) : 0;
+        const units = acc[productName].unitPrice > 0 ? Math.round(item.forecasted_amount / acc[productName].unitPrice) : 0;
         
         acc[productName][monthKey] = units;
         acc[productName].totalUnits += units;
@@ -115,6 +134,7 @@ export const RevenueForecast = () => {
 
       setForecastLines(Object.values(groupedData));
     } catch (error: any) {
+      console.error('Forecast data error:', error);
       toast({
         title: "Error loading forecast data",
         description: error.message,

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus } from 'lucide-react';
+import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign, TrendingDown } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,11 +25,24 @@ interface Objective {
   target_date: string;
 }
 
+interface FinancialMetric {
+  revenue: number;
+  expenses: number;
+  grossProfit: number;
+  grossMargin: number;
+}
+
 export const GSRDashboard = () => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetric>({
+    revenue: 0,
+    expenses: 0,
+    grossProfit: 0,
+    grossMargin: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,11 +68,45 @@ export const GSRDashboard = () => {
         .select('*')
         .eq('company_id', currentCompany.id);
 
+      // Fetch real financial data from QBO
+      const currentYear = new Date().getFullYear();
+      const { data: plData, error: plError } = await supabase
+        .from('qbo_profit_loss')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('fiscal_year', currentYear);
+
       if (kpiError) throw kpiError;
       if (objectiveError) throw objectiveError;
+      if (plError) throw plError;
 
       setGoals(kpis || []);
       setObjectives(strategicObjectives || []);
+
+      // Calculate real financial metrics from QBO data
+      if (plData && plData.length > 0) {
+        const revenue = plData
+          .filter(item => item.account_type === 'revenue')
+          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+        
+        const expenses = plData
+          .filter(item => item.account_type === 'expense')
+          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+        
+        const cogs = plData
+          .filter(item => item.account_type === 'cost_of_goods_sold')
+          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+        
+        const grossProfit = revenue - cogs;
+        const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+
+        setFinancialMetrics({
+          revenue,
+          expenses: expenses + cogs,
+          grossProfit,
+          grossMargin
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error loading data",
@@ -134,6 +181,69 @@ export const GSRDashboard = () => {
             Set New Goal
           </Button>
         </div>
+      </div>
+
+      {/* Financial Performance from QBO */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              Revenue (YTD)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ${financialMetrics.revenue.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">From QuickBooks</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-red-600" />
+              Total Expenses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              ${financialMetrics.expenses.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">COGS + Operating</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              Gross Profit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              ${financialMetrics.grossProfit.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Revenue - COGS</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Target className="h-4 w-4 text-purple-600" />
+              Gross Margin
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {financialMetrics.grossMargin.toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">Profit / Revenue</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Overall Performance */}
