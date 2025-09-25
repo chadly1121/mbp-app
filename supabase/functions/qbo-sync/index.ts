@@ -288,15 +288,21 @@ Deno.serve(async (req) => {
     let invoicesCount = 0
     
     try {
-      // Only get actual invoices (not estimates/credits) with outstanding balance
-      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0' AND TxnDate >= '2020-01-01' ORDER BY TxnDate DESC`, { headers })
+      // Only get recent invoices with outstanding balance (last 18 months)
+      const cutoffDate = new Date()
+      cutoffDate.setMonth(cutoffDate.getMonth() - 18)
+      const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
+      
+      console.log(`Syncing invoices from ${cutoffDateStr} forward with outstanding balances`)
+      
+      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0' AND TxnDate >= '${cutoffDateStr}' ORDER BY TxnDate DESC`, { headers })
       if (!invoicesResponse.ok) {
         console.error('QBO Invoices API error:', invoicesResponse.status, invoicesResponse.statusText)
       } else {
         const invoicesData = await invoicesResponse.json()
         const invoices = invoicesData.QueryResponse?.Invoice || []
         
-        console.log(`Found ${invoices.length} unpaid invoices from QBO`)
+        console.log(`Found ${invoices.length} recent unpaid invoices from QBO (since ${cutoffDateStr})`)
         console.log('Sample invoice data:', JSON.stringify(invoices[0], null, 2))
         
         // Clear existing AR tracker data for this company
