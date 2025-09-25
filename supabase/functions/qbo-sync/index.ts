@@ -348,101 +348,11 @@ Deno.serve(async (req) => {
         await createSamplePLData(supabase, companyId, fiscalYear, currentQuarter, currentMonth, endDate)
         plDataCount = 6
       }
-        if (report && report.Rows) {
-          console.log('Processing PRODUCTION P&L report from QBO')
-          
-          // Function to recursively process rows and groups
-          const processRowData = async (rowData: any[], level = 0) => {
-            for (const row of rowData) {
-              // Handle groups (sections like "Income", "Expenses", etc.)
-              if (row.group && row.Rows) {
-                console.log(`Processing group: ${row.group}, level: ${level}`)
-                await processRowData(row.Rows, level + 1)
-              }
-              // Handle regular data rows
-              else if (row.ColData && row.ColData.length > 1) {
-                const accountName = row.ColData[0]?.value
-                if (accountName && !accountName.includes('Total') && !accountName.includes('NET') && !accountName.includes('TOTAL')) {
-                  // Get the amount from the last column (should be YTD total)
-                  const amountStr = row.ColData[row.ColData.length - 1]?.value
-                  if (amountStr && amountStr !== '' && amountStr !== '0.00') {
-                    // Clean the amount string and convert to number
-                    let cleanAmount = amountStr.replace(/[,$\s]/g, '')
-                    let amount = 0
-                    
-                    // Handle negative amounts (often shown in parentheses)
-                    if (cleanAmount.includes('(') && cleanAmount.includes(')')) {
-                      amount = -Math.abs(parseFloat(cleanAmount.replace(/[()]/g, '')))
-                    } else {
-                      amount = parseFloat(cleanAmount)
-                    }
-                    
-                    if (!isNaN(amount) && Math.abs(amount) > 0) {
-                      // Determine account type based on section and account name
-                      let accountType = 'expense'
-                      const lowerName = accountName.toLowerCase()
-                      
-                      // Revenue indicators
-                      if (lowerName.includes('income') || lowerName.includes('revenue') || 
-                          lowerName.includes('sales') || lowerName.includes('service') ||
-                          lowerName.includes('fees') || amount > 0) {
-                        accountType = 'revenue'
-                      } 
-                      // Cost of goods sold indicators
-                      else if (lowerName.includes('cost') || lowerName.includes('cogs') ||
-                               lowerName.includes('materials') || lowerName.includes('wages')) {
-                        accountType = 'cost_of_goods_sold'
-                      }
-                      
-                      const plEntry = {
-                        company_id: companyId,
-                        account_id: null,
-                        account_name: accountName,
-                        account_type: accountType,
-                        qbo_account_id: null,
-                        report_date: endDate,
-                        fiscal_year: fiscalYear,
-                        fiscal_quarter: currentQuarter,
-                        fiscal_month: currentMonth,
-                        current_month: Math.round(amount * 0.083), // Rough estimate for current month
-                        quarter_to_date: Math.round(amount * 0.25), // Rough estimate for QTD
-                        year_to_date: amount,
-                        budget_current_month: 0,
-                        budget_quarter_to_date: 0,
-                        budget_year_to_date: 0,
-                        variance_current_month: Math.round(amount * 0.083),
-                        variance_quarter_to_date: Math.round(amount * 0.25),
-                        variance_year_to_date: amount
-                      }
-                      
-                      console.log(`Inserting PRODUCTION P&L data: ${accountName} = $${amount} (${accountType})`)
-                      
-                      const { error: insertError } = await supabase
-                        .from('qbo_profit_loss')
-                        .insert(plEntry)
-                      
-                      if (!insertError) {
-                        plDataCount++
-                        dataFound = true
-                      } else {
-                        console.error(`Error inserting P&L data for ${accountName}:`, insertError)
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          
-          // Start processing from the top level
-          await processRowData(report.Rows)
-          console.log(`Processed PRODUCTION P&L report: ${plDataCount} entries created`)
-        } else {
-          console.log('No Rows found in P&L report structure')
-        }
-        
-        // If no actual P&L data found, try getting account balances directly
-        if (!dataFound) {
+      
+      let dataFound = plDataCount > 0
+      
+      // If no actual P&L data found, try getting account balances directly
+      if (!dataFound) {
           console.log('No P&L report data found, trying individual account balances from QBO')
           
           // Try to get account balances from Trial Balance report
@@ -602,13 +512,6 @@ Deno.serve(async (req) => {
             }
           }
         }
-      
-      // If still no data, create sample data
-      if (plDataCount === 0) {
-        console.log('No P&L data found, creating sample data for testing')
-        await createSamplePLData(supabase, companyId, fiscalYear, currentQuarter, currentMonth, endDate)
-        plDataCount = 6
-      }
     } catch (error) {
       console.error('Error syncing P&L data:', error)
       
