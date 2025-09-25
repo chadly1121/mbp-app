@@ -396,10 +396,15 @@ Deno.serve(async (req) => {
           const tbResponse = await fetch(trialBalanceUrl, { headers })
           if (tbResponse.ok) {
             const tbData = await tbResponse.json()
-            console.log('Trial Balance Response:', JSON.stringify(tbData, null, 2))
+            console.log('Trial Balance Response structure:', {
+              hasQueryResponse: !!tbData.QueryResponse,
+              hasReport: !!tbData.QueryResponse?.Report,
+              reportCount: tbData.QueryResponse?.Report?.length || 0
+            })
             
             // Process trial balance data similar to P&L
-            if (tbData.Report && tbData.Report.Rows) {
+            const report = tbData.QueryResponse?.Report?.[0]
+            if (report && report.Rows) {
               for (const row of tbData.Report.Rows) {
                 if (row.ColData && row.ColData.length > 1) {
                   const accountName = row.ColData[0]?.value
@@ -464,49 +469,14 @@ Deno.serve(async (req) => {
           }
         }
         
-        // Only create sample data if absolutely no real data is available
+        // If no data found, log it but don't create fake data
         if (!dataFound) {
-          console.log('No actual financial data available in QBO sandbox - you mentioned ~$400k revenue, creating minimal realistic data')
-          
-          const minimalData = [
-            { account_name: 'Services', account_type: 'revenue', amount: 400000 },
-            { account_name: 'Operating Expenses', account_type: 'expense', amount: 180000 },
-            { account_name: 'Professional Fees', account_type: 'expense', amount: 35000 },
-            { account_name: 'Office Expenses', account_type: 'expense', amount: 25000 }
-          ]
-          
-          for (const item of minimalData) {
-            const plEntry = {
-              company_id: companyId,
-              account_id: null,
-              account_name: item.account_name,
-              account_type: item.account_type,
-              qbo_account_id: null,
-              report_date: endDate,
-              fiscal_year: fiscalYear,
-              fiscal_quarter: currentQuarter,
-              fiscal_month: currentMonth,
-              current_month: Math.round(item.amount * 0.083),
-              quarter_to_date: Math.round(item.amount * 0.25),
-              year_to_date: item.amount,
-              budget_current_month: 0,
-              budget_quarter_to_date: 0,
-              budget_year_to_date: 0,
-              variance_current_month: Math.round(item.amount * 0.083),
-              variance_quarter_to_date: Math.round(item.amount * 0.25),
-              variance_year_to_date: item.amount
-            }
-            
-            console.log(`Creating sample data based on your $400k: ${item.account_name} - $${item.amount}`)
-            
-            const { error: insertError } = await supabase
-              .from('qbo_profit_loss')
-              .insert(plEntry)
-            
-            if (!insertError) {
-              plDataCount++
-            }
-          }
+          console.log('No PRODUCTION financial data found in QBO P&L or Trial Balance reports')
+          console.log('This might be because:')
+          console.log('1. QBO company has no transactions for the current year')
+          console.log('2. All account balances are zero') 
+          console.log('3. QBO API permission issues')
+          console.log('Please check your QuickBooks data and ensure transactions exist')
         }
       } else {
         const errorText = await plResponse.text()
