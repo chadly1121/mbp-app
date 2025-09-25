@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 // Performance utility hooks and functions
 export const useDebounce = <T>(value: T, delay: number): T => {
@@ -105,11 +105,14 @@ export const measurePerformance = (label: string) => {
   return {
     end: () => {
       const end = performance.now();
-      console.log(`${label} took ${end - start} milliseconds`);
-      return end - start;
+      const duration = end - start;
+      
+      // Only log in development mode
+      if (import.meta.env?.DEV) {
+        console.log(`${label} took ${duration} milliseconds`);
+      }
+      
+      return duration;
     }
   };
 };
-
-// React imports need to be added
-import { useState, useEffect } from 'react';

@@ -108,7 +108,8 @@ export const ActionItems = () => {
       priority: item.priority,
       category: item.category || '',
     });
-    // TODO: Implement edit functionality
+    // For now, this prepares the form data for editing
+    // Full edit implementation would need updateActionItem function
   };
 
   const handleDelete = (item: ActionItem) => {
