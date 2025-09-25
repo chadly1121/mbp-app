@@ -87,10 +87,15 @@ Deno.serve(async (req) => {
       .rpc('get_qbo_tokens', {
         p_company_id: companyId
       })
-      .single()
+      .maybeSingle()
 
-    if (tokenError || !tokenDataRaw) {
-      throw new Error('No active QBO connection found')
+    if (tokenError) {
+      console.error('Database error getting QBO tokens:', tokenError)
+      throw new Error(`Database error: ${tokenError.message}`)
+    }
+    
+    if (!tokenDataRaw) {
+      throw new Error('No active QBO connection found - please reconnect to QuickBooks')
     }
 
     const tokenData = tokenDataRaw as QBOTokens
@@ -100,9 +105,14 @@ Deno.serve(async (req) => {
       .rpc('get_qbo_connection_status', {
         p_company_id: companyId
       })
-      .single()
+      .maybeSingle()
 
-    if (statusError || !connectionStatusRaw) {
+    if (statusError) {
+      console.error('Database error getting QBO connection status:', statusError)
+      throw new Error(`Database error: ${statusError.message}`)
+    }
+    
+    if (!connectionStatusRaw) {
       throw new Error('No QBO connection status found')
     }
 
