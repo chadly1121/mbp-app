@@ -68,15 +68,25 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header found')
       throw new Error('No authorization header')
     }
 
+    console.log('Validating user token...')
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
-    if (authError || !user) {
-      throw new Error('Invalid token')
+    if (authError) {
+      console.error('Token validation error:', authError)
+      throw new Error(`Invalid token: ${authError.message}`)
     }
+    
+    if (!user) {
+      console.error('No user found for token')
+      throw new Error('Invalid token: No user found')
+    }
+
+    console.log('User validated successfully:', user.id)
 
     // Create user-context client for RLS-protected operations
     const supabase = createClient(
