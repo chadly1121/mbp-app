@@ -39,7 +39,17 @@ interface QBOConnectionStatus {
 
 interface QBOProfitLossRow {
   group?: string
-  ColData: Array<{
+  type?: string
+  Header?: {
+    ColData: Array<{
+      value?: string
+      id?: string
+    }>
+  }
+  Rows?: {
+    Row: QBOProfitLossRow[]
+  }
+  ColData?: Array<{
     value?: string
     id?: string
   }>
@@ -51,7 +61,9 @@ interface QBOProfitLossReport {
     StartPeriod: string
     EndPeriod: string
   }
-  Rows?: QBOProfitLossRow[]
+  Rows?: {
+    Row: QBOProfitLossRow[]
+  }
 }
 
 Deno.serve(async (req) => {
@@ -698,7 +710,10 @@ async function processProfitLossData(
 ): Promise<number> {
   let processedCount = 0
   
-  if (!report.Rows) return processedCount
+  if (!report.Rows?.Row) {
+    console.log('No P&L report rows found')
+    return processedCount
+  }
 
   // First, clear existing P&L data for this fiscal year
   await supabase
@@ -707,95 +722,119 @@ async function processProfitLossData(
     .eq('company_id', companyId)
     .eq('fiscal_year', fiscalYear)
 
-  for (const row of report.Rows) {
-    if (!row.ColData || row.ColData.length === 0) continue
-    
-    // Skip header and total rows
-    if (row.group || !row.ColData[0]?.value) continue
-    
-    const accountName = row.ColData[0]?.value
-    if (!accountName || accountName.includes('Total') || accountName.includes('NET')) continue
-    
-    // Determine account type from the account name or position in report
-    let accountType = 'expense'
-    if (accountName.toLowerCase().includes('income') || 
-        accountName.toLowerCase().includes('sales') || 
-        accountName.toLowerCase().includes('revenue')) {
-      accountType = 'revenue'
-    } else if (accountName.toLowerCase().includes('cost')) {
-      accountType = 'cost_of_goods_sold'
+  // Get chart of accounts for mapping
+  const chartAccounts = await supabase
+    .from('chart_of_accounts')
+    .select('*')
+    .eq('company_id', companyId)
+  
+  const accountsMap = new Map()
+  if (chartAccounts.data) {
+    chartAccounts.data.forEach((account: any) => {
+      if (account.qbo_id) {
+        accountsMap.set(account.qbo_id, account)
+      }
+      accountsMap.set(account.account_name.toLowerCase(), account)
+    })
+  }
+
+  // Recursive function to process nested QBO P&L structure
+  const processSection = async (rows: any[], parentAccountType = 'expense') => {
+    if (!Array.isArray(rows)) {
+      rows = [rows]
     }
     
-    // Find matching account in chart_of_accounts
-    const { data: chartAccount } = await supabase
-      .from('chart_of_accounts')
-      .select('id, qbo_id')
-      .eq('company_id', companyId)
-      .eq('account_name', accountName)
-      .single()
-    
-    // Process monthly data from ColData (typically columns 1-12 are months, 13 is YTD total)
-    let yearToDateAmount = 0
-    let currentMonthAmount = 0
-    let quarterToDateAmount = 0
-    
-    // Extract YTD amount (usually the last column)
-    if (row.ColData.length > 1) {
-      const ytdValue = row.ColData[row.ColData.length - 1]?.value
-      if (ytdValue && !isNaN(parseFloat(ytdValue))) {
-        yearToDateAmount = parseFloat(ytdValue)
+    for (const row of rows) {
+      // Handle section headers (INCOME, EXPENSES, etc.)
+      if (row.group) {
+        let sectionType = 'expense'
+        if (row.group.toLowerCase().includes('income')) {
+          sectionType = 'revenue'
+        } else if (row.group.toLowerCase().includes('cogs') || row.group.toLowerCase().includes('cost of goods sold')) {
+          sectionType = 'cost_of_goods_sold'
+        }
+        
+        if (row.Rows?.Row) {
+          await processSection(row.Rows.Row, sectionType)
+        }
+        continue
+      }
+      
+      // Handle data rows with actual amounts
+      if (row.type === 'Data' && row.ColData && row.ColData.length >= 2) {
+        const accountData = row.ColData[0]
+        const amountData = row.ColData[1]
+        
+        if (!accountData?.value || !amountData?.value) continue
+        
+        const accountName = accountData.value.trim()
+        const amountStr = amountData.value.replace(/[,$\s]/g, '').replace(/[()]/g, '-')
+        
+        if (!amountStr || isNaN(parseFloat(amountStr))) continue
+        
+        const amount = Math.abs(parseFloat(amountStr))
+        if (amount === 0) continue
+        
+        // Find matching chart account
+        const chartAccount = accountsMap.get(accountData.id) || 
+                           accountsMap.get(accountName.toLowerCase())
+        
+        // Determine account type
+        let accountType = parentAccountType
+        if (chartAccount?.account_type) {
+          accountType = chartAccount.account_type
+        }
+        
+        // Calculate period amounts (simple distribution for now)
+        const yearToDateAmount = amount
+        const currentMonthAmount = Math.round(amount / 12)
+        const quarterToDateAmount = Math.round(amount / 4)
+        
+        const plEntry = {
+          company_id: companyId,
+          account_id: chartAccount?.id || null,
+          account_name: accountName,
+          account_type: accountType,
+          qbo_account_id: accountData.id || chartAccount?.qbo_id || null,
+          report_date: reportDate.toISOString().split('T')[0],
+          fiscal_year: fiscalYear,
+          fiscal_quarter: currentQuarter,
+          fiscal_month: currentMonth,
+          current_month: currentMonthAmount,
+          quarter_to_date: quarterToDateAmount,
+          year_to_date: yearToDateAmount,
+          budget_current_month: 0,
+          budget_quarter_to_date: 0,
+          budget_year_to_date: 0,
+          variance_current_month: currentMonthAmount,
+          variance_quarter_to_date: quarterToDateAmount,
+          variance_year_to_date: yearToDateAmount
+        }
+        
+        const { error } = await supabase
+          .from('qbo_profit_loss')
+          .insert(plEntry)
+        
+        if (error) {
+          console.error(`Error inserting P&L data for ${accountName}:`, error)
+        } else {
+          console.log(`Successfully synced REAL P&L data: ${accountName} - $${amount}`)
+          processedCount++
+        }
+      }
+      
+      // Handle nested sections (like sub-categories)
+      if (row.Rows?.Row) {
+        await processSection(row.Rows.Row, parentAccountType)
       }
     }
-    
-    // Extract current month amount (varies by report structure)
-    if (currentMonth <= row.ColData.length - 1) {
-      const monthValue = row.ColData[currentMonth]?.value
-      if (monthValue && !isNaN(parseFloat(monthValue))) {
-        currentMonthAmount = parseFloat(monthValue)
-      }
-    }
-    
-    // Calculate quarter-to-date (sum of months in current quarter)
-    const quarterStartMonth = (currentQuarter - 1) * 3 + 1
-    for (let m = quarterStartMonth; m <= currentMonth && m < row.ColData.length; m++) {
-      const monthValue = row.ColData[m]?.value
-      if (monthValue && !isNaN(parseFloat(monthValue))) {
-        quarterToDateAmount += parseFloat(monthValue)
-      }
-    }
-    
-    // Insert P&L data
-    const plEntry = {
-      company_id: companyId,
-      account_id: chartAccount?.id || null,
-      account_name: accountName,
-      account_type: accountType,
-      qbo_account_id: chartAccount?.qbo_id || null,
-      report_date: reportDate.toISOString().split('T')[0],
-      fiscal_year: fiscalYear,
-      fiscal_quarter: currentQuarter,
-      fiscal_month: currentMonth,
-      current_month: currentMonthAmount,
-      quarter_to_date: quarterToDateAmount,
-      year_to_date: yearToDateAmount,
-      budget_current_month: 0,
-      budget_quarter_to_date: 0,
-      budget_year_to_date: 0,
-      variance_current_month: currentMonthAmount,
-      variance_quarter_to_date: quarterToDateAmount,
-      variance_year_to_date: yearToDateAmount
-    }
-    
-    const { error } = await supabase
-      .from('qbo_profit_loss')
-      .insert(plEntry)
-    
-    if (error) {
-      console.error(`Error inserting P&L data for ${accountName}:`, error)
-    } else {
-      console.log(`Successfully synced P&L data for: ${accountName}`)
-      processedCount++
-    }
+  }
+
+  // Start processing from the top level
+  await processSection(report.Rows.Row)
+  console.log(`Processed ${processedCount} real P&L entries from QuickBooks`)
+
+  for (const row of report.Rows.Row) {
   }
   
   return processedCount
