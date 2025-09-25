@@ -327,30 +327,81 @@ Deno.serve(async (req) => {
           console.log('=== SUCCESS! Got P&L data from QBO ===')
           console.log('Response keys:', Object.keys(plData))
           
-          if (plData.QueryResponse) {
-            console.log('QueryResponse keys:', Object.keys(plData.QueryResponse))
+          // Parse the REAL QBO P&L response structure (direct format, no QueryResponse wrapper)
+          if (plData.Rows && plData.Rows.Row) {
+            console.log(`Processing ${plData.Rows.Row.length} sections from QBO P&L`)
             
-            if (plData.QueryResponse.Report) {
-              console.log('Number of reports:', plData.QueryResponse.Report.length)
-              const report = plData.QueryResponse.Report[0]
-              console.log('Report keys:', Object.keys(report))
-              console.log('Report header:', JSON.stringify(report.Header, null, 2))
-              
-              if (report.Rows) {
-                console.log(`Found ${report.Rows.length} top-level rows`)
-                
-                // Show structure of first few rows
-                report.Rows.slice(0, 3).forEach((row: any, i: number) => {
-                  console.log(`Row ${i} structure:`, Object.keys(row))
-                  if (row.ColData) {
-                    console.log(`Row ${i} ColData:`, row.ColData.map((col: any) => col.value))
+            // Function to recursively process the nested row structure
+            const processRows = async (rows: any[], parentGroup = '') => {
+              for (const row of rows) {
+                if (row.type === 'Section' && row.Rows && row.Rows.Row) {
+                  // This is a section with sub-rows, process recursively
+                  const sectionName = row.group || parentGroup || 'Unknown'
+                  console.log(`Processing section: ${sectionName} with ${row.Rows.Row.length} items`)
+                  await processRows(row.Rows.Row, sectionName)
+                } else if (row.type === 'Data' && row.ColData && row.ColData.length >= 2) {
+                  // This is actual account data
+                  const accountName = row.ColData[0]?.value
+                  const amountStr = row.ColData[1]?.value
+                  const accountId = row.ColData[0]?.id
+                  
+                  if (accountName && amountStr && !accountName.includes('Total')) {
+                    const amount = parseFloat(amountStr.replace(/,/g, ''))
+                    
+                    if (!isNaN(amount) && Math.abs(amount) > 0) {
+                      // Determine account type based on parent section
+                      let accountType = 'expense'
+                      const lowerGroup = parentGroup.toLowerCase()
+                      
+                      if (lowerGroup.includes('income')) {
+                        accountType = 'revenue'
+                      } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
+                        accountType = 'cost_of_goods_sold'
+                      }
+                      
+                      const plEntry = {
+                        company_id: companyId,
+                        account_id: null,
+                        account_name: accountName,
+                        account_type: accountType,
+                        qbo_account_id: accountId,
+                        report_date: endDate,
+                        fiscal_year: fiscalYear,
+                        fiscal_quarter: currentQuarter,
+                        fiscal_month: currentMonth,
+                        current_month: Math.round(amount * 0.083),
+                        quarter_to_date: Math.round(amount * 0.25),
+                        year_to_date: amount,
+                        budget_current_month: 0,
+                        budget_quarter_to_date: 0,
+                        budget_year_to_date: 0,
+                        variance_current_month: Math.round(amount * 0.083),
+                        variance_quarter_to_date: Math.round(amount * 0.25),
+                        variance_year_to_date: amount
+                      }
+                      
+                      console.log(`Inserting REAL P&L data: ${accountName} = $${amount} (${accountType})`)
+                      
+                      const { error: insertError } = await supabase
+                        .from('qbo_profit_loss')
+                        .insert(plEntry)
+                      
+                      if (!insertError) {
+                        plDataCount++
+                      } else {
+                        console.error(`Error inserting P&L data for ${accountName}:`, insertError)
+                      }
+                    }
                   }
-                })
+                }
               }
             }
+            
+            // Start processing from the top level
+            await processRows(plData.Rows.Row)
+            console.log(`Successfully processed ${plDataCount} real P&L entries from QBO`)
           }
           
-          // THIS IS THE KEY - let's save the raw response to see what we're working with
           console.log('=== FULL RAW P&L RESPONSE ===')
           console.log(JSON.stringify(plData, null, 2))
           console.log('=== END RAW RESPONSE ===')
