@@ -288,8 +288,8 @@ Deno.serve(async (req) => {
     let invoicesCount = 0
     
     try {
-      // Only get invoices with outstanding balance for AR tracking
-      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0'`, { headers })
+      // Only get actual invoices (not estimates/credits) with outstanding balance
+      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0' AND TxnDate >= '2020-01-01' ORDER BY TxnDate DESC`, { headers })
       if (!invoicesResponse.ok) {
         console.error('QBO Invoices API error:', invoicesResponse.status, invoicesResponse.statusText)
       } else {
@@ -297,6 +297,7 @@ Deno.serve(async (req) => {
         const invoices = invoicesData.QueryResponse?.Invoice || []
         
         console.log(`Found ${invoices.length} unpaid invoices from QBO`)
+        console.log('Sample invoice data:', JSON.stringify(invoices[0], null, 2))
         
         // Clear existing AR tracker data for this company
         const { error: deleteError } = await supabase
@@ -314,11 +315,19 @@ Deno.serve(async (req) => {
           const balance = parseFloat(invoice.Balance || 0)
           const paidAmount = invoiceAmount - balance
           
-          // Skip if balance is 0 or negative (shouldn't happen with our query but safety check)
-          if (balance <= 0) {
-            console.log(`Skipping invoice ${invoice.DocNumber} with zero/negative balance: ${balance}`)
+          // Only process invoices with actual outstanding balance
+          if (balance <= 0.01) { // Allow for small rounding differences
+            console.log(`Skipping invoice ${invoice.DocNumber} - balance too small: $${balance}`)
             continue
           }
+          
+          // Skip voided or deleted invoices
+          if (invoice.Voided === true || invoice.Active === false) {
+            console.log(`Skipping voided/inactive invoice ${invoice.DocNumber}`)
+            continue
+          }
+          
+          console.log(`Processing invoice ${invoice.DocNumber}: $${invoiceAmount} total, $${balance} balance, $${paidAmount} paid`)
           
           // Calculate days outstanding
           const dueDate = new Date(invoice.DueDate || invoice.TxnDate)
