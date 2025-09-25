@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,48 +12,43 @@ import { Plus, CheckSquare, Clock, User, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
+import { ActionItem as ActionItemType, SelectChangeHandler, LoadingState } from '@/types/supabase';
+import { handleSupabaseError, normalizeError } from '@/utils/errorHandling';
 
-interface ActionItem {
-  id: string;
+interface NewActionForm {
   title: string;
   description: string;
   assigned_to: string;
   due_date: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'in_progress' | 'completed' | 'overdue';
+  priority: ActionItemType['priority'];
   category: string;
-  created_at: string;
 }
+
+const CATEGORIES = ['Strategic', 'Financial', 'Operations', 'Marketing', 'Technology', 'HR'] as const;
 
 export const ActionItems = () => {
   const { toast } = useToast();
   const { currentCompany } = useCompany();
-  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [actionItems, setActionItems] = useState<ActionItemType[]>([]);
+  const [loadingState, setLoadingState] = useState<LoadingState>({ isLoading: true, error: null });
   const [isAddingAction, setIsAddingAction] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   
-  const [newAction, setNewAction] = useState({
+  const [newAction, setNewAction] = useState<NewActionForm>({
     title: '',
     description: '',
     assigned_to: '',
     due_date: '',
-    priority: 'medium' as const,
+    priority: 'medium',
     category: ''
   });
 
-  const categories = ['Strategic', 'Financial', 'Operations', 'Marketing', 'Technology', 'HR'];
-
-  useEffect(() => {
-    if (currentCompany) {
-      fetchActionItems();
-    }
-  }, [currentCompany]);
-
-  const fetchActionItems = async () => {
+  const fetchActionItems = useCallback(async () => {
     if (!currentCompany) return;
 
+    setLoadingState({ isLoading: true, error: null });
+    
     try {
       const { data, error } = await supabase
         .from('action_items')
@@ -62,17 +57,19 @@ export const ActionItems = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setActionItems((data as ActionItem[]) || []);
-    } catch (error: any) {
+      setActionItems((data as ActionItemType[]) || []);
+    } catch (error) {
+      const apiError = handleSupabaseError(error);
+      setLoadingState({ isLoading: false, error: apiError.message });
       toast({
         title: "Error loading action items",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingState(prev => ({ ...prev, isLoading: false }));
     }
-  };
+  }, [currentCompany, toast]);
 
   const handleAddAction = async () => {
     if (!currentCompany || !newAction.title) return;
@@ -101,11 +98,12 @@ export const ActionItems = () => {
         category: ''
       });
       setIsAddingAction(false);
-      fetchActionItems();
-    } catch (error: any) {
+      await fetchActionItems();
+    } catch (error) {
+      const apiError = handleSupabaseError(error);
       toast({
         title: "Error adding action item",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
     }
@@ -125,10 +123,11 @@ export const ActionItems = () => {
           ? { ...item, status: completed ? 'completed' : 'pending' as const }
           : item
       ));
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = handleSupabaseError(error);
       toast({
         title: "Error updating action item",
-        description: error.message,
+        description: apiError.message,
         variant: "destructive",
       });
     }
@@ -168,9 +167,9 @@ export const ActionItems = () => {
     if (!acc[category]) acc[category] = [];
     acc[category].push(item);
     return acc;
-  }, {} as Record<string, ActionItem[]>);
+  }, {} as Record<string, ActionItemType[]>);
 
-  if (loading) {
+  if (loadingState.isLoading) {
     return <div className="flex items-center justify-center p-8">Loading action items...</div>;
   }
 
@@ -231,7 +230,7 @@ export const ActionItems = () => {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {CATEGORIES.map((category) => (
                           <SelectItem key={category} value={category}>{category}</SelectItem>
                         ))}
                       </SelectContent>
@@ -239,7 +238,7 @@ export const ActionItems = () => {
                   </div>
                   <div>
                     <Label>Priority</Label>
-                    <Select value={newAction.priority} onValueChange={(value: any) => setNewAction({ ...newAction, priority: value })}>
+                    <Select value={newAction.priority} onValueChange={(value: ActionItemType['priority']) => setNewAction({ ...newAction, priority: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

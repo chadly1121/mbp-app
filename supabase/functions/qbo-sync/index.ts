@@ -600,7 +600,7 @@ Deno.serve(async (req) => {
         p_company_id: companyId
       })
 
-    console.log('QBO sync completed successfully')
+    // QBO sync completed successfully
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -616,7 +616,7 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('QBO Sync Error:', error)
+    // Log error for debugging in production
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 
@@ -664,7 +664,7 @@ async function refreshToken(supabase: any, companyId: string, refreshToken: stri
 
 async function syncAccountBalances(supabase: any, companyId: string, baseUrl: string, headers: any, fiscalYear: number, currentMonth: number, currentQuarter: number, reportDate: string) {
   try {
-    console.log('Fetching individual account balances as P&L fallback')
+    // Fetching individual account balances as P&L fallback
     
     // Get all revenue accounts
     const revenueResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Account WHERE AccountType='Income'`, { headers })
@@ -696,7 +696,7 @@ async function syncAccountBalances(supabase: any, companyId: string, baseUrl: st
           }
           
           await supabase.from('qbo_profit_loss').insert(plEntry)
-          console.log(`Added revenue account: ${account.Name} - $${account.CurrentBalance}`)
+          // Added revenue account to P&L data
         }
       }
     }
