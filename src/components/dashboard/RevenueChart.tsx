@@ -1,22 +1,119 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
-const revenueData = [
-  { month: 'Jan', current: 65000, previous: 58000, target: 70000 },
-  { month: 'Feb', current: 72000, previous: 62000, target: 75000 },
-  { month: 'Mar', current: 68000, previous: 59000, target: 72000 },
-  { month: 'Apr', current: 78000, previous: 65000, target: 80000 },
-  { month: 'May', current: 85000, previous: 70000, target: 85000 },
-  { month: 'Jun', current: 92000, previous: 75000, target: 90000 },
-  { month: 'Jul', current: 88000, previous: 72000, target: 88000 },
-  { month: 'Aug', current: 95000, previous: 78000, target: 95000 },
-  { month: 'Sep', current: 87000, previous: 74000, target: 90000 },
-  { month: 'Oct', current: 93000, previous: 79000, target: 95000 },
-  { month: 'Nov', current: 89000, previous: 76000, target: 92000 },
-  { month: 'Dec', current: 96000, previous: 82000, target: 98000 },
-];
+interface MonthlyRevenue {
+  month: string;
+  current: number;
+  previous: number;
+  target: number;
+}
 
 const RevenueChart = () => {
+  const { currentCompany } = useCompany();
+  const [revenueData, setRevenueData] = useState<MonthlyRevenue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+
+    const fetchRevenueData = async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Fetch current year data
+        const { data: currentYearData } = await supabase
+          .from('qbo_profit_loss')
+          .select('fiscal_month, current_month')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', currentYear)
+          .eq('account_type', 'Income')
+          .order('fiscal_month');
+
+        // Fetch previous year data
+        const { data: previousYearData } = await supabase
+          .from('qbo_profit_loss')
+          .select('fiscal_month, current_month')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', previousYear)
+          .eq('account_type', 'Income')
+          .order('fiscal_month');
+
+        // Fetch forecasted targets
+        const { data: forecastData } = await supabase
+          .from('revenue_forecasts')
+          .select('month, forecasted_amount')
+          .eq('company_id', currentCompany.id)
+          .eq('year', currentYear)
+          .order('month');
+
+        const processedData: MonthlyRevenue[] = [];
+
+        for (let i = 1; i <= 12; i++) {
+          const currentMonthData = currentYearData?.filter(d => d.fiscal_month === i) || [];
+          const previousMonthData = previousYearData?.filter(d => d.fiscal_month === i) || [];
+          const forecastMonth = forecastData?.find(d => d.month === i);
+
+          const currentRevenue = currentMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
+          const previousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
+          const targetRevenue = forecastMonth?.forecasted_amount || currentRevenue * 1.1; // 10% growth if no forecast
+
+          processedData.push({
+            month: monthNames[i - 1],
+            current: currentRevenue,
+            previous: previousRevenue,
+            target: targetRevenue
+          });
+        }
+
+        setRevenueData(processedData);
+      } catch (error) {
+        console.error('Error fetching revenue data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRevenueData();
+  }, [currentCompany?.id]);
+
+  if (loading) {
+    return (
+      <Card className="bg-gradient-card shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
+          <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-80 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Filter to show only months with data
+  const filteredData = revenueData.filter(d => d.current > 0 || d.previous > 0);
+
+  if (filteredData.length === 0) {
+    return (
+      <Card className="bg-gradient-card shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
+          <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-80 text-muted-foreground">
+            No revenue data available. Sync with QuickBooks to see your revenue trends.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card className="bg-gradient-card shadow-md">
       <CardHeader>
@@ -26,7 +123,7 @@ const RevenueChart = () => {
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={revenueData}>
+            <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="month" 

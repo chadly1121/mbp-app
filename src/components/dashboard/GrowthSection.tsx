@@ -1,63 +1,186 @@
+import { useEffect, useState } from 'react';
 import { TrendingUp, Target, Zap, Users } from "lucide-react";
 import MetricCard from "./MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+
+interface GrowthMetrics {
+  currentYearRevenue: number;
+  previousYearRevenue: number;
+  customerCount: number;
+  productCount: number;
+  growthRate: number;
+}
 
 const GrowthSection = () => {
-  const goals = [
-    { title: "Annual Revenue Target", current: 750000, target: 1000000, unit: "$" },
-    { title: "Customer Acquisition", current: 1250, target: 2000, unit: "" },
-    { title: "Market Share", current: 12, target: 20, unit: "%" },
-    { title: "Product Lines", current: 3, target: 5, unit: "" },
-  ];
+  const { currentCompany } = useCompany();
+  const [metrics, setMetrics] = useState<GrowthMetrics | null>(null);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+
+    const fetchGrowthMetrics = async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+
+        // Fetch current year revenue
+        const { data: currentYearData } = await supabase
+          .from('qbo_profit_loss')
+          .select('year_to_date')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', currentYear)
+          .eq('account_type', 'Income');
+
+        // Fetch previous year revenue
+        const { data: previousYearData } = await supabase
+          .from('qbo_profit_loss')
+          .select('year_to_date')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', previousYear)
+          .eq('account_type', 'Income');
+
+        // Fetch customer count from sales pipeline
+        const { data: customers } = await supabase
+          .from('sales_pipeline')
+          .select('client_name')
+          .eq('company_id', currentCompany.id);
+
+        // Fetch product count
+        const { data: products } = await supabase
+          .from('products')
+          .select('id')
+          .eq('company_id', currentCompany.id)
+          .eq('is_active', true);
+
+        const currentRevenue = currentYearData?.reduce((sum, item) => sum + Math.abs(item.year_to_date || 0), 0) || 0;
+        const previousRevenue = previousYearData?.reduce((sum, item) => sum + Math.abs(item.year_to_date || 0), 0) || 0;
+        const growthRate = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+        
+        const uniqueCustomers = [...new Set(customers?.map(c => c.client_name).filter(Boolean))];
+
+        setMetrics({
+          currentYearRevenue: currentRevenue,
+          previousYearRevenue: previousRevenue,
+          customerCount: uniqueCustomers.length,
+          productCount: products?.length || 0,
+          growthRate
+        });
+
+        // Set dynamic goals based on current metrics
+        const revenueTarget = currentRevenue > 0 ? Math.round(currentRevenue * 1.25) : 1000000;
+        const customerTarget = uniqueCustomers.length > 0 ? Math.round(uniqueCustomers.length * 1.5) : 100;
+        
+        setGoals([
+          { title: "Annual Revenue Target", current: currentRevenue, target: revenueTarget, unit: "$" },
+          { title: "Customer Acquisition", current: uniqueCustomers.length, target: customerTarget, unit: "" },
+          { title: "Product Lines", current: products?.length || 0, target: Math.max((products?.length || 0) + 2, 5), unit: "" },
+          { title: "Growth Rate Target", current: Math.max(growthRate, 0), target: 25, unit: "%" },
+        ]);
+
+      } catch (error) {
+        console.error('Error fetching growth metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGrowthMetrics();
+  }, [currentCompany?.id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="bg-gradient-card">
+              <CardContent className="p-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="bg-gradient-card">
+          <CardHeader>
+            <CardTitle>Growth Goals Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        No growth data available. Sync with QuickBooks to see your growth metrics.
+      </div>
+    );
+  }
+
+  const formatCurrency = (value: number) => `$${(value / 1000).toFixed(0)}K`;
+  const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Growth Rate"
-          value="23.5%"
-          change={{ value: "+5.2% vs last quarter", trend: "up" }}
+          title="Revenue Growth"
+          value={formatPercent(metrics.growthRate)}
+          change={{ 
+            value: `vs ${formatCurrency(metrics.previousYearRevenue)} last year`, 
+            trend: metrics.growthRate > 0 ? "up" : "down" 
+          }}
           icon={<TrendingUp className="h-5 w-5" />}
-          variant="success"
+          variant={metrics.growthRate > 0 ? "success" : "warning"}
         />
         <MetricCard
-          title="Market Penetration"
-          value="12.3%"
-          change={{ value: "+2.1% vs last year", trend: "up" }}
+          title="Current Revenue"
+          value={formatCurrency(metrics.currentYearRevenue)}
+          change={{ 
+            value: `${formatPercent(Math.abs(metrics.growthRate))} ${metrics.growthRate > 0 ? 'increase' : 'decrease'}`, 
+            trend: metrics.growthRate > 0 ? "up" : "down" 
+          }}
           icon={<Target className="h-5 w-5" />}
           variant="info"
         />
         <MetricCard
-          title="Innovation Index"
-          value="8.7/10"
-          change={{ value: "+0.3 vs last quarter", trend: "up" }}
-          icon={<Zap className="h-5 w-5" />}
-          variant="warning"
+          title="Active Customers"
+          value={metrics.customerCount.toString()}
+          change={{ value: "from sales pipeline", trend: "neutral" }}
+          icon={<Users className="h-5 w-5" />}
+          variant="default"
         />
         <MetricCard
-          title="Team Growth"
-          value="45"
-          change={{ value: "+12 new hires", trend: "up" }}
-          icon={<Users className="h-5 w-5" />}
-          variant="success"
+          title="Product Lines"
+          value={metrics.productCount.toString()}
+          change={{ value: "active products", trend: "neutral" }}
+          icon={<Zap className="h-5 w-5" />}
+          variant="warning"
         />
       </div>
 
       <Card className="bg-gradient-card">
         <CardHeader>
-          <CardTitle>2025 Goals Progress</CardTitle>
+          <CardTitle>{new Date().getFullYear()} Growth Goals Progress</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
             {goals.map((goal, index) => {
-              const progress = (goal.current / goal.target) * 100;
+              const progress = Math.min((goal.current / goal.target) * 100, 100);
               return (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium">{goal.title}</h4>
                     <span className="text-sm text-muted-foreground">
-                      {goal.unit}{goal.current.toLocaleString()} / {goal.unit}{goal.target.toLocaleString()}
+                      {goal.unit === "$" ? formatCurrency(goal.current) : `${goal.current}${goal.unit}`} / {goal.unit === "$" ? formatCurrency(goal.target) : `${goal.target}${goal.unit}`}
                     </span>
                   </div>
                   <Progress value={progress} className="h-2" />

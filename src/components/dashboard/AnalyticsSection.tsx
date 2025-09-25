@@ -1,80 +1,191 @@
+import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
-const pieData = [
-  { name: 'Digital Products', value: 45, color: 'hsl(var(--primary))' },
-  { name: 'Consulting', value: 30, color: 'hsl(var(--success))' },
-  { name: 'Courses', value: 15, color: 'hsl(var(--warning))' },
-  { name: 'Other', value: 10, color: 'hsl(var(--info))' },
-];
+interface RevenueData {
+  account_name: string;
+  year_to_date: number;
+  account_type: string;
+}
 
-const barData = [
-  { month: 'Jan', organic: 4000, paid: 2400, social: 1200 },
-  { month: 'Feb', organic: 3000, paid: 1398, social: 1800 },
-  { month: 'Mar', organic: 2000, paid: 9800, social: 2200 },
-  { month: 'Apr', organic: 2780, paid: 3908, social: 1600 },
-  { month: 'May', organic: 1890, paid: 4800, social: 2000 },
-  { month: 'Jun', organic: 2390, paid: 3800, social: 1900 },
-];
+interface MonthlyData {
+  month: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+}
 
 const AnalyticsSection = () => {
+  const { currentCompany } = useCompany();
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+
+    const fetchAnalyticsData = async () => {
+      try {
+        // Fetch revenue by account type for pie chart
+        const { data: plData } = await supabase
+          .from('qbo_profit_loss')
+          .select('account_name, year_to_date, account_type')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', new Date().getFullYear())
+          .eq('account_type', 'Income')
+          .gt('year_to_date', 0);
+
+        // Fetch monthly trends for bar chart
+        const { data: monthlyTrends } = await supabase
+          .from('qbo_profit_loss')
+          .select('fiscal_month, current_month, account_type')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', new Date().getFullYear())
+          .order('fiscal_month');
+
+        setRevenueData(plData || []);
+        
+        // Process monthly data
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const processedMonthly: MonthlyData[] = [];
+        
+        for (let i = 1; i <= 12; i++) {
+          const monthData = monthlyTrends?.filter(d => d.fiscal_month === i) || [];
+          const revenue = monthData
+            .filter(d => d.account_type === 'Income')
+            .reduce((sum, d) => sum + (d.current_month || 0), 0);
+          const expenses = monthData
+            .filter(d => d.account_type === 'Expense')
+            .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
+          
+          processedMonthly.push({
+            month: monthNames[i - 1],
+            revenue,
+            expenses,
+            profit: revenue - expenses
+          });
+        }
+        
+        setMonthlyData(processedMonthly);
+      } catch (error) {
+        console.error('Error fetching analytics data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, [currentCompany?.id]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-gradient-card">
+          <CardHeader>
+            <CardTitle>Revenue by Account</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-80 w-full" />
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-card">
+          <CardHeader>
+            <CardTitle>Monthly Financial Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-80 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Process revenue data for pie chart
+  const pieData = revenueData.map((item, index) => ({
+    name: item.account_name,
+    value: Math.abs(item.year_to_date),
+    color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
+  }));
+
+  // Filter monthly data to show only months with data
+  const filteredMonthlyData = monthlyData.filter(d => d.revenue > 0 || d.expenses > 0);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card className="bg-gradient-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Revenue by Category
+            Revenue by Account
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No revenue data available. Sync with QuickBooks to see your revenue breakdown.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gradient-card">
         <CardHeader>
-          <CardTitle>Traffic Sources</CardTitle>
+          <CardTitle>Monthly Financial Trends</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="organic" fill="hsl(var(--primary))" name="Organic" />
-                <Bar dataKey="paid" fill="hsl(var(--success))" name="Paid" />
-                <Bar dataKey="social" fill="hsl(var(--warning))" name="Social" />
-              </BarChart>
-            </ResponsiveContainer>
+            {filteredMonthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredMonthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--popover))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]}
+                  />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
+                  <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" />
+                  <Bar dataKey="profit" fill="hsl(var(--success))" name="Profit" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No financial data available. Sync with QuickBooks to see your monthly trends.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
