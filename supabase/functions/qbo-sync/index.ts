@@ -288,14 +288,15 @@ Deno.serve(async (req) => {
     let invoicesCount = 0
     
     try {
-      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE TxnDate >= '2024-01-01'`, { headers })
+      // Only get invoices with outstanding balance for AR tracking
+      const invoicesResponse = await fetch(`${baseUrl}/query?query=SELECT * FROM Invoice WHERE Balance > '0'`, { headers })
       if (!invoicesResponse.ok) {
         console.error('QBO Invoices API error:', invoicesResponse.status, invoicesResponse.statusText)
       } else {
         const invoicesData = await invoicesResponse.json()
         const invoices = invoicesData.QueryResponse?.Invoice || []
         
-        console.log(`Found ${invoices.length} invoices from QBO`)
+        console.log(`Found ${invoices.length} unpaid invoices from QBO`)
         
         // Clear existing AR tracker data for this company
         const { error: deleteError } = await supabase
@@ -310,19 +311,23 @@ Deno.serve(async (req) => {
         for (const invoice of invoices) {
           const customerName = invoice.CustomerRef?.name || 'Unknown Customer'
           const invoiceAmount = parseFloat(invoice.TotalAmt || 0)
-          const balance = parseFloat(invoice.Balance || invoiceAmount)
+          const balance = parseFloat(invoice.Balance || 0)
           const paidAmount = invoiceAmount - balance
+          
+          // Skip if balance is 0 or negative (shouldn't happen with our query but safety check)
+          if (balance <= 0) {
+            console.log(`Skipping invoice ${invoice.DocNumber} with zero/negative balance: ${balance}`)
+            continue
+          }
           
           // Calculate days outstanding
           const dueDate = new Date(invoice.DueDate || invoice.TxnDate)
           const today = new Date()
           const daysOutstanding = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
           
-          // Determine status based on balance and due date
+          // Determine status based on balance and due date  
           let status: 'pending' | 'partial' | 'paid' | 'overdue' = 'pending'
-          if (balance === 0) {
-            status = 'paid'
-          } else if (paidAmount > 0 && balance > 0) {
+          if (paidAmount > 0 && balance > 0) {
             status = 'partial'
           } else if (balance > 0 && daysOutstanding > 0) {
             status = 'overdue'
