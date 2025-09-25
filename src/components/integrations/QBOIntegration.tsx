@@ -95,8 +95,37 @@ export const QBOIntegration = () => {
       if (!popup) {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
+
+      // Listen for messages from the popup
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'QBO_AUTH_SUCCESS') {
+          console.log('Received success message from popup');
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            checkConnection();
+            setConnecting(false);
+          }, 500);
+        } else if (event.data.type === 'QBO_AUTH_ERROR') {
+          console.log('Received error message from popup:', event.data.error);
+          popup.close();
+          window.removeEventListener('message', handleMessage);
+          clearInterval(checkClosed);
+          setConnecting(false);
+          toast({
+            title: 'Connection Failed',
+            description: event.data.error || 'Failed to connect to QuickBooks Online',
+            variant: 'destructive',
+          });
+        }
+      };
       
-      // Listen for OAuth completion with timeout
+      window.addEventListener('message', handleMessage);
+      
+      // Fallback: still check if popup is closed manually
       let checkCount = 0;
       const maxChecks = 300; // 5 minutes maximum
       
@@ -104,15 +133,17 @@ export const QBOIntegration = () => {
         checkCount++;
         
         if (popup.closed) {
+          console.log('Popup closed detected');
           clearInterval(checkClosed);
-          // Wait a moment then check connection status
+          window.removeEventListener('message', handleMessage);
           setTimeout(() => {
             checkConnection();
             setConnecting(false);
           }, 500);
         } else if (checkCount >= maxChecks) {
-          // Timeout after 5 minutes
+          console.log('Popup timeout');
           clearInterval(checkClosed);
+          window.removeEventListener('message', handleMessage);
           popup.close();
           setConnecting(false);
           toast({

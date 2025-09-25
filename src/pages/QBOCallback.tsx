@@ -55,13 +55,18 @@ const QBOCallback = () => {
           
           // Check if we're in a popup window
           if (window.opener && window.opener !== window) {
-            // We're in a popup, close it after a short delay
+            console.log('In popup mode, sending success message to parent');
+            // Send success message to parent window
+            window.opener.postMessage({ 
+              type: 'QBO_AUTH_SUCCESS' 
+            }, window.location.origin);
+            
+            // Close popup after a short delay
             setTimeout(() => {
               try {
                 window.close();
               } catch (e) {
-                // Fallback: try to communicate with parent if close fails
-                console.log('Popup close failed, connection successful');
+                console.log('Popup close failed, but message sent');
               }
             }, 1500);
           } else {
@@ -85,12 +90,19 @@ const QBOCallback = () => {
         
         // Check if we're in a popup window
         if (window.opener && window.opener !== window) {
-          // We're in a popup, close it after a short delay
+          console.log('In popup mode, sending error message to parent');
+          // Send error message to parent window
+          window.opener.postMessage({ 
+            type: 'QBO_AUTH_ERROR',
+            error: error instanceof Error ? error.message : 'Failed to connect to QuickBooks Online'
+          }, window.location.origin);
+          
+          // Close popup after a short delay
           setTimeout(() => {
             try {
               window.close();
             } catch (e) {
-              console.log('Popup close failed, connection failed');
+              console.log('Popup close failed, but error message sent');
             }
           }, 2000);
         } else {
