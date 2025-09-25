@@ -46,7 +46,7 @@ const QBOCallback = () => {
           throw new Error(invokeError.message || 'Failed to complete OAuth flow');
         }
         
-        if (result.success) {
+        if (result && result.success) {
           setStatus('success');
           toast({
             title: "Success!",
@@ -57,7 +57,12 @@ const QBOCallback = () => {
           if (window.opener && window.opener !== window) {
             // We're in a popup, close it after a short delay
             setTimeout(() => {
-              window.close();
+              try {
+                window.close();
+              } catch (e) {
+                // Fallback: try to communicate with parent if close fails
+                console.log('Popup close failed, connection successful');
+              }
             }, 1500);
           } else {
             // Regular window, redirect back to the main app
@@ -82,7 +87,11 @@ const QBOCallback = () => {
         if (window.opener && window.opener !== window) {
           // We're in a popup, close it after a short delay
           setTimeout(() => {
-            window.close();
+            try {
+              window.close();
+            } catch (e) {
+              console.log('Popup close failed, connection failed');
+            }
           }, 2000);
         } else {
           // Regular window, redirect back to the main app

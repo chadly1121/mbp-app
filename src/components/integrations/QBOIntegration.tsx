@@ -90,14 +90,36 @@ export const QBOIntegration = () => {
       const { authUrl } = await response.json();
       
       // Open QuickBooks OAuth in new window
-      const popup = window.open(authUrl, 'qbo-oauth', 'width=600,height=600');
+      const popup = window.open(authUrl, 'qbo-oauth', 'width=600,height=600,scrollbars=yes,resizable=yes');
       
-      // Listen for OAuth completion
+      if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
+      
+      // Listen for OAuth completion with timeout
+      let checkCount = 0;
+      const maxChecks = 300; // 5 minutes maximum
+      
       const checkClosed = setInterval(() => {
-        if (popup?.closed) {
+        checkCount++;
+        
+        if (popup.closed) {
           clearInterval(checkClosed);
-          checkConnection(); // This will trigger the sync prompt if needed
+          // Wait a moment then check connection status
+          setTimeout(() => {
+            checkConnection();
+            setConnecting(false);
+          }, 500);
+        } else if (checkCount >= maxChecks) {
+          // Timeout after 5 minutes
+          clearInterval(checkClosed);
+          popup.close();
           setConnecting(false);
+          toast({
+            title: 'Connection Timeout',
+            description: 'The connection process took too long. Please try again.',
+            variant: 'destructive',
+          });
         }
       }, 1000);
 
