@@ -1240,6 +1240,65 @@ export type Database = {
         }
         Relationships: []
       }
+      objective_link_access: {
+        Row: {
+          accessed_at: string | null
+          email: string | null
+          id: string
+          link_id: string | null
+        }
+        Insert: {
+          accessed_at?: string | null
+          email?: string | null
+          id?: string
+          link_id?: string | null
+        }
+        Update: {
+          accessed_at?: string | null
+          email?: string | null
+          id?: string
+          link_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objective_link_access_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "objective_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objective_links: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          objective_id: string
+          revoked: boolean | null
+          role: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          objective_id: string
+          revoked?: boolean | null
+          role?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          objective_id?: string
+          revoked?: boolean | null
+          role?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
       org_members: {
         Row: {
           created_at: string

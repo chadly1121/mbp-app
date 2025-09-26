@@ -12,6 +12,7 @@ import QBOCallback from "./pages/QBOCallback";
 import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 import Invite from "./pages/Invite";
+import ShareObjective from "./pages/ShareObjective";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/invite/:token" element={<Invite />} />
+        <Route path="/share/:token" element={<ShareObjective />} />
         <Route path="/qbo-callback" element={<QBOCallback />} />
         <Route path="/legal" element={<Legal />} />
         <Route 

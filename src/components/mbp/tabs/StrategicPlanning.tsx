@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp, ArrowUpDown, Share2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
@@ -21,6 +21,7 @@ import { SimpleCollaborationButton } from '@/components/mbp/tabs/shared/SimpleCo
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { safeSort, cmpByDue, cmpByPriority, safeDate } from '@/lib/sort';
 import type { StrategicObjective } from '@/types/strategicPlanning';
+import { CopyLinkButton } from '@/components/strategic/CopyLinkButton';
 
 const CollaborationPanel = React.lazy(() => import('@/components/collab/CollaborationPanel'));
 
@@ -269,6 +270,14 @@ export const StrategicPlanning = () => {
                 >
                   <Edit2 className="h-4 w-4" />
                 </Button>
+              )}
+              
+              {/* Sharing Buttons */}
+              {!isEditing && (
+                <>
+                  <CopyLinkButton objectiveId={objective.id} role="viewer" />
+                  <CopyLinkButton objectiveId={objective.id} role="editor" />
+                </>
               )}
               
               <div className="flex flex-col items-end gap-1">
