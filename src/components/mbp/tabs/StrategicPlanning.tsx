@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -19,6 +18,7 @@ import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/co
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
 import { SimpleCollaborationButton } from '@/components/mbp/tabs/shared/SimpleCollaborationButton';
+import type { StrategicObjective } from '@/types/strategicPlanning';
 
 interface NewObjectiveForm {
   title: string;
@@ -56,8 +56,6 @@ export const StrategicPlanning = () => {
     status: 'not_started',
     completion_percentage: 0
   });
-
-  console.log('StrategicPlanning render:', { objectives: objectives?.length });
 
   // Removed manual fetch logic - now using useStrategicPlanning hook
 
@@ -141,21 +139,7 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const ObjectiveCard = ({ objective }: { objective: any }) => {
-    // Debug logging for collaboration data
-    console.log('Objective data:', {
-      id: objective.id,
-      title: objective.title,
-      hasCollaborators: !!objective.collaborators,
-      hasComments: !!objective.comments,
-      hasActivity: !!objective.activity,
-      collaboratorsType: typeof objective.collaborators,
-      commentsType: typeof objective.comments,
-      activityType: typeof objective.activity,
-      collaborators: objective.collaborators,
-      comments: objective.comments,
-      activity: objective.activity
-    });
+  const ObjectiveCard = ({ objective }: { objective: StrategicObjective }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newChecklistItem, setNewChecklistItem] = useState('');
     const isExpanded = expandedCards.has(objective.id);
