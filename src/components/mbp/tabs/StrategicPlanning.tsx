@@ -316,9 +316,9 @@ export const StrategicPlanning = () => {
                   
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <Label>Target Date</Label>
+                      <Label>Target Date & Time</Label>
                       <Input
-                        type="date"
+                        type="datetime-local"
                         value={editData.target_date || ''}
                         onChange={(e) => setEditData({ ...editData, target_date: e.target.value })}
                       />
@@ -342,11 +342,14 @@ export const StrategicPlanning = () => {
                     <p className="text-muted-foreground">{objective.description}</p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        {objective.target_date ? new Date(objective.target_date).toLocaleDateString() : 'No target date'}
+                        {objective.target_date ? 
+                          new Date(objective.target_date).toLocaleString() : 
+                          'No target date & time'
+                        }
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -492,14 +495,14 @@ export const StrategicPlanning = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Target Date</Label>
-                    <Input
-                      type="date"
-                      value={newObjective.target_date}
-                      onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
-                    />
-                  </div>
+                    <div>
+                      <Label>Target Date & Time</Label>
+                      <Input
+                        type="datetime-local"
+                        value={newObjective.target_date}
+                        onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
+                      />
+                    </div>
                 </div>
                 
                 <Button 
