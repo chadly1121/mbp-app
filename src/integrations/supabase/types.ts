@@ -1132,6 +1132,81 @@ export type Database = {
         }
         Relationships: []
       }
+      objective_activity: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          kind: string
+          objective_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          kind: string
+          objective_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          kind?: string
+          objective_id?: string
+        }
+        Relationships: []
+      }
+      objective_collab_members: {
+        Row: {
+          email: string
+          id: string
+          joined_at: string
+          objective_id: string
+          role: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          joined_at?: string
+          objective_id: string
+          role: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          joined_at?: string
+          objective_id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      objective_comments: {
+        Row: {
+          author_email: string | null
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          objective_id: string
+        }
+        Insert: {
+          author_email?: string | null
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          objective_id: string
+        }
+        Update: {
+          author_email?: string | null
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          objective_id?: string
+        }
+        Relationships: []
+      }
       org_members: {
         Row: {
           created_at: string

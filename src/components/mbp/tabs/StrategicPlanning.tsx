@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ import { SimpleCollaborationButton } from '@/components/mbp/tabs/shared/SimpleCo
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { safeSort, cmpByDue, cmpByPriority, safeDate } from '@/lib/sort';
 import type { StrategicObjective } from '@/types/strategicPlanning';
+
+const CollaborationPanel = React.lazy(() => import('@/components/collab/CollaborationPanel'));
 
 // Create specific comparators for StrategicObjective
 const cmpObjectivesByDue = (a: StrategicObjective, b: StrategicObjective) => 
@@ -459,6 +461,14 @@ export const StrategicPlanning = () => {
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <ErrorBoundary fallback={null}>
+                      <Suspense fallback={null}>
+                        <CollaborationPanel objectiveId={objective.id} />
+                      </Suspense>
+                    </ErrorBoundary>
                   </div>
                 </div>
               )}
