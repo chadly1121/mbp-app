@@ -229,7 +229,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                           <span className="text-xs text-muted-foreground">{comment.user_email}</span>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(comment.created_at), 'MMM d, yyyy h:mm a')}
+                          {comment.created_at ? format(new Date(comment.created_at), 'MMM d, yyyy h:mm a') : 'Unknown time'}
                         </span>
                       </div>
                       <div className="text-sm leading-relaxed">{comment.content}</div>
@@ -256,7 +256,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                           <div className="text-sm">{activity.activity_description}</div>
                           <div className="text-xs text-muted-foreground">
                             {activity.user_name && `by ${activity.user_name} • `}
-                            {format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')}
+                            {activity.created_at ? format(new Date(activity.created_at), 'MMM d, yyyy h:mm a') : 'Unknown time'}
                           </div>
                         </div>
                       </div>
