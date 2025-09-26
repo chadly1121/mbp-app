@@ -418,7 +418,13 @@ export const StrategicPlanning = () => {
                         Checklist ({completedItems}/{totalItems})
                       </h5>
                       <ErrorBoundary fallback={null}>
-                        <SimpleCollaborationButton objective={objective} />
+                        <SimpleCollaborationButton 
+                          objective={objective}
+                          onAddCollaborator={addCollaborator}
+                          onAddComment={addComment}
+                          isAddingCollaborator={addingCollaborator}
+                          isAddingComment={addingComment}
+                        />
                       </ErrorBoundary>
                     </div>
                     
