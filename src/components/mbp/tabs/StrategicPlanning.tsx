@@ -395,6 +395,13 @@ export const StrategicPlanning = () => {
                         <CheckSquare className="h-4 w-4" />
                         Checklist ({completedItems}/{totalItems})
                       </h5>
+                      <CollaborationPanel
+                        objective={objective}
+                        onAddCollaborator={addCollaborator}
+                        onAddComment={addComment}
+                        isAddingCollaborator={addingCollaborator}
+                        isAddingComment={addingComment}
+                      />
                     </div>
                     
                     {objective.checklist && objective.checklist.length > 0 && (
