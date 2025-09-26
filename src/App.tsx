@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
-import { ProtectedRoute } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { CompanyProvider } from "@/hooks/useCompany";
 import { BetaAdminPanel } from "@/components/BetaAdminPanel";
 import Index from "./pages/Index";
@@ -38,7 +38,7 @@ const App = () => {
         <Route 
           path="/admin/beta" 
           element={
-            <ProtectedRoute requireAdmin={true}>
+            <ProtectedRoute>
               <BetaAdminPanel />
             </ProtectedRoute>
           } 
