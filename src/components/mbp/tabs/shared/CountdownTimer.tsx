@@ -5,6 +5,8 @@ import { parseISO, isPast, differenceInDays, differenceInHours, differenceInMinu
 
 interface CountdownTimerProps {
   targetDate: string | null;
+  isCompleted?: boolean;
+  completedAt?: string | null;
   className?: string;
 }
 
@@ -16,13 +18,21 @@ interface TimeRemaining {
   totalMinutes: number;
 }
 
-export const CountdownTimer = ({ targetDate, className = '' }: CountdownTimerProps) => {
+export const CountdownTimer = ({ targetDate, isCompleted = false, completedAt = null, className = '' }: CountdownTimerProps) => {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining | null>(null);
   const [isOverdue, setIsOverdue] = useState(false);
   const [urgencyLevel, setUrgencyLevel] = useState<'safe' | 'warning' | 'critical' | 'overdue'>('safe');
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
+    // If completed, don't run countdown logic
+    if (isCompleted) {
+      setTimeRemaining(null);
+      setIsOverdue(false);
+      setUrgencyLevel('safe');
+      return;
+    }
+
     if (!targetDate) {
       setTimeRemaining(null);
       return;
@@ -81,7 +91,61 @@ export const CountdownTimer = ({ targetDate, className = '' }: CountdownTimerPro
       clearInterval(minuteInterval);
       clearInterval(pulseInterval);
     };
-  }, [targetDate]);
+  }, [targetDate, isCompleted]);
+
+  // Handle completed state
+  if (isCompleted) {
+    const getCompletionMessage = () => {
+      if (!targetDate || !completedAt) {
+        return 'Completed';
+      }
+
+      try {
+        const target = parseISO(targetDate);
+        const completed = parseISO(completedAt);
+        
+        if (isPast(target)) {
+          // Completed after due date
+          const days = Math.abs(differenceInDays(completed, target));
+          const hours = Math.abs(differenceInHours(completed, target)) % 24;
+          
+          if (days > 0) {
+            return `Completed ${days}d ${hours}h late`;
+          } else if (hours > 0) {
+            return `Completed ${hours}h late`;
+          } else {
+            const minutes = Math.abs(differenceInMinutes(completed, target));
+            return `Completed ${minutes}m late`;
+          }
+        } else {
+          // Completed before due date
+          const days = differenceInDays(target, completed);
+          const hours = differenceInHours(target, completed) % 24;
+          
+          if (days > 0) {
+            return `Completed ${days}d ${hours}h early`;
+          } else if (hours > 0) {
+            return `Completed ${hours}h early`;
+          } else {
+            const minutes = differenceInMinutes(target, completed);
+            return `Completed ${minutes}m early`;
+          }
+        }
+      } catch (error) {
+        return 'Completed';
+      }
+    };
+
+    return (
+      <Badge 
+        className={`${className} bg-green-100 text-green-800 border-green-200 font-medium`}
+        variant="outline"
+      >
+        <CheckCircle className="h-3 w-3 mr-1" />
+        {getCompletionMessage()}
+      </Badge>
+    );
+  }
 
   if (!targetDate || !timeRemaining) {
     return (

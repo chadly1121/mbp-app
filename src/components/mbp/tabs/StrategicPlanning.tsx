@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2 } from 'lucide-react';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle } from 'lucide-react';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
@@ -207,9 +207,18 @@ export const StrategicPlanning = () => {
                 )}
               </div>
               
-              {/* Countdown Timer - prominent display */}
+              {/* Countdown Timer - shows completion if all items checked */}
               <div className="mb-2">
-                <CountdownTimer targetDate={objective.target_date} />
+                <CountdownTimer 
+                  targetDate={objective.target_date}
+                  isCompleted={totalItems > 0 && completedItems === totalItems}
+                  completedAt={totalItems > 0 && completedItems === totalItems ? 
+                    objective.checklist?.filter(item => item.is_completed)
+                      .reduce((latest, item) => 
+                        !latest || new Date(item.updated_at) > new Date(latest) ? 
+                        item.updated_at : latest, null as string | null) : null
+                  }
+                />
               </div>
               
               {!isExpanded && (
@@ -243,16 +252,27 @@ export const StrategicPlanning = () => {
             </div>
           </div>
 
-          {/* Progress Bar - using calculated completion */}
+          {/* Progress Bar - using calculated completion with completion status */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{calculatedCompletion}%</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{calculatedCompletion}%</span>
+                {totalItems > 0 && completedItems === totalItems && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Complete
+                  </Badge>
+                )}
+              </div>
             </div>
             <Progress value={calculatedCompletion} className="h-2" />
             {totalItems > 0 ? (
               <div className="text-sm text-muted-foreground">
                 {completedItems} of {totalItems} checklist items completed
+                {completedItems === totalItems && totalItems > 0 && (
+                  <span className="text-green-600 font-medium ml-2">✓ All done!</span>
+                )}
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
