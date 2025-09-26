@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { handleSupabaseError, logError } from '@/utils/errorHandling';
-import { ApiError } from '@/types/common';
+import { supabase } from '../integrations/supabase/client';
+import { useAuth } from './useAuth';
+import { useToast } from './use-toast';
+import { handleSupabaseError, logError } from '../utils/errorHandling';
+import { ApiError } from '../types/common';
 
-import { Company } from '@/types/common';
+import { Company } from '../types/common';
 
 interface CompanyContextType {
   companies: Company[];

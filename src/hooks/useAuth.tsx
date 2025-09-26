@@ -1,11 +1,11 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { handleSupabaseError, logError } from '@/utils/errorHandling';
-import { ApiError } from '@/types/common';
-import { BetaAccessPending } from '@/components/BetaAccessPending';
+import { supabase } from '../integrations/supabase/client';
+import { useToast } from './use-toast';
+import { handleSupabaseError, logError } from '../utils/errorHandling';
+import { ApiError } from '../types/common';
+import { BetaAccessPending } from '../components/BetaAccessPending';
 
 interface AuthContextType {
   user: User | null;
