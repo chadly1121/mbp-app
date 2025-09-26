@@ -1,0 +1,26 @@
+name: quality
+on:
+  pull_request:
+  push: { branches: [main] }
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
+      - run: npm audit --audit-level=high || true
+  deno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with: { deno-version: v1.x }
+      - run: deno fmt --check
+      - run: deno lint
+      - run: deno test -A

@@ -88,24 +88,19 @@ export const QBOIntegration = () => {
       }
 
       const { authUrl } = await response.json();
-      console.log('Received auth URL from server, opening popup...');
       
       // Open QuickBooks OAuth in new window
-      console.log('Opening popup with URL:', authUrl.substring(0, 100) + '...');
       const popup = window.open(authUrl, 'qbo-oauth', 'width=600,height=600,scrollbars=yes,resizable=yes');
       
       if (!popup) {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
 
-      console.log('Popup opened successfully');
-
       // Listen for messages from the popup
       const handleMessage = (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         
         if (event.data.type === 'QBO_AUTH_SUCCESS') {
-          console.log('Received success message from popup');
           popup.close();
           window.removeEventListener('message', handleMessage);
           clearInterval(checkClosed);
@@ -114,7 +109,6 @@ export const QBOIntegration = () => {
             setConnecting(false);
           }, 500);
         } else if (event.data.type === 'QBO_AUTH_ERROR') {
-          console.log('Received error message from popup:', event.data.error);
           popup.close();
           window.removeEventListener('message', handleMessage);
           clearInterval(checkClosed);
@@ -137,7 +131,6 @@ export const QBOIntegration = () => {
         checkCount++;
         
         if (popup.closed) {
-          console.log('Popup closed detected');
           clearInterval(checkClosed);
           window.removeEventListener('message', handleMessage);
           setTimeout(() => {
@@ -145,7 +138,6 @@ export const QBOIntegration = () => {
             setConnecting(false);
           }, 500);
         } else if (checkCount >= maxChecks) {
-          console.log('Popup timeout');
           clearInterval(checkClosed);
           window.removeEventListener('message', handleMessage);
           popup.close();

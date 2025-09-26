@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, Lock, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 import { Turnstile } from '@marsidev/react-turnstile';
 
 const Auth = () => {
@@ -17,13 +18,13 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
   const { user, loading, signIn, signUp } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   // Redirect authenticated users
   useEffect(() => {
     if (user && !loading) {
-      console.log('Redirecting authenticated user to home');
       navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);
@@ -44,7 +45,11 @@ const Auth = () => {
     e.preventDefault();
     
     if (!captchaToken) {
-      alert('Please complete the CAPTCHA verification');
+      toast({
+        title: 'CAPTCHA Required',
+        description: 'Please complete the CAPTCHA verification',
+        variant: 'destructive',
+      });
       return;
     }
     

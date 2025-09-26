@@ -1,7 +1,7 @@
 import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompany, CompanyProvider } from "@/hooks/useCompany";
+import { useCompany } from "@/hooks/useCompany";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
@@ -11,7 +11,7 @@ import FilterBar from "@/components/dashboard/FilterBar";
 import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
-import MBPDashboard from "@/components/mbp/MBPDashboard";
+import { MBPTabs } from "@/components/mbp/MBPTabs";
 import { QBOIntegration } from "@/components/integrations/QBOIntegration";
 import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
 import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
@@ -22,19 +22,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Index = () => {
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
-
-  return (
-    <CompanyProvider>
-      <IndexContent activeSection={activeSection} setActiveSection={setActiveSection} signOut={signOut} />
-    </CompanyProvider>
-  );
-};
-
-const IndexContent = ({ activeSection, setActiveSection, signOut }: {
-  activeSection: string;
-  setActiveSection: (section: string) => void;
-  signOut: () => void;
-}) => {
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
 
@@ -45,7 +32,7 @@ const IndexContent = ({ activeSection, setActiveSection, signOut }: {
       case 'gsr':
         return <GSRDashboard />;
       case 'mbp':
-        return <MBPDashboard />;
+        return <MBPTabs />;
       case 'analytics':
         return <AnalyticsSection />;
       case 'growth':
