@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -57,32 +58,44 @@ export const StrategicPlanning = () => {
     completion_percentage: 0
   });
 
+  console.log('StrategicPlanning render:', { objectives: objectives?.length, sortByPriority });
+
   // Sort objectives based on current sort mode
-  const sortedObjectives = objectives.sort((a, b) => {
-    if (sortByPriority) {
-      // Sort by priority: critical > high > medium > low
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-      const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-      return priorityB - priorityA; // Higher priority first
-    } else {
-      // Sort by due date: soonest first, null/invalid dates last
-      if (!a.target_date && !b.target_date) return 0;
-      if (!a.target_date || a.target_date === '') return 1; // null/empty dates go to end
-      if (!b.target_date || b.target_date === '') return -1; // null/empty dates go to end
-      
-      // Safely parse dates
-      const dateA = new Date(a.target_date);
-      const dateB = new Date(b.target_date);
-      
-      // Check if dates are valid
-      if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-      if (isNaN(dateA.getTime())) return 1; // invalid dates go to end
-      if (isNaN(dateB.getTime())) return -1; // invalid dates go to end
-      
-      return dateA.getTime() - dateB.getTime();
+  const sortedObjectives = React.useMemo(() => {
+    console.log('Sorting objectives:', { objectives: objectives?.length, sortByPriority });
+    if (!objectives || objectives.length === 0) return [];
+    
+    try {
+      return [...objectives].sort((a, b) => {
+        if (sortByPriority) {
+          // Sort by priority: critical > high > medium > low
+          const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+          const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+          const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+          return priorityB - priorityA; // Higher priority first
+        } else {
+          // Sort by due date: soonest first, null/invalid dates last
+          if (!a.target_date && !b.target_date) return 0;
+          if (!a.target_date || a.target_date === '') return 1; // null/empty dates go to end
+          if (!b.target_date || b.target_date === '') return -1; // null/empty dates go to end
+          
+          // Safely parse dates
+          const dateA = new Date(a.target_date);
+          const dateB = new Date(b.target_date);
+          
+          // Check if dates are valid
+          if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+          if (isNaN(dateA.getTime())) return 1; // invalid dates go to end
+          if (isNaN(dateB.getTime())) return -1; // invalid dates go to end
+          
+          return dateA.getTime() - dateB.getTime();
+        }
+      });
+    } catch (error) {
+      console.error('Sorting error:', error);
+      return objectives;
     }
-  });
+  }, [objectives, sortByPriority]);
 
   // Removed manual fetch logic - now using useStrategicPlanning hook
 
