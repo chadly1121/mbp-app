@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateCreateInviteRequest } from "./validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,16 +58,9 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Parse request body
-    const { objectiveId, email, role } = await req.json();
-    
-    // Validate input
-    if (!objectiveId || !email || !['editor', 'viewer'].includes(role)) {
-      return new Response('Bad request - missing or invalid parameters', { 
-        status: 400,
-        headers: corsHeaders 
-      });
-    }
+    // Parse and validate request body
+    const requestData = await req.json();
+    const { objectiveId, email, role } = validateCreateInviteRequest(requestData);
 
     // Generate unique token
     const token = generateRandomToken();
@@ -106,10 +100,29 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in collab-create-invite function:', error);
+    
+    // Handle validation errors specifically
+    if (error && typeof error === 'object' && 'issues' in error) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Validation failed', 
+          details: error.issues 
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: {

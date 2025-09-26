@@ -1,45 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
-
-const getShares = () => {
-  try {
-    const raw = localStorage.getItem("shares");
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    console.error("shares parse error", e);
-    return {};
-  }
-};
-const saveShares = (s: any) => {
-  try {
-    localStorage.setItem("shares", JSON.stringify(s));
-  } catch (e) {
-    console.error("shares save error", e);
-  }
-};
+import { safeGetShares, revokeShare } from "@/utils/shareUtils";
+import { AcceptedShare } from "@/types/shares";
 
 export default function MyShares() {
   const [tick, setTick] = React.useState(0);
-  const shares = getShares();
-  const accepted: { cardId: string; mode: "viewer" | "editor"; token: string }[] = [];
+  const shares = safeGetShares();
+  const accepted: AcceptedShare[] = [];
 
-  for (const [cardId, data] of Object.entries<any>(shares)) {
+  for (const [cardId, data] of Object.entries(shares)) {
     const acc = Array.isArray(data.accepted) ? data.accepted : [];
     acc.forEach((token: string) => {
-      const mode =
-        data.viewer === token ? "viewer" : data.editor === token ? "editor" : null;
-      if (mode) accepted.push({ cardId, mode, token });
+      const mode = data.viewer === token ? "viewer" : data.editor === token ? "editor" : null;
+      if (mode) {
+        accepted.push({ cardId, mode: mode as 'viewer' | 'editor', token });
+      }
     });
   }
 
-  const revoke = (cardId: string, token: string) => {
-    const s = getShares();
-    const data = s[cardId];
-    if (!data) return;
-    if (data.viewer === token) data.viewer = null;
-    if (data.editor === token) data.editor = null;
-    data.accepted = (data.accepted || []).filter((t: string) => t !== token);
-    saveShares(s);
+  const handleRevoke = (cardId: string, token: string) => {
+    revokeShare(cardId, token);
     setTick((n) => n + 1);
   };
 
@@ -55,7 +35,7 @@ export default function MyShares() {
               Objective #{s.cardId} ({s.mode})
             </Link>
             <button
-              onClick={() => revoke(s.cardId, s.token)}
+              onClick={() => handleRevoke(s.cardId, s.token)}
               className="text-red-600 underline text-sm"
             >
               Revoke

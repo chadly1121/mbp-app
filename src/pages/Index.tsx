@@ -19,8 +19,10 @@ import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+import { logger } from "@/utils/logger";
+
 const Index = () => {
-  console.log('Index component rendering');
+  logger.debug('Index component rendering');
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
   const { currentCompany } = useCompany();

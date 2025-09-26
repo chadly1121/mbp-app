@@ -24,8 +24,10 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+import { logger } from "@/utils/logger";
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  console.log('AuthProvider rendering');
+  logger.debug('AuthProvider rendering');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(false);
       }
     }).catch((error) => {
-      console.error('Error getting session:', error);
+      logger.error('Error getting session', error);
       setLoading(false);
     });
 
@@ -84,7 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsAdmin(adminData || false);
       
     } catch (error) {
-      console.error('Error checking user permissions:', error);
+      logger.error('Error checking user permissions', error);
       setHasBetaAccess(false);
       setIsAdmin(false);
     } finally {
@@ -219,13 +221,13 @@ export const ProtectedRoute = ({
   requireBetaAccess = true, 
   requireAdmin = false 
 }: ProtectedRouteProps) => {
-  console.log('ProtectedRoute rendering', { requireBetaAccess, requireAdmin });
+  logger.debug('ProtectedRoute rendering', { requireBetaAccess, requireAdmin });
   const { user, loading, hasBetaAccess, isAdmin } = useAuth();
 
-  console.log('ProtectedRoute state:', { user: !!user, loading, hasBetaAccess, isAdmin });
+  logger.debug('ProtectedRoute state:', { user: !!user, loading, hasBetaAccess, isAdmin });
 
   if (loading) {
-    console.log('ProtectedRoute: showing loading spinner');
+    logger.debug('ProtectedRoute: showing loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -234,12 +236,12 @@ export const ProtectedRoute = ({
   }
 
   if (!user) {
-    console.log('ProtectedRoute: no user, redirecting to /auth');
+    logger.debug('ProtectedRoute: no user, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    console.log('ProtectedRoute: admin required but user is not admin');
+    logger.debug('ProtectedRoute: admin required but user is not admin');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -251,10 +253,10 @@ export const ProtectedRoute = ({
   }
 
   if (requireBetaAccess && !hasBetaAccess && !isAdmin) {
-    console.log('ProtectedRoute: beta access required but user does not have access');
+    logger.debug('ProtectedRoute: beta access required but user does not have access');
     return <BetaAccessPending />;
   }
 
-  console.log('ProtectedRoute: rendering children');
+  logger.debug('ProtectedRoute: rendering children');
   return <>{children}</>;
 };

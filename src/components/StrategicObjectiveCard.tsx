@@ -1,28 +1,11 @@
 import React from "react";
-import { v4 as uuidv4 } from "uuid";
-
-const getShares3 = () => {
-  try {
-    const raw = localStorage.getItem("shares");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-};
-const saveShares3 = (s: any) => localStorage.setItem("shares", JSON.stringify(s));
-
-const getOrCreateToken = (cardId: string, mode: "viewer" | "editor") => {
-  const s = getShares3();
-  if (!s[cardId]) s[cardId] = { viewer: null, editor: null, accepted: [] };
-  if (!s[cardId][mode]) s[cardId][mode] = uuidv4();
-  saveShares3(s);
-  return s[cardId][mode];
-};
+import { getOrCreateToken } from "@/utils/shareUtils";
+import { ShareMode } from "@/types/shares";
 
 export function StrategicObjectiveCard({ id, title }: { id: string; title: string }) {
-  const copyLink = (mode: "viewer" | "editor") => {
+  const copyLink = (mode: ShareMode) => {
     const token = getOrCreateToken(id, mode);
-    const url = `${window.location.origin}/share/${token}/${mode}`;
+    const url = `${window.location.origin}/shared/${token}/${mode}`;
     navigator.clipboard.writeText(url);
     alert(`${mode} link copied!`);
   };

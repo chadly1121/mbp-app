@@ -30,8 +30,10 @@ interface CompanyProviderProps {
   children: ReactNode;
 }
 
+import { logger } from "@/utils/logger";
+
 export const CompanyProvider = ({ children }: CompanyProviderProps) => {
-  console.log('CompanyProvider rendering');
+  logger.debug('CompanyProvider rendering');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +100,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
 
       if (coaError) {
         // Log error but don't throw - the company was created successfully
-        console.error('Error creating default chart of accounts:', coaError);
+        logger.error('Error creating default chart of accounts', coaError);
       }
 
       await refreshCompanies();

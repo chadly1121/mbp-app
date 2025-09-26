@@ -1,43 +1,27 @@
 import React, { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-
-const safeGetShares = () => {
-  try {
-    const raw = localStorage.getItem("shares");
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    console.error("shares parse error", e);
-    return {};
-  }
-};
-const safeSaveShares = (obj: any) => {
-  try {
-    localStorage.setItem("shares", JSON.stringify(obj));
-  } catch (e) {
-    console.error("shares save error", e);
-  }
-};
+import { safeGetShares, acceptShare } from "@/utils/shareUtils";
+import { ShareMode } from "@/types/shares";
+import { logger } from "@/utils/logger";
 
 export default function SharePage() {
-  const { token, mode } = useParams();
+  const { token, mode } = useParams<{ token: string; mode: ShareMode }>();
   const navigate = useNavigate();
 
-  // Debug log
-  console.log("[SharePage] params:", { token, mode });
+  logger.debug("SharePage params:", { token, mode });
 
   const { cardIdFound } = useMemo(() => {
     const shares = safeGetShares();
     let found: string | null = null;
-    for (const [cardId, data] of Object.entries<any>(shares)) {
+    
+    for (const [cardId, data] of Object.entries(shares)) {
       const isViewer = data?.viewer === token && mode === "viewer";
       const isEditor = data?.editor === token && mode === "editor";
+      
       if (isViewer || isEditor) {
         found = cardId;
-        // mark accepted
-        const arr: string[] = Array.isArray(data.accepted) ? data.accepted : [];
-        if (!arr.includes(token!)) {
-          data.accepted = [...arr, token];
-          safeSaveShares(shares);
+        if (token && mode && (mode === 'viewer' || mode === 'editor')) {
+          acceptShare(token, mode, cardId);
         }
         break;
       }
