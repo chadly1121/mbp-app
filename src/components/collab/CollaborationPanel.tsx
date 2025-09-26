@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { listMembers, inviteMember, removeMember, listComments, addComment, listActivity } from '@/lib/collab/api';
+import { listMembers, inviteMember, removeMember, listComments, addComment, listActivity, createInviteLink } from '@/lib/collab/api';
 import type { ObjID, CollabMember, CollabComment, CollabRole, CollabActivity } from '@/lib/collab/types';
 import { isList, safeTs } from '@/lib/safe';
 
@@ -33,6 +33,11 @@ export default function CollaborationPanel({ objectiveId }: Props) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const canSubmitInvite = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
+  
+  // Invite link state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<CollabRole>('viewer');
+  const [inviteLink, setInviteLink] = useState<string>('');
 
   async function onInvite() {
     try { await inviteMember(objectiveId, email, role); setEmail(''); await refresh(); }
@@ -46,6 +51,16 @@ export default function CollaborationPanel({ objectiveId }: Props) {
     if (!body.trim()) return;
     try { await addComment(objectiveId, body.trim()); await refresh(); }
     catch (e: any) { setErr(e?.message ?? 'Comment failed'); }
+  }
+  
+  async function onCreateInvite() {
+    if (!inviteEmail.trim()) return;
+    try { 
+      const link = await createInviteLink(objectiveId, inviteEmail.trim(), inviteRole); 
+      setInviteLink(link);
+      setErr(null);
+    }
+    catch (e: any) { setErr(e?.message ?? 'Invite link creation failed'); }
   }
 
   if (loading) return <div className="text-sm text-muted-foreground">Loading collaborators…</div>;
@@ -76,6 +91,48 @@ export default function CollaborationPanel({ objectiveId }: Props) {
           ))}
           {members.length === 0 && <li className="py-2 text-muted-foreground">No collaborators yet</li>}
         </ul>
+        
+        {/* Invite via link section */}
+        <div className="space-y-2 pt-4 border-t">
+          <div className="text-sm font-medium">Invite via Link</div>
+          <div className="flex gap-2">
+            <input 
+              className="border rounded px-2 py-1 text-sm flex-1" 
+              placeholder="email@domain.com"
+              value={inviteEmail} 
+              onChange={(e) => setInviteEmail(e.target.value)} 
+            />
+            <select 
+              className="border rounded px-2 py-1 text-sm" 
+              value={inviteRole} 
+              onChange={(e) => setInviteRole(e.target.value as CollabRole)}
+            >
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+            </select>
+            <button 
+              className="rounded px-3 py-1 text-sm bg-black text-white disabled:opacity-50" 
+              disabled={!inviteEmail.trim()}
+              onClick={onCreateInvite}
+            >
+              Create Link
+            </button>
+          </div>
+          {inviteLink && (
+            <div className="text-xs break-all bg-gray-50 p-2 rounded">
+              <div className="font-mono text-blue-600">{inviteLink}</div>
+              <button 
+                className="mt-1 text-blue-600 underline hover:text-blue-800" 
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteLink);
+                  // Could show a toast here
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Comments */}

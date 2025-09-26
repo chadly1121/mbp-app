@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import QBOCallback from "./pages/QBOCallback";
 import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
+import Invite from "./pages/Invite";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
       <Sonner />
       <Routes>
         <Route path="/auth" element={<Auth />} />
+        <Route path="/invite/:token" element={<Invite />} />
         <Route path="/qbo-callback" element={<QBOCallback />} />
         <Route path="/legal" element={<Legal />} />
         <Route 

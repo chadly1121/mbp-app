@@ -1207,6 +1207,39 @@ export type Database = {
         }
         Relationships: []
       }
+      objective_invites: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          objective_id: string
+          role: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          objective_id: string
+          role: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          objective_id?: string
+          role?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       org_members: {
         Row: {
           created_at: string

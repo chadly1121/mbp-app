@@ -91,3 +91,38 @@ export async function addActivity(objectiveId: ObjID, kind: CollabActivity['kind
   });
   if (error) throw error;
 }
+
+export async function createInviteLink(objectiveId: ObjID, email: string, role: CollabRole): Promise<string> {
+  const { data: session } = await supabase.auth.getSession();
+  
+  const response = await fetch(`https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/collab-create-invite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.session?.access_token ?? ''}`
+    },
+    body: JSON.stringify({ objectiveId, email, role })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to create invite: ${await response.text()}`);
+  }
+  
+  const { link } = await response.json();
+  return link as string;
+}
+
+export async function guestComment(objectiveId: ObjID, token: string, body: string): Promise<boolean> {
+  const url = new URL(`https://qdrcpflmnxhkzrlhdhda.supabase.co/functions/v1/collab-redeem/comment`);
+  url.searchParams.set('objectiveId', objectiveId);
+  url.searchParams.set('token', token);
+  url.searchParams.set('body', body);
+  
+  const response = await fetch(url.toString());
+  
+  if (!response.ok) {
+    throw new Error(`Failed to post comment: ${await response.text()}`);
+  }
+  
+  return true;
+}
