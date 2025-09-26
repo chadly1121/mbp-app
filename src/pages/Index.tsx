@@ -20,6 +20,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  console.log('Index component rendering');
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
   const { currentCompany } = useCompany();

@@ -31,6 +31,7 @@ interface CompanyProviderProps {
 }
 
 export const CompanyProvider = ({ children }: CompanyProviderProps) => {
+  console.log('CompanyProvider rendering');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);

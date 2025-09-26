@@ -16,7 +16,9 @@ import ShareObjective from "./pages/ShareObjective";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  console.log('App component rendering');
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -50,6 +52,7 @@ const App = () => (
       </Routes>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
