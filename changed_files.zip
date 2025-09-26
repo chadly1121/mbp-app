@@ -1,0 +1,10 @@
+# Changed Files Archive
+This archive contains all the modified and new files for the PR:
+
+- src/lib/sort.ts (new file, +29 lines)
+- src/components/common/ErrorBoundary.tsx (new file, +11 lines) 
+- src/lib/__tests__/sort.test.ts (new file, +28 lines)
+- src/components/mbp/tabs/StrategicPlanning.tsx (modified, +15/-10 lines)
+- Summary.md (updated, +82 lines)
+
+Total: +165 lines added, -10 lines removed

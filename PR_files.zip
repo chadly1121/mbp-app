@@ -1,8 +1,9 @@
+PK                 src/lib/sort.ts
 export type Priority = 'critical'|'high'|'medium'|'low'|null|undefined;
 
 export function safeDate(v: string | Date | null | undefined): number {
   if (!v) return Number.POSITIVE_INFINITY;
-  const d = v instanceof Date ? v : new Date(v as string);
+  const d = v instanceof Date ? v : new Date(v as any);
   const t = d.getTime();
   return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
 }
@@ -11,7 +12,7 @@ const RANK: Record<'critical'|'high'|'medium'|'low', number> = {
   critical: 0, high: 1, medium: 2, low: 3
 };
 
-export function cmpByDue<T extends { target_date?: string | Date | null }>(a: T, b: T) {
+export function cmpByDue<T extends { target_date?: any }>(a: T, b: T) {
   return safeDate(a?.target_date) - safeDate(b?.target_date);
 }
 
@@ -27,3 +28,4 @@ export function safeSort<T>(arr: readonly T[] | null | undefined, cmp: (a:T,b:T)
   if (!Array.isArray(arr)) return [];
   return [...arr].sort((x,y) => { try { return cmp(x,y); } catch { return 0; } });
 }
+PK

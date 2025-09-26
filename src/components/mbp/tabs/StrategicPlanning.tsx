@@ -103,7 +103,7 @@ export const StrategicPlanning = () => {
     setIsAddingObjective(false);
   };
 
-  const handleUpdateObjective = (objectiveId: string, updates: any) => {
+  const handleUpdateObjective = (objectiveId: string, updates: Partial<StrategicObjective>) => {
     // Remove checklist from updates as it's not a column in the table
     const { checklist, ...dbUpdates } = updates;
     updateObjective({ id: objectiveId, data: dbUpdates });
@@ -122,7 +122,7 @@ export const StrategicPlanning = () => {
     });
   };
 
-  const handleUpdateChecklistItem = (itemId: string, updates: any) => {
+  const handleUpdateChecklistItem = (itemId: string, updates: { is_completed?: boolean }) => {
     updateChecklistItem({ id: itemId, data: updates });
   };
 
@@ -329,7 +329,7 @@ export const StrategicPlanning = () => {
                       <Label>Status</Label>
                       <Select 
                         value={editData.status} 
-                        onValueChange={(value: any) => setEditData({ ...editData, status: value })}
+                        onValueChange={(value: 'not_started' | 'in_progress' | 'completed' | 'on_hold') => setEditData({ ...editData, status: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -347,7 +347,7 @@ export const StrategicPlanning = () => {
                       <Label>Priority</Label>
                       <Select 
                         value={editData.priority} 
-                        onValueChange={(value: any) => setEditData({ ...editData, priority: value })}
+                        onValueChange={(value: 'low' | 'medium' | 'high' | 'critical') => setEditData({ ...editData, priority: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -561,7 +561,7 @@ export const StrategicPlanning = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Priority</Label>
-                    <Select value={newObjective.priority} onValueChange={(value: any) => setNewObjective({ ...newObjective, priority: value })}>
+                    <Select value={newObjective.priority} onValueChange={(value: 'low' | 'medium' | 'high' | 'critical') => setNewObjective({ ...newObjective, priority: value })}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
