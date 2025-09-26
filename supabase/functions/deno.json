@@ -1,9 +1,5 @@
 {
   "fmt": { "useTabs": false, "lineWidth": 100 },
   "lint": { "rules": { "tags": ["recommended"] } },
-  "tasks": { 
-    "fmt": "deno fmt", 
-    "lint": "deno lint", 
-    "test": "deno test -A" 
-  }
+  "tasks": { "fmt": "deno fmt", "lint": "deno lint", "test": "deno test -A" }
 }
