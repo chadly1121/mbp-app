@@ -16,7 +16,7 @@ import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
-import { CollaborationPanel } from '@/components/mbp/tabs/shared/CollaborationPanel';
+import { SimpleCollaborationPanel } from '@/components/mbp/tabs/shared/SimpleCollaborationPanel';
 
 interface NewObjectiveForm {
   title: string;
@@ -37,11 +37,11 @@ export const StrategicPlanning = () => {
     updateObjective,
     createChecklistItem,
     updateChecklistItem,
-    deleteChecklistItem,
-    addCollaborator,
-    addComment,
-    addingCollaborator,
-    addingComment
+    deleteChecklistItem
+    // addCollaborator,
+    // addComment,
+    // addingCollaborator,
+    // addingComment
   } = useStrategicPlanning();
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
@@ -289,13 +289,7 @@ export const StrategicPlanning = () => {
           
           {/* Collaboration and Action Buttons */}
           <div className="flex items-center justify-between mt-4">
-            <CollaborationPanel
-              objective={objective}
-              onAddCollaborator={addCollaborator}
-              onAddComment={addComment}
-              isAddingCollaborator={addingCollaborator}
-              isAddingComment={addingComment}
-            />
+            <SimpleCollaborationPanel objective={objective} />
             <Button
               variant="outline"
               size="sm"
