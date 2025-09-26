@@ -97,3 +97,35 @@
 - ✅ Comprehensive test coverage for all utility modules
 
 The codebase is now cleaner, more type-safe, and better tested. All changes maintain backward compatibility while improving code quality and security.
+
+## Read-only constraints
+
+**package.json**: Could not be auto-edited. Required CI fixes:
+
+```diff
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build", 
+    "build:dev": "vite build --mode development",
+    "lint": "eslint .",
+-   "preview": "vite preview"
++   "preview": "vite preview",
++   "typecheck": "tsc --noEmit",
++   "format": "prettier --write .",
++   "test": "vitest",
++   "test:ci": "vitest run --reporter=dot"
+  },
+```
+
+```diff
+  "dependencies": {
+    "eslint-plugin-react": "^7.37.5",
+-   "eslint-plugin-unused-imports": "^4.2.0",
+    "input-otp": "^1.4.2",
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0", 
+    "@tailwindcss/typography": "^0.5.16",
++   "eslint-plugin-unused-imports": "^4.2.0",
+  }
+```
