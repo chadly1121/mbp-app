@@ -23,7 +23,7 @@ import { safeSort, cmpByDue, cmpByPriority, safeDate } from '@/lib/sort';
 import type { StrategicObjective } from '@/types/strategicPlanning';
 import { CopyLinkButton } from '@/components/strategic/CopyLinkButton';
 
-const CollaborationPanel = React.lazy(() => import('@/components/collab/CollaborationPanel'));
+const CollaborationPanel = React.lazy(() => import('@/components/common/CollaborationPanel').then(module => ({ default: module.CollaborationPanel })));
 
 // Create specific comparators for StrategicObjective
 const cmpObjectivesByDue = (a: StrategicObjective, b: StrategicObjective) => 
@@ -475,7 +475,7 @@ export const StrategicPlanning = () => {
                   <div className="mt-4">
                     <ErrorBoundary fallback={null}>
                       <Suspense fallback={null}>
-                        <CollaborationPanel objectiveId={objective.id} />
+                        <CollaborationPanel cardId={objective.id} />
                       </Suspense>
                     </ErrorBoundary>
                   </div>
