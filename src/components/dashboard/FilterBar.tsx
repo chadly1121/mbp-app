@@ -3,10 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 
-import { FilterOption } from '@/types/common';
-
 interface FilterBarProps {
-  onFilterChange: (filters: Record<string, unknown>) => void;
+  onFilterChange: (filters: any) => void;
 }
 
 const FilterBar = ({ onFilterChange }: FilterBarProps) => {

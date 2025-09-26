@@ -55,6 +55,7 @@ const QBOCallback = () => {
           
           // Check if we're in a popup window
           if (window.opener && window.opener !== window) {
+            console.log('In popup mode, sending success message to parent');
             // Send success message to parent window
             window.opener.postMessage({ 
               type: 'QBO_AUTH_SUCCESS' 
@@ -65,7 +66,7 @@ const QBOCallback = () => {
               try {
                 window.close();
               } catch (e) {
-                // Popup close failed but message was sent
+                console.log('Popup close failed, but message sent');
               }
             }, 1500);
           } else {
@@ -89,6 +90,7 @@ const QBOCallback = () => {
         
         // Check if we're in a popup window
         if (window.opener && window.opener !== window) {
+          console.log('In popup mode, sending error message to parent');
           // Send error message to parent window
           window.opener.postMessage({ 
             type: 'QBO_AUTH_ERROR',
@@ -100,7 +102,7 @@ const QBOCallback = () => {
             try {
               window.close();
             } catch (e) {
-              // Popup close failed but error message was sent
+              console.log('Popup close failed, but error message sent');
             }
           }, 2000);
         } else {

@@ -2,17 +2,22 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { handleSupabaseError, logError } from '@/utils/errorHandling';
-import { ApiError } from '@/types/common';
 
-import { Company } from '@/types/common';
+interface Company {
+  id: string;
+  name: string;
+  slug: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface CompanyContextType {
   companies: Company[];
   currentCompany: Company | null;
   loading: boolean;
   setCurrentCompany: (company: Company | null) => void;
-  createCompany: (name: string, slug: string) => Promise<{ data?: Company; error?: ApiError }>;
+  createCompany: (name: string, slug: string) => Promise<{ data?: Company; error?: any }>;
   refreshCompanies: () => Promise<void>;
 }
 
@@ -55,12 +60,10 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       if (data && data.length > 0 && !currentCompany) {
         setCurrentCompany(data[0]);
       }
-    } catch (err) {
-      const apiError = handleSupabaseError(err);
-      logError(err, 'refreshCompanies');
+    } catch (error: any) {
       toast({
         title: "Error loading companies",
-        description: apiError.message,
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -73,7 +76,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
   }, [user]);
 
   const createCompany = async (name: string, slug: string) => {
-    if (!user) return { error: handleSupabaseError(new Error('No user found')) };
+    if (!user) return { error: 'No user found' };
 
     try {
       const { data, error } = await supabase
@@ -96,7 +99,6 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       });
 
       if (coaError) {
-        // Log error but don't throw - the company was created successfully
         console.error('Error creating default chart of accounts:', coaError);
       }
 
@@ -109,15 +111,13 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       });
 
       return { data };
-    } catch (err) {
-      const apiError = handleSupabaseError(err);
-      logError(err, 'createCompany');
+    } catch (error: any) {
       toast({
         title: "Error creating company",
-        description: apiError.message,
+        description: error.message,
         variant: "destructive",
       });
-      return { error: apiError };
+      return { error };
     }
   };
 

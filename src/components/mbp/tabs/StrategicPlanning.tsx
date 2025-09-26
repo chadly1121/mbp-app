@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,101 +11,249 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp } from 'lucide-react';
-import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
-import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
-import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
-import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
-// import { CollaborationPanel } from '@/components/mbp/tabs/shared/CollaborationPanel'; // Persistent crash issue
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
 
-interface NewObjectiveForm {
+interface ChecklistItem {
+  id: string;
+  item_text: string;
+  is_completed: boolean;
+  sort_order: number;
+  objective_id?: string;
+}
+
+interface StrategicObjective {
+  id: string;
   title: string;
   description: string;
   target_date: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
+  status: string;
+  priority: string;
   completion_percentage: number;
+  created_at: string;
+  checklist?: ChecklistItem[];
 }
 
 export const StrategicPlanning = () => {
-  const {
-    objectives,
-    stats,
-    loading,
-    error,
-    createObjective,
-    updateObjective,
-    createChecklistItem,
-    updateChecklistItem,
-    deleteChecklistItem
-    // addCollaborator,
-    // addComment,
-    // addingCollaborator,
-    // addingComment
-  } = useStrategicPlanning();
-  
+  const { toast } = useToast();
+  const { currentCompany } = useCompany();
+  const [objectives, setObjectives] = useState<StrategicObjective[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddingObjective, setIsAddingObjective] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
+  const [newObjective, setNewObjective] = useState({
     title: '',
     description: '',
     target_date: '',
-    priority: 'medium',
-    status: 'not_started',
+    priority: 'medium' as const,
+    status: 'not_started' as const,
     completion_percentage: 0
   });
 
-  // Removed manual fetch logic - now using useStrategicPlanning hook
+  useEffect(() => {
+    if (currentCompany) {
+      fetchObjectives();
+    }
+  }, [currentCompany]);
+
+  const fetchObjectives = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data: objectivesData, error: objectivesError } = await supabase
+        .from('strategic_objectives')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .order('created_at', { ascending: false });
+
+      if (objectivesError) throw objectivesError;
+
+      // Fetch checklist items for all objectives
+      const objectiveIds = objectivesData?.map(obj => obj.id) || [];
+      let checklistData: ChecklistItem[] = [];
+      
+      if (objectiveIds.length > 0) {
+        const { data: checklistResponse, error: checklistError } = await supabase
+          .from('strategic_objective_checklist')
+          .select('*')
+          .in('objective_id', objectiveIds)
+          .order('sort_order', { ascending: true });
+
+        if (checklistError) throw checklistError;
+        checklistData = (checklistResponse || []).map(item => ({
+          id: item.id,
+          item_text: item.item_text,
+          is_completed: item.is_completed,
+          sort_order: item.sort_order,
+          objective_id: item.objective_id
+        }));
+      }
+
+      // Combine objectives with their checklist items
+      const objectivesWithChecklist: StrategicObjective[] = (objectivesData || []).map(objective => ({
+        id: objective.id,
+        title: objective.title,
+        description: objective.description || '',
+        target_date: objective.target_date || '',
+        status: objective.status || 'not_started',
+        priority: objective.priority || 'medium',
+        completion_percentage: objective.completion_percentage || 0,
+        created_at: objective.created_at,
+        checklist: checklistData.filter(item => item.objective_id === objective.id)
+      }));
+
+      setObjectives(objectivesWithChecklist);
+    } catch (error: any) {
+      console.error('Error fetching objectives:', error);
+      toast({
+        title: "Error loading objectives",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddObjective = async () => {
-    if (!newObjective.title) return;
+    console.log('Adding objective:', { currentCompany, newObjective });
+    if (!currentCompany || !newObjective.title) {
+      console.log('Missing requirements:', { currentCompany: !!currentCompany, title: !!newObjective.title });
+      return;
+    }
 
-    createObjective({
-      title: newObjective.title,
-      description: newObjective.description,
-      target_date: newObjective.target_date,
-      priority: newObjective.priority,
-      status: newObjective.status,
-      completion_percentage: newObjective.completion_percentage,
-      company_id: '' // This will be set by the hook
-    });
-    
-    setNewObjective({
-      title: '',
-      description: '',
-      target_date: '',
-      priority: 'medium',
-      status: 'not_started',
-      completion_percentage: 0
-    });
-    setIsAddingObjective(false);
+    try {
+      const { error } = await supabase
+        .from('strategic_objectives')
+        .insert([{
+          ...newObjective,
+          company_id: currentCompany.id
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Strategic objective added",
+        description: `${newObjective.title} has been added to your strategic plan.`
+      });
+      
+      setNewObjective({
+        title: '',
+        description: '',
+        target_date: '',
+        priority: 'medium',
+        status: 'not_started',
+        completion_percentage: 0
+      });
+      setIsAddingObjective(false);
+      fetchObjectives();
+    } catch (error: any) {
+      console.error('Error adding objective:', error);
+      toast({
+        title: "Error adding objective",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleUpdateObjective = (objectiveId: string, updates: any) => {
-    // Remove checklist from updates as it's not a column in the table
-    const { checklist, ...dbUpdates } = updates;
-    updateObjective({ id: objectiveId, data: dbUpdates });
+  const handleUpdateObjective = async (objectiveId: string, updates: Partial<StrategicObjective>) => {
+    try {
+      // Remove checklist from updates as it's not a column in the table
+      const { checklist, ...dbUpdates } = updates;
+      
+      const { error } = await supabase
+        .from('strategic_objectives')
+        .update(dbUpdates)
+        .eq('id', objectiveId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Objective updated",
+        description: "Strategic objective has been updated successfully."
+      });
+      
+      fetchObjectives();
+    } catch (error: any) {
+      console.error('Error updating objective:', error);
+      toast({
+        title: "Error updating objective",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleAddChecklistItem = (objectiveId: string, itemText: string) => {
+  const handleAddChecklistItem = async (objectiveId: string, itemText: string) => {
     if (!itemText.trim()) return;
 
-    const objective = objectives.find(obj => obj.id === objectiveId);
-    const sortOrder = (objective?.checklist?.length || 0) + 1;
+    try {
+      const objective = objectives.find(obj => obj.id === objectiveId);
+      const sortOrder = (objective?.checklist?.length || 0) + 1;
 
-    createChecklistItem({
-      objective_id: objectiveId,
-      item_text: itemText.trim(),
-      sort_order: sortOrder
-    });
+      const { error } = await supabase
+        .from('strategic_objective_checklist')
+        .insert([{
+          objective_id: objectiveId,
+          item_text: itemText.trim(),
+          sort_order: sortOrder
+        }]);
+
+      if (error) throw error;
+      
+      fetchObjectives();
+    } catch (error: any) {
+      console.error('Error adding checklist item:', error);
+      toast({
+        title: "Error adding checklist item",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleUpdateChecklistItem = (itemId: string, updates: any) => {
-    updateChecklistItem({ id: itemId, data: updates });
+  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItem>) => {
+    try {
+      const { error } = await supabase
+        .from('strategic_objective_checklist')
+        .update(updates)
+        .eq('id', itemId);
+
+      if (error) throw error;
+      
+      fetchObjectives();
+    } catch (error: any) {
+      console.error('Error updating checklist item:', error);
+      toast({
+        title: "Error updating checklist item",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteChecklistItem = (itemId: string) => {
-    deleteChecklistItem(itemId);
+  const handleDeleteChecklistItem = async (itemId: string) => {
+    try {
+      const { error } = await supabase
+        .from('strategic_objective_checklist')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+      
+      fetchObjectives();
+    } catch (error: any) {
+      console.error('Error deleting checklist item:', error);
+      toast({
+        title: "Error deleting checklist item",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleCardExpansion = (objectiveId: string) => {
@@ -137,32 +285,23 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const ObjectiveCard = ({ objective }: { objective: any }) => {
+  const ObjectiveCard = ({ objective }: { objective: StrategicObjective }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [newChecklistItem, setNewChecklistItem] = useState('');
-    const isExpanded = expandedCards.has(objective.id);
-    const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
-    const totalItems = objective.checklist?.length || 0;
-    
-    // Calculate completion percentage based on checklist items
-    const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-    
     const [editData, setEditData] = useState({
       ...objective,
       status: objective.status || 'not_started',
       priority: objective.priority || 'medium',
-      completion_percentage: calculatedCompletion, // Use calculated value
+      completion_percentage: objective.completion_percentage || 0,
       description: objective.description || '',
       target_date: objective.target_date || ''
     });
+    const [newChecklistItem, setNewChecklistItem] = useState('');
+    const isExpanded = expandedCards.has(objective.id);
+    const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
+    const totalItems = objective.checklist?.length || 0;
 
     const handleSave = () => {
-      // Update with calculated completion percentage
-      const updatedData = {
-        ...editData,
-        completion_percentage: calculatedCompletion
-      };
-      handleUpdateObjective(objective.id, updatedData);
+      handleUpdateObjective(objective.id, editData);
       setIsEditing(false);
     };
 
@@ -171,7 +310,7 @@ export const StrategicPlanning = () => {
         ...objective,
         status: objective.status || 'not_started',
         priority: objective.priority || 'medium',
-        completion_percentage: calculatedCompletion, // Use calculated value
+        completion_percentage: objective.completion_percentage || 0,
         description: objective.description || '',
         target_date: objective.target_date || ''
       });
@@ -213,20 +352,6 @@ export const StrategicPlanning = () => {
                 )}
               </div>
               
-              {/* Countdown Timer - shows completion if all items checked */}
-              <div className="mb-2">
-                <CountdownTimer 
-                  targetDate={objective.target_date}
-                  isCompleted={totalItems > 0 && completedItems === totalItems}
-                  completedAt={totalItems > 0 && completedItems === totalItems ? 
-                    objective.checklist?.filter(item => item.is_completed)
-                      .reduce((latest, item) => 
-                        !latest || new Date(item.updated_at) > new Date(latest) ? 
-                        item.updated_at : latest, null as string | null) : null
-                  }
-                />
-              </div>
-              
               {!isExpanded && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
               )}
@@ -258,53 +383,18 @@ export const StrategicPlanning = () => {
             </div>
           </div>
 
-          {/* Progress Bar - using calculated completion with completion status */}
+          {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{calculatedCompletion}%</span>
-                {totalItems > 0 && completedItems === totalItems && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Complete
-                  </Badge>
-                )}
-              </div>
+              <span className="font-medium">{objective.completion_percentage || 0}%</span>
             </div>
-            <Progress value={calculatedCompletion} className="h-2" />
-            {totalItems > 0 ? (
+            <Progress value={objective.completion_percentage || 0} className="h-2" />
+            {totalItems > 0 && (
               <div className="text-sm text-muted-foreground">
                 {completedItems} of {totalItems} checklist items completed
-                {completedItems === totalItems && totalItems > 0 && (
-                  <span className="text-green-600 font-medium ml-2">✓ All done!</span>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Add checklist items to track progress
               </div>
             )}
-          </div>
-          
-          {/* Collaboration and Action Buttons */}
-          <div className="flex items-center justify-between mt-4">
-            {/* CollaborationPanel disabled due to persistent crash */}
-            <div className="text-xs text-muted-foreground">
-              Collaboration: {(objective.collaborators?.length || 0)} team • {(objective.comments?.length || 0)} comments
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleCardExpansion(objective.id);
-              }}
-              className="gap-2"
-            >
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {isExpanded ? 'Collapse' : 'Expand'}
-            </Button>
           </div>
         </CardHeader>
 
@@ -360,11 +450,22 @@ export const StrategicPlanning = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>Target Date & Time</Label>
+                      <Label>Completion %</Label>
                       <Input
-                        type="datetime-local"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={editData.completion_percentage || 0}
+                        onChange={(e) => setEditData({ ...editData, completion_percentage: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Target Date</Label>
+                      <Input
+                        type="date"
                         value={editData.target_date || ''}
                         onChange={(e) => setEditData({ ...editData, target_date: e.target.value })}
                       />
@@ -388,20 +489,17 @@ export const StrategicPlanning = () => {
                     <p className="text-muted-foreground">{objective.description}</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        {objective.target_date ? 
-                          new Date(objective.target_date).toLocaleString() : 
-                          'No target date & time'
-                        }
+                        {objective.target_date ? new Date(objective.target_date).toLocaleDateString() : 'No target date'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        {calculatedCompletion}% complete (auto-calculated)
+                        {objective.completion_percentage || 0}% complete
                       </span>
                     </div>
                   </div>
@@ -464,28 +562,16 @@ export const StrategicPlanning = () => {
     );
   };
 
-  // Show loading template if loading
   if (loading) {
-    return <LoadingTemplate message="Loading strategic objectives..." />;
+    return <div className="flex items-center justify-center p-8">Loading strategic objectives...</div>;
   }
 
-  // Show error template if error
-  if (error) {
-    return (
-      <ErrorHandlingTemplate
-        title="Error Loading Strategic Objectives"
-        description="There was a problem loading your strategic planning data."
-        error={error}
-        onRetry={() => window.location.reload()}
-      />
-    );
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Performance Gauge */}
-      <PerformanceGauge objectives={objectives} />
-      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -544,14 +630,14 @@ export const StrategicPlanning = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                    <div>
-                      <Label>Target Date & Time</Label>
-                      <Input
-                        type="datetime-local"
-                        value={newObjective.target_date}
-                        onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
-                      />
-                    </div>
+                  <div>
+                    <Label>Target Date</Label>
+                    <Input
+                      type="date"
+                      value={newObjective.target_date}
+                      onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
+                    />
+                  </div>
                 </div>
                 
                 <Button 

@@ -1,43 +1,26 @@
 import js from "@eslint/js";
+import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
-import react from "eslint-plugin-react";
-import hooks from "eslint-plugin-react-hooks";
-import unusedImports from "eslint-plugin-unused-imports";
 
 export default tseslint.config(
-  { ignores: ["dist", "build", ".next", "coverage", "generated", "supabase/.temp"] },
-  js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  { ignores: ["dist"] },
   {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
-      parserOptions: { 
-        project: "./tsconfig.json", 
-        tsconfigRootDir: import.meta.dirname 
-      },
+      ecmaVersion: 2020,
+      globals: globals.browser,
     },
-    plugins: { 
-      react, 
-      "react-hooks": hooks, 
-      "unused-imports": unusedImports 
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
     },
     rules: {
-      "no-console": ["warn", { allow: ["warn", "error"] }],
-      "react/react-in-jsx-scope": "off",
-      "react/jsx-boolean-value": ["warn", "never"],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-      "unused-imports/no-unused-imports": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { 
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_" 
-      }],
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/prefer-nullish-coalescing": "warn",
-      "@typescript-eslint/prefer-optional-chain": "warn"
+      ...reactHooks.configs.recommended.rules,
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "@typescript-eslint/no-unused-vars": "off",
     },
-    settings: { 
-      react: { version: "detect" } 
-    }
-  }
+  },
 );

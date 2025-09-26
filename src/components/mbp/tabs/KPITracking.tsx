@@ -1,45 +1,121 @@
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw } from 'lucide-react';
-import { BaseMBPTab } from '@/components/mbp/shared/BaseMBPTab';
-import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
-import { useKPIs } from '@/hooks/useKPIs';
-import { KPIFormData, getKPIStatus, getProgressPercentage } from '@/types/kpis';
+import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
+
+interface KPI {
+  id: string;
+  name: string;
+  description: string;
+  current_value: number;
+  target_value: number;
+  unit: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  is_active: boolean;
+  created_at: string;
+}
 
 export const KPITracking = () => {
-  const {
-    kpis,
-    stats,
-    loading,
-    error,
-    createKPI,
-    refetch,
-    creating
-  } = useKPIs();
-
+  const { toast } = useToast();
+  const { currentCompany } = useCompany();
+  const [kpis, setKpis] = useState<KPI[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddingKPI, setIsAddingKPI] = useState(false);
-  const [formData, setFormData] = useState<KPIFormData>({
+  const [newKPI, setNewKPI] = useState({
     name: '',
     description: '',
     current_value: 0,
     target_value: 0,
     unit: '',
-    frequency: 'monthly'
+    frequency: 'monthly' as const
   });
 
-  const handleSubmit = async () => {
-    await createKPI(formData);
-    setFormData({
-      name: '',
-      description: '',
-      current_value: 0,
-      target_value: 0,
-      unit: '',
-      frequency: 'monthly'
-    });
-    setIsAddingKPI(false);
+  useEffect(() => {
+    if (currentCompany) {
+      fetchKPIs();
+    }
+  }, [currentCompany]);
+
+  const fetchKPIs = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('kpis')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setKpis((data as KPI[]) || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading KPIs",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddKPI = async () => {
+    if (!currentCompany || !newKPI.name) return;
+
+    try {
+      const { error } = await supabase
+        .from('kpis')
+        .insert([{
+          ...newKPI,
+          company_id: currentCompany.id
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "KPI added",
+        description: `${newKPI.name} has been added to your KPI dashboard.`
+      });
+      
+      setNewKPI({
+        name: '',
+        description: '',
+        current_value: 0,
+        target_value: 0,
+        unit: '',
+        frequency: 'monthly'
+      });
+      setIsAddingKPI(false);
+      fetchKPIs();
+    } catch (error: any) {
+      toast({
+        title: "Error adding KPI",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getProgressPercentage = (current: number, target: number) => {
+    return Math.min((current / target) * 100, 100);
+  };
+
+  const getKPIStatus = (current: number, target: number) => {
+    const percentage = (current / target) * 100;
+    if (percentage >= 100) return 'on-track';
+    if (percentage >= 75) return 'at-risk';
+    return 'behind';
   };
 
   const getStatusColor = (current: number, target: number) => {
@@ -69,74 +145,196 @@ export const KPITracking = () => {
     return TrendingDown;
   };
 
-  return (
-    <BaseMBPTab
-      title="KPI Tracking & Goals"
-      description="Monitor key performance indicators and track progress towards your goals"
-      loading={loading}
-      error={error}
-      isEmpty={kpis.length === 0}
-      emptyStateTitle="No KPIs Defined"
-      emptyStateDescription="Start tracking your key performance indicators by creating your first KPI."
-      onRefresh={refetch}
-      onAdd={() => setIsAddingKPI(true)}
-      addButtonLabel="Add KPI"
-    >
-      <div className="space-y-6">
-        {/* KPI Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium">On Track</span>
-              </div>
-              <div className="text-2xl font-bold text-green-600">
-                {stats.onTrack}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm font-medium">At Risk</span>
-              </div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {stats.atRisk}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-medium">Behind</span>
-              </div>
-              <div className="text-2xl font-bold text-red-600">
-                {stats.behind}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4" />
-                <span className="text-sm font-medium">Total KPIs</span>
-              </div>
-              <div className="text-2xl font-bold">
-                {stats.total}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+  if (loading) {
+    return <div className="flex items-center justify-center p-8">Loading KPIs...</div>;
+  }
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {kpis.map((kpi) => {
+  if (!currentCompany) {
+    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-semibold">KPI Tracking & Goals</h3>
+          <p className="text-sm text-muted-foreground">
+            Monitor key performance indicators and track progress towards your goals
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Dialog open={isAddingKPI} onOpenChange={setIsAddingKPI}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add KPI
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New KPI</DialogTitle>
+                <DialogDescription>
+                  Create a new key performance indicator to track
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>KPI Name</Label>
+                  <Input
+                    value={newKPI.name}
+                    onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })}
+                    placeholder="e.g., Monthly Revenue"
+                  />
+                </div>
+                
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={newKPI.description}
+                    onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
+                    placeholder="Describe what this KPI measures..."
+                    rows={2}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Current Value</Label>
+                    <Input
+                      type="number"
+                      value={newKPI.current_value}
+                      onChange={(e) => setNewKPI({ ...newKPI, current_value: Number(e.target.value) })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label>Target Value</Label>
+                    <Input
+                      type="number"
+                      value={newKPI.target_value}
+                      onChange={(e) => setNewKPI({ ...newKPI, target_value: Number(e.target.value) })}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Unit</Label>
+                    <Input
+                      value={newKPI.unit}
+                      onChange={(e) => setNewKPI({ ...newKPI, unit: e.target.value })}
+                      placeholder="$, %, units"
+                    />
+                  </div>
+                  <div>
+                    <Label>Frequency</Label>
+                    <Select value={newKPI.frequency} onValueChange={(value: any) => setNewKPI({ ...newKPI, frequency: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={handleAddKPI} 
+                  className="w-full"
+                  disabled={!newKPI.name || !newKPI.target_value}
+                >
+                  Add KPI
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* KPI Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              On Track
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'on-track').length}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              At Risk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'at-risk').length}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              Behind
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {kpis.filter(k => getKPIStatus(k.current_value, k.target_value) === 'behind').length}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Total KPIs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {kpis.length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {kpis.length === 0 ? (
+          <Card className="col-span-full p-8 text-center">
+            <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h4 className="text-lg font-semibold mb-2">No KPIs Defined</h4>
+            <p className="text-muted-foreground mb-4">Start tracking your key performance indicators by creating your first KPI.</p>
+            <Dialog open={isAddingKPI} onOpenChange={setIsAddingKPI}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First KPI
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          </Card>
+        ) : (
+          kpis.map((kpi) => {
             const StatusIcon = getStatusIcon(kpi.current_value, kpi.target_value);
             const TrendIcon = getTrendIcon(kpi.current_value, kpi.target_value);
             const progress = getProgressPercentage(kpi.current_value, kpi.target_value);
@@ -169,8 +367,8 @@ export const KPITracking = () => {
                     
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Current: {kpi.current_value.toLocaleString()}{kpi.unit || ''}</span>
-                        <span>Target: {kpi.target_value.toLocaleString()}{kpi.unit || ''}</span>
+                        <span>Current: {kpi.current_value.toLocaleString()}{kpi.unit}</span>
+                        <span>Target: {kpi.target_value.toLocaleString()}{kpi.unit}</span>
                       </div>
                       <Progress value={progress} className="h-2" />
                       <div className="text-xs text-muted-foreground text-center">
@@ -185,94 +383,9 @@ export const KPITracking = () => {
                 </CardContent>
               </Card>
             );
-          })}
-        </div>
+          })
+        )}
       </div>
-
-      <FormDialog
-        open={isAddingKPI}
-        onOpenChange={setIsAddingKPI}
-        title="Add New KPI"
-        description="Create a new key performance indicator to track"
-        onSubmit={handleSubmit}
-        submitLabel="Add KPI"
-        loading={creating}
-        submitDisabled={!formData.name || !formData.target_value}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">KPI Name</label>
-            <input
-              type="text"
-              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Monthly Revenue"
-            />
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe what this KPI measures..."
-              rows={2}
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium">Current Value</label>
-              <input
-                type="number"
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-                value={formData.current_value}
-                onChange={(e) => setFormData({ ...formData, current_value: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Target Value</label>
-              <input
-                type="number"
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-                value={formData.target_value}
-                onChange={(e) => setFormData({ ...formData, target_value: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium">Unit</label>
-              <input
-                type="text"
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                placeholder="$, %, units"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Frequency</label>
-              <select
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
-                value={formData.frequency}
-                onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </FormDialog>
-    </BaseMBPTab>
+    </div>
   );
 };

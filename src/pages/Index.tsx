@@ -1,7 +1,7 @@
 import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany, CompanyProvider } from "@/hooks/useCompany";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MetricCard from "@/components/dashboard/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
@@ -11,7 +11,7 @@ import FilterBar from "@/components/dashboard/FilterBar";
 import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
-import { MBPTabs } from "@/components/mbp/MBPTabs";
+import MBPDashboard from "@/components/mbp/MBPDashboard";
 import { QBOIntegration } from "@/components/integrations/QBOIntegration";
 import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
 import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
@@ -22,6 +22,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Index = () => {
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
+
+  return (
+    <CompanyProvider>
+      <IndexContent activeSection={activeSection} setActiveSection={setActiveSection} signOut={signOut} />
+    </CompanyProvider>
+  );
+};
+
+const IndexContent = ({ activeSection, setActiveSection, signOut }: {
+  activeSection: string;
+  setActiveSection: (section: string) => void;
+  signOut: () => void;
+}) => {
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
 
@@ -32,7 +45,7 @@ const Index = () => {
       case 'gsr':
         return <GSRDashboard />;
       case 'mbp':
-        return <MBPTabs />;
+        return <MBPDashboard />;
       case 'analytics':
         return <AnalyticsSection />;
       case 'growth':
