@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp, ArrowUpDown } from 'lucide-react';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
@@ -46,6 +47,7 @@ export const StrategicPlanning = () => {
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [sortByPriority, setSortByPriority] = useState(true); // true for priority, false for due date
   const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
     title: '',
     description: '',
@@ -53,6 +55,23 @@ export const StrategicPlanning = () => {
     priority: 'medium',
     status: 'not_started',
     completion_percentage: 0
+  });
+
+  // Sort objectives based on current sort mode
+  const sortedObjectives = objectives.sort((a, b) => {
+    if (sortByPriority) {
+      // Sort by priority: critical > high > medium > low
+      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+      const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+      const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+      return priorityB - priorityA; // Higher priority first
+    } else {
+      // Sort by due date: soonest first, null dates last
+      if (!a.target_date && !b.target_date) return 0;
+      if (!a.target_date) return 1; // null dates go to end
+      if (!b.target_date) return -1; // null dates go to end
+      return new Date(a.target_date).getTime() - new Date(b.target_date).getTime();
+    }
   });
 
   // Removed manual fetch logic - now using useStrategicPlanning hook
@@ -490,6 +509,24 @@ export const StrategicPlanning = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Sorting Toggle */}
+          <div className="flex items-center gap-2 text-sm">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Sort by:</span>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="sort-toggle" className={`cursor-pointer ${!sortByPriority ? 'text-muted-foreground' : 'text-primary'}`}>
+                Due Date
+              </Label>
+              <Switch
+                id="sort-toggle"
+                checked={sortByPriority}
+                onCheckedChange={setSortByPriority}
+              />
+              <Label htmlFor="sort-toggle" className={`cursor-pointer ${sortByPriority ? 'text-muted-foreground' : 'text-primary'}`}>
+                Priority
+              </Label>
+            </div>
+          </div>
           <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
             <DialogTrigger asChild>
               <Button>
@@ -639,7 +676,7 @@ export const StrategicPlanning = () => {
           </Card>
         ) : (
           <div className="space-y-4 group">
-            {objectives.map((objective) => (
+            {sortedObjectives.map((objective) => (
               <ObjectiveCard key={objective.id} objective={objective} />
             ))}
           </div>
