@@ -47,24 +47,29 @@ export const useStrategicPlanning = () => {
       }
 
       // Combine objectives with their checklist items  
-      const objectives: StrategicObjective[] = (objectivesData || []).map(objective => ({
-        id: objective.id,
-        title: objective.title,
-        description: objective.description || null,
-        target_date: objective.target_date || null,
-        status: (objective.status as StrategicObjective['status']) || 'not_started',
-        priority: (objective.priority as StrategicObjective['priority']) || 'medium', 
-        completion_percentage: objective.completion_percentage || 0,
-        company_id: objective.company_id,
-        created_at: objective.created_at,
-        updated_at: objective.updated_at,
-        checklist: checklistData
-          .filter(item => item.objective_id === objective.id)
-          .map(item => ({
+      const objectives: StrategicObjective[] = (objectivesData || []).map(objective => {
+        const checklistItems = checklistData.filter(item => item.objective_id === objective.id);
+        const completedItems = checklistItems.filter(item => item.is_completed).length;
+        const totalItems = checklistItems.length;
+        const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+        
+        return {
+          id: objective.id,
+          title: objective.title,
+          description: objective.description || null,
+          target_date: objective.target_date || null,
+          status: (objective.status as StrategicObjective['status']) || 'not_started',
+          priority: (objective.priority as StrategicObjective['priority']) || 'medium', 
+          completion_percentage: calculatedCompletion, // Use calculated value instead of stored value
+          company_id: objective.company_id,
+          created_at: objective.created_at,
+          updated_at: objective.updated_at,
+          checklist: checklistItems.map(item => ({
             ...item,
             company_id: objective.company_id // Add company_id to checklist items
           }))
-      }));
+        };
+      });
 
       return { data: objectives, error: null };
     },

@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2 } from 'lucide-react';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
+import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 
 interface NewObjectiveForm {
   title: string;
@@ -132,21 +133,30 @@ export const StrategicPlanning = () => {
 
   const ObjectiveCard = ({ objective }: { objective: any }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({
-      ...objective,
-      status: objective.status || 'not_started',
-      priority: objective.priority || 'medium',
-      completion_percentage: objective.completion_percentage || 0,
-      description: objective.description || '',
-      target_date: objective.target_date || ''
-    });
     const [newChecklistItem, setNewChecklistItem] = useState('');
     const isExpanded = expandedCards.has(objective.id);
     const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
     const totalItems = objective.checklist?.length || 0;
+    
+    // Calculate completion percentage based on checklist items
+    const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+    
+    const [editData, setEditData] = useState({
+      ...objective,
+      status: objective.status || 'not_started',
+      priority: objective.priority || 'medium',
+      completion_percentage: calculatedCompletion, // Use calculated value
+      description: objective.description || '',
+      target_date: objective.target_date || ''
+    });
 
     const handleSave = () => {
-      handleUpdateObjective(objective.id, editData);
+      // Update with calculated completion percentage
+      const updatedData = {
+        ...editData,
+        completion_percentage: calculatedCompletion
+      };
+      handleUpdateObjective(objective.id, updatedData);
       setIsEditing(false);
     };
 
@@ -155,7 +165,7 @@ export const StrategicPlanning = () => {
         ...objective,
         status: objective.status || 'not_started',
         priority: objective.priority || 'medium',
-        completion_percentage: objective.completion_percentage || 0,
+        completion_percentage: calculatedCompletion, // Use calculated value
         description: objective.description || '',
         target_date: objective.target_date || ''
       });
@@ -197,6 +207,11 @@ export const StrategicPlanning = () => {
                 )}
               </div>
               
+              {/* Countdown Timer - prominent display */}
+              <div className="mb-2">
+                <CountdownTimer targetDate={objective.target_date} />
+              </div>
+              
               {!isExpanded && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
               )}
@@ -228,16 +243,20 @@ export const StrategicPlanning = () => {
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar - using calculated completion */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{objective.completion_percentage || 0}%</span>
+              <span className="font-medium">{calculatedCompletion}%</span>
             </div>
-            <Progress value={objective.completion_percentage || 0} className="h-2" />
-            {totalItems > 0 && (
+            <Progress value={calculatedCompletion} className="h-2" />
+            {totalItems > 0 ? (
               <div className="text-sm text-muted-foreground">
                 {completedItems} of {totalItems} checklist items completed
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Add checklist items to track progress
               </div>
             )}
           </div>
@@ -295,18 +314,7 @@ export const StrategicPlanning = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Completion %</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={editData.completion_percentage || 0}
-                        onChange={(e) => setEditData({ ...editData, completion_percentage: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                    
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <Label>Target Date</Label>
                       <Input
@@ -344,7 +352,7 @@ export const StrategicPlanning = () => {
                     <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        {objective.completion_percentage || 0}% complete
+                        {calculatedCompletion}% complete (auto-calculated)
                       </span>
                     </div>
                   </div>
