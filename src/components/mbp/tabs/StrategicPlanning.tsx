@@ -66,11 +66,21 @@ export const StrategicPlanning = () => {
       const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
       return priorityB - priorityA; // Higher priority first
     } else {
-      // Sort by due date: soonest first, null dates last
+      // Sort by due date: soonest first, null/invalid dates last
       if (!a.target_date && !b.target_date) return 0;
-      if (!a.target_date) return 1; // null dates go to end
-      if (!b.target_date) return -1; // null dates go to end
-      return new Date(a.target_date).getTime() - new Date(b.target_date).getTime();
+      if (!a.target_date || a.target_date === '') return 1; // null/empty dates go to end
+      if (!b.target_date || b.target_date === '') return -1; // null/empty dates go to end
+      
+      // Safely parse dates
+      const dateA = new Date(a.target_date);
+      const dateB = new Date(b.target_date);
+      
+      // Check if dates are valid
+      if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+      if (isNaN(dateA.getTime())) return 1; // invalid dates go to end
+      if (isNaN(dateB.getTime())) return -1; // invalid dates go to end
+      
+      return dateA.getTime() - dateB.getTime();
     }
   });
 
