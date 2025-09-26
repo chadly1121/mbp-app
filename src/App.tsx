@@ -13,6 +13,8 @@ import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 import Invite from "./pages/Invite";
 import ShareObjective from "./pages/ShareObjective";
+import SharePage from "./pages/SharePage";
+import MyShares from "./pages/MyShares";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,10 @@ const App = () => {
       <Toaster />
       <Sonner />
       <Routes>
+        {/* PUBLIC routes: no auth */}
+        <Route path="/share/:token/:mode" element={<SharePage />} />
+        <Route path="/my-shares" element={<MyShares />} />
+        
         <Route path="/auth" element={<Auth />} />
         <Route path="/invite/:token" element={<Invite />} />
         <Route path="/share/:token" element={<ShareObjective />} />
