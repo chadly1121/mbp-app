@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,20 @@ import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/co
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
 import { SimpleCollaborationButton } from '@/components/mbp/tabs/shared/SimpleCollaborationButton';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { safeSort, cmpByDue, cmpByPriority, safeDate } from '@/lib/sort';
 import type { StrategicObjective } from '@/types/strategicPlanning';
+
+// Create specific comparators for StrategicObjective
+const cmpObjectivesByDue = (a: StrategicObjective, b: StrategicObjective) => 
+  safeDate(a?.target_date) - safeDate(b?.target_date);
+
+const cmpObjectivesByPriority = (a: StrategicObjective, b: StrategicObjective) => {
+  const RANK = { critical: 0, high: 1, medium: 2, low: 3 };
+  const ra = a?.priority && RANK[a.priority] !== undefined ? RANK[a.priority] : 99;
+  const rb = b?.priority && RANK[b.priority] !== undefined ? RANK[b.priority] : 99;
+  return ra - rb;
+};
 
 interface NewObjectiveForm {
   title: string;
@@ -48,6 +61,7 @@ export const StrategicPlanning = () => {
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [sortMode, setSortMode] = useState<'priority'|'due'>('priority');
   const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
     title: '',
     description: '',
@@ -56,6 +70,12 @@ export const StrategicPlanning = () => {
     status: 'not_started',
     completion_percentage: 0
   });
+
+  // Derive sorted objectives
+  const sortedObjectives = useMemo(() => {
+    const cmp = sortMode === 'priority' ? cmpObjectivesByPriority : cmpObjectivesByDue;
+    return safeSort(objectives, cmp);
+  }, [objectives, sortMode]);
 
   // Removed manual fetch logic - now using useStrategicPlanning hook
 
@@ -374,9 +394,9 @@ export const StrategicPlanning = () => {
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        {objective.target_date ? 
+                        {Number.isFinite(safeDate(objective.target_date)) ? 
                           new Date(objective.target_date).toLocaleString() : 
-                          'No target date & time'
+                          '—'
                         }
                       </span>
                     </div>
@@ -397,7 +417,9 @@ export const StrategicPlanning = () => {
                         <CheckSquare className="h-4 w-4" />
                         Checklist ({completedItems}/{totalItems})
                       </h5>
-                      <SimpleCollaborationButton objective={objective} />
+                      <ErrorBoundary fallback={null}>
+                        <SimpleCollaborationButton objective={objective} />
+                      </ErrorBoundary>
                     </div>
                     
                     {objective.checklist && objective.checklist.length > 0 && (
@@ -478,6 +500,30 @@ export const StrategicPlanning = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <div style={{display:'flex', gap:8}}>
+            <button 
+              aria-pressed={sortMode==='priority'} 
+              onClick={()=>setSortMode('priority')}
+              className={`px-3 py-1 text-sm rounded border transition-colors ${
+                sortMode === 'priority' 
+                  ? 'bg-primary text-primary-foreground border-primary' 
+                  : 'bg-background hover:bg-accent border-input'
+              }`}
+            >
+              Priority
+            </button>
+            <button 
+              aria-pressed={sortMode==='due'} 
+              onClick={()=>setSortMode('due')}
+              className={`px-3 py-1 text-sm rounded border transition-colors ${
+                sortMode === 'due' 
+                  ? 'bg-primary text-primary-foreground border-primary' 
+                  : 'bg-background hover:bg-accent border-input'
+              }`}
+            >
+              Due date
+            </button>
+          </div>
           <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
             <DialogTrigger asChild>
               <Button>
@@ -627,7 +673,7 @@ export const StrategicPlanning = () => {
           </Card>
         ) : (
           <div className="space-y-4 group">
-            {objectives.map((objective) => (
+            {sortedObjectives.map((objective) => (
               <ObjectiveCard key={objective.id} objective={objective} />
             ))}
           </div>
