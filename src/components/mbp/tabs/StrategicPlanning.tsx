@@ -15,6 +15,7 @@ import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown,
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
+import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
 
 interface NewObjectiveForm {
   title: string;
@@ -457,6 +458,9 @@ export const StrategicPlanning = () => {
 
   return (
     <div className="space-y-6">
+      {/* Performance Gauge */}
+      <PerformanceGauge objectives={objectives} />
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
