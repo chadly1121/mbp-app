@@ -104,8 +104,8 @@ export const StrategicPlanning = () => {
   };
 
   const handleUpdateObjective = (objectiveId: string, updates: Partial<StrategicObjective>) => {
-    // Remove checklist from updates as it's not a column in the table
-    const { checklist, ...dbUpdates } = updates;
+    // Remove related data fields that aren't columns in the table
+    const { checklist, collaborators, comments, activity, ...dbUpdates } = updates;
     updateObjective({ id: objectiveId, data: dbUpdates });
   };
 
