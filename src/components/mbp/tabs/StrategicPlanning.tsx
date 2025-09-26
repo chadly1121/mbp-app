@@ -286,6 +286,29 @@ export const StrategicPlanning = () => {
               </div>
             )}
           </div>
+          
+          {/* Collaboration and Action Buttons */}
+          <div className="flex items-center justify-between mt-4">
+            <CollaborationPanel
+              objective={objective}
+              onAddCollaborator={addCollaborator}
+              onAddComment={addComment}
+              isAddingCollaborator={addingCollaborator}
+              isAddingComment={addingComment}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCardExpansion(objective.id);
+              }}
+              className="gap-2"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isExpanded ? 'Collapse' : 'Expand'}
+            </Button>
+          </div>
         </CardHeader>
 
         <Collapsible open={isExpanded}>
