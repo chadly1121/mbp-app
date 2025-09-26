@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,8 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useCompany } from '@/hooks/useCompany';
-import { supabase } from '@/integrations/supabase/client';
-import { StrategicObjective as StrategicObjectiveType, ChecklistItem as ChecklistItemType, LoadingState } from '@/types/supabase';
-import { handleSupabaseError } from '@/utils/errorHandling';
+import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
+import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 
 interface NewObjectiveForm {
   title: string;
@@ -28,12 +25,19 @@ interface NewObjectiveForm {
 }
 
 export const StrategicPlanning = () => {
-  const { toast } = useToast();
-  const { currentCompany } = useCompany();
-  const [objectives, setObjectives] = useState<StrategicObjectiveType[]>([]);
-  const [loadingState, setLoadingState] = useState<LoadingState>({ isLoading: true, error: null });
+  const {
+    objectives,
+    stats,
+    loading,
+    error,
+    createObjective,
+    updateObjective,
+    createChecklistItem,
+    updateChecklistItem,
+    deleteChecklistItem
+  } = useStrategicPlanning();
+  
   const [isAddingObjective, setIsAddingObjective] = useState(false);
-  const [editingObjective, setEditingObjective] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
     title: '',
@@ -44,206 +48,57 @@ export const StrategicPlanning = () => {
     completion_percentage: 0
   });
 
-  const fetchObjectives = useCallback(async () => {
-    if (!currentCompany) return;
-
-    setLoadingState({ isLoading: true, error: null });
-
-    try {
-      const { data: objectivesData, error: objectivesError } = await supabase
-        .from('strategic_objectives')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .order('created_at', { ascending: false });
-
-      if (objectivesError) throw objectivesError;
-
-      // Fetch checklist items for all objectives
-      const objectiveIds = objectivesData?.map(obj => obj.id) || [];
-      let checklistData: ChecklistItemType[] = [];
-      
-      if (objectiveIds.length > 0) {
-        const { data: checklistResponse, error: checklistError } = await supabase
-          .from('strategic_objective_checklist')
-          .select('*')
-          .in('objective_id', objectiveIds)
-          .order('sort_order', { ascending: true });
-
-        if (checklistError) throw checklistError;
-        checklistData = (checklistResponse || []).map(item => ({
-          id: item.id,
-          company_id: currentCompany.id,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          item_text: item.item_text,
-          is_completed: item.is_completed,
-          sort_order: item.sort_order,
-          objective_id: item.objective_id
-        }));
-      }
-
-      // Combine objectives with their checklist items
-      const objectivesWithChecklist: StrategicObjectiveType[] = (objectivesData || []).map(objective => ({
-        id: objective.id,
-        company_id: objective.company_id,
-        created_at: objective.created_at,
-        updated_at: objective.updated_at,
-        title: objective.title,
-        description: objective.description || '',
-        target_date: objective.target_date || '',
-        status: (objective.status || 'not_started') as 'not_started' | 'in_progress' | 'completed' | 'on_hold',
-        priority: (objective.priority || 'medium') as 'low' | 'medium' | 'high' | 'critical',
-        completion_percentage: objective.completion_percentage || 0,
-        checklist: checklistData.filter(item => item.objective_id === objective.id)
-      }));
-
-      setObjectives(objectivesWithChecklist);
-      setLoadingState({ isLoading: false, error: null });
-    } catch (error) {
-      const apiError = handleSupabaseError(error);
-      setLoadingState({ isLoading: false, error: apiError.message });
-      toast({
-        title: "Error loading objectives",
-        description: apiError.message,
-        variant: "destructive",
-      });
-    }
-  }, [currentCompany, toast]);
+  // Removed manual fetch logic - now using useStrategicPlanning hook
 
   const handleAddObjective = async () => {
-    if (!currentCompany || !newObjective.title) {
-      return;
-    }
+    if (!newObjective.title) return;
 
-    try {
-      const { error } = await supabase
-        .from('strategic_objectives')
-        .insert([{
-          ...newObjective,
-          company_id: currentCompany.id
-        }]);
-
-      if (error) throw error;
-      
-      toast({
-        title: "Strategic objective added",
-        description: `${newObjective.title} has been added to your strategic plan.`
-      });
-      
-      setNewObjective({
-        title: '',
-        description: '',
-        target_date: '',
-        priority: 'medium',
-        status: 'not_started',
-        completion_percentage: 0
-      });
-      setIsAddingObjective(false);
-      fetchObjectives();
-    } catch (error: any) {
-      console.error('Error adding objective:', error);
-      toast({
-        title: "Error adding objective",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    createObjective({
+      title: newObjective.title,
+      description: newObjective.description,
+      target_date: newObjective.target_date,
+      priority: newObjective.priority,
+      status: newObjective.status,
+      completion_percentage: newObjective.completion_percentage,
+      company_id: '' // This will be set by the hook
+    });
+    
+    setNewObjective({
+      title: '',
+      description: '',
+      target_date: '',
+      priority: 'medium',
+      status: 'not_started',
+      completion_percentage: 0
+    });
+    setIsAddingObjective(false);
   };
 
-  const handleUpdateObjective = async (objectiveId: string, updates: Partial<StrategicObjectiveType>) => {
-    try {
-      // Remove checklist from updates as it's not a column in the table
-      const { checklist, ...dbUpdates } = updates;
-      
-      const { error } = await supabase
-        .from('strategic_objectives')
-        .update(dbUpdates)
-        .eq('id', objectiveId);
-
-      if (error) throw error;
-      
-      toast({
-        title: "Objective updated",
-        description: "Strategic objective has been updated successfully."
-      });
-      
-      fetchObjectives();
-    } catch (error: any) {
-      console.error('Error updating objective:', error);
-      toast({
-        title: "Error updating objective",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  const handleUpdateObjective = (objectiveId: string, updates: any) => {
+    // Remove checklist from updates as it's not a column in the table
+    const { checklist, ...dbUpdates } = updates;
+    updateObjective({ id: objectiveId, data: dbUpdates });
   };
 
-  const handleAddChecklistItem = async (objectiveId: string, itemText: string) => {
+  const handleAddChecklistItem = (objectiveId: string, itemText: string) => {
     if (!itemText.trim()) return;
 
-    try {
-      const objective = objectives.find(obj => obj.id === objectiveId);
-      const sortOrder = (objective?.checklist?.length || 0) + 1;
+    const objective = objectives.find(obj => obj.id === objectiveId);
+    const sortOrder = (objective?.checklist?.length || 0) + 1;
 
-      const { error } = await supabase
-        .from('strategic_objective_checklist')
-        .insert([{
-          objective_id: objectiveId,
-          item_text: itemText.trim(),
-          sort_order: sortOrder
-        }]);
-
-      if (error) throw error;
-      
-      fetchObjectives();
-    } catch (error: any) {
-      console.error('Error adding checklist item:', error);
-      toast({
-        title: "Error adding checklist item",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    createChecklistItem({
+      objective_id: objectiveId,
+      item_text: itemText.trim(),
+      sort_order: sortOrder
+    });
   };
 
-  const handleUpdateChecklistItem = async (itemId: string, updates: Partial<ChecklistItemType>) => {
-    try {
-      const { error } = await supabase
-        .from('strategic_objective_checklist')
-        .update(updates)
-        .eq('id', itemId);
-
-      if (error) throw error;
-      
-      fetchObjectives();
-    } catch (error: any) {
-      console.error('Error updating checklist item:', error);
-      toast({
-        title: "Error updating checklist item",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  const handleUpdateChecklistItem = (itemId: string, updates: any) => {
+    updateChecklistItem({ id: itemId, data: updates });
   };
 
-  const handleDeleteChecklistItem = async (itemId: string) => {
-    try {
-      const { error } = await supabase
-        .from('strategic_objective_checklist')
-        .delete()
-        .eq('id', itemId);
-
-      if (error) throw error;
-      
-      fetchObjectives();
-    } catch (error: any) {
-      console.error('Error deleting checklist item:', error);
-      toast({
-        title: "Error deleting checklist item",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  const handleDeleteChecklistItem = (itemId: string) => {
+    deleteChecklistItem(itemId);
   };
 
   const toggleCardExpansion = (objectiveId: string) => {
@@ -275,7 +130,7 @@ export const StrategicPlanning = () => {
     }
   };
 
-  const ObjectiveCard = ({ objective }: { objective: StrategicObjectiveType }) => {
+  const ObjectiveCard = ({ objective }: { objective: any }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({
       ...objective,
@@ -552,12 +407,21 @@ export const StrategicPlanning = () => {
     );
   };
 
-  if (loadingState.isLoading) {
-    return <div className="flex items-center justify-center p-8">Loading strategic objectives...</div>;
+  // Show loading template if loading
+  if (loading) {
+    return <LoadingTemplate message="Loading strategic objectives..." />;
   }
 
-  if (!currentCompany) {
-    return <div className="flex items-center justify-center p-8">Please select a company first.</div>;
+  // Show error template if error
+  if (error) {
+    return (
+      <ErrorHandlingTemplate
+        title="Error Loading Strategic Objectives"
+        description="There was a problem loading your strategic planning data."
+        error={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
   }
 
   return (
