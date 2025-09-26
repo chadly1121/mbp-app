@@ -48,7 +48,6 @@ export const StrategicPlanning = () => {
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [sortByPriority, setSortByPriority] = useState(true); // true for priority, false for due date
   const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
     title: '',
     description: '',
@@ -58,43 +57,7 @@ export const StrategicPlanning = () => {
     completion_percentage: 0
   });
 
-  console.log('StrategicPlanning render:', { objectives: objectives?.length, sortByPriority });
-
-  // Sort objectives based on current sort mode
-  const sortedObjectives = React.useMemo(() => {
-    if (!objectives || objectives.length === 0) return [];
-    
-    try {
-      return [...objectives].sort((a, b) => {
-        if (sortByPriority) {
-          // Sort by priority: critical > high > medium > low
-          const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-          const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-          const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-          return priorityB - priorityA; // Higher priority first
-        } else {
-          // Sort by due date: soonest first, null/invalid dates last
-          if (!a.target_date && !b.target_date) return 0;
-          if (!a.target_date || a.target_date === '') return 1; // null/empty dates go to end
-          if (!b.target_date || b.target_date === '') return -1; // null/empty dates go to end
-          
-          // Safely parse dates
-          const dateA = new Date(a.target_date);
-          const dateB = new Date(b.target_date);
-          
-          // Check if dates are valid
-          if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-          if (isNaN(dateA.getTime())) return 1; // invalid dates go to end
-          if (isNaN(dateB.getTime())) return -1; // invalid dates go to end
-          
-          return dateA.getTime() - dateB.getTime();
-        }
-      });
-    } catch (error) {
-      console.error('Sorting error:', error);
-      return objectives;
-    }
-  }, [objectives, sortByPriority]);
+  console.log('StrategicPlanning render:', { objectives: objectives?.length });
 
   // Removed manual fetch logic - now using useStrategicPlanning hook
 
@@ -531,24 +494,6 @@ export const StrategicPlanning = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Sorting Toggle */}
-          <div className="flex items-center gap-2 text-sm">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Sort by:</span>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="sort-toggle" className={`cursor-pointer ${!sortByPriority ? 'text-muted-foreground' : 'text-primary'}`}>
-                Due Date
-              </Label>
-              <Switch
-                id="sort-toggle"
-                checked={sortByPriority}
-                onCheckedChange={setSortByPriority}
-              />
-              <Label htmlFor="sort-toggle" className={`cursor-pointer ${sortByPriority ? 'text-muted-foreground' : 'text-primary'}`}>
-                Priority
-              </Label>
-            </div>
-          </div>
           <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
             <DialogTrigger asChild>
               <Button>
@@ -698,7 +643,7 @@ export const StrategicPlanning = () => {
           </Card>
         ) : (
           <div className="space-y-4 group">
-            {sortedObjectives.map((objective) => (
+            {objectives.map((objective) => (
               <ObjectiveCard key={objective.id} objective={objective} />
             ))}
           </div>
