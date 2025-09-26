@@ -1,4 +1,5 @@
-import React, { useState, useMemo, Suspense } from 'react';
+import React, { useState, useMemo, Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp, ArrowUpDown, Share2 } from 'lucide-react';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp, ArrowUpDown, Share2, Copy, Eye, Edit3 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
@@ -22,10 +23,290 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { safeSort, cmpByDue, cmpByPriority, safeDate } from '@/lib/sort';
 import type { StrategicObjective } from '@/types/strategicPlanning';
 import { CopyLinkButton } from '@/components/strategic/CopyLinkButton';
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
 
 const CollaborationPanel = React.lazy(() => import('@/components/common/CollaborationPanel').then(module => ({ default: module.CollaborationPanel })));
 
-// Create specific comparators for StrategicObjective
+// ---------- Sharing Utils ----------
+const getShares = () => {
+  try {
+    return JSON.parse(localStorage.getItem("strategic_shares") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveShares = (shares: any) => {
+  localStorage.setItem("strategic_shares", JSON.stringify(shares));
+};
+
+// Generate permanent tokens for objectives
+const getOrCreateToken = (objectiveId: string, mode: "viewer" | "editor") => {
+  const shares = getShares();
+  if (!shares[objectiveId]) shares[objectiveId] = { viewer: null, editor: null, accepted: [] };
+  if (!shares[objectiveId][mode]) shares[objectiveId][mode] = uuidv4();
+  saveShares(shares);
+  return shares[objectiveId][mode];
+};
+
+// Add accepted objective to mini-dashboard
+const acceptShare = (token: string, mode: string, objectiveId: string) => {
+  const shares = getShares();
+  if (!shares[objectiveId]) return;
+  if (!shares[objectiveId].accepted.includes(token)) {
+    shares[objectiveId].accepted.push(token);
+    saveShares(shares);
+  }
+};
+
+// Revoke individual token
+const revokeShare = (objectiveId: string, token: string) => {
+  const shares = getShares();
+  if (!shares[objectiveId]) return;
+  // Remove token from viewer/editor slots
+  if (shares[objectiveId].viewer === token) shares[objectiveId].viewer = null;
+  if (shares[objectiveId].editor === token) shares[objectiveId].editor = null;
+  // Remove from accepted list
+  shares[objectiveId].accepted = (shares[objectiveId].accepted || []).filter((t: string) => t !== token);
+  saveShares(shares);
+};
+
+// ---------- Share Page ----------
+const SharePage = () => {
+  const { token, mode } = useParams();
+  const navigate = useNavigate();
+  const shares = getShares();
+  let foundObjectiveId: string | null = null;
+  let foundObjective: StrategicObjective | null = null;
+
+  // Find objective by token
+  for (const [objectiveId, data] of Object.entries<any>(shares)) {
+    if (data[mode as "viewer" | "editor"] === token) {
+      foundObjectiveId = objectiveId;
+      acceptShare(token!, mode!, objectiveId);
+      break;
+    }
+  }
+
+  const { objectives } = useStrategicPlanning();
+  
+  if (foundObjectiveId) {
+    foundObjective = objectives.find(obj => obj.id === foundObjectiveId) || null;
+  }
+
+  if (!foundObjectiveId || !foundObjective) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Invalid or revoked link</h2>
+            <p className="text-muted-foreground mb-4">This share link is no longer valid or has been revoked.</p>
+            <Button onClick={() => navigate("/")} variant="outline">
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant="outline">
+            {mode === "viewer" ? "Viewing" : "Editing"} Mode
+          </Badge>
+          <Link to="/strategic-planning/my-shares" className="text-blue-600 hover:underline text-sm">
+            Go to My Shares
+          </Link>
+        </div>
+        <h1 className="text-2xl font-bold">{foundObjective.title}</h1>
+        <p className="text-muted-foreground">{foundObjective.description}</p>
+      </div>
+      
+      <Card>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <Label className="text-sm font-medium">Status</Label>
+              <Badge className="mt-1">{foundObjective.status?.replace('_', ' ')}</Badge>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Priority</Label>
+              <Badge className="mt-1">{foundObjective.priority}</Badge>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Target Date</Label>
+              <p className="text-sm">
+                {foundObjective.target_date ? 
+                  new Date(foundObjective.target_date).toLocaleString() : 
+                  '—'
+                }
+              </p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Progress</Label>
+              <div className="mt-1">
+                <Progress value={foundObjective.completion_percentage} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{foundObjective.completion_percentage}%</p>
+              </div>
+            </div>
+          </div>
+          
+          {mode === "editor" ? (
+            <div className="space-y-4">
+              <h3 className="font-semibold">Checklist Items</h3>
+              <div className="space-y-2">
+                {foundObjective.checklist?.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 p-2 rounded border">
+                    <Checkbox checked={item.is_completed} disabled />
+                    <span className={item.is_completed ? "line-through text-muted-foreground" : ""}>
+                      {item.item_text}
+                    </span>
+                  </div>
+                ))}
+                {(!foundObjective.checklist || foundObjective.checklist.length === 0) && (
+                  <p className="text-muted-foreground text-sm">No checklist items yet</p>
+                )}
+              </div>
+              <div className="pt-4 border-t">
+                <Textarea 
+                  placeholder="Add comments or notes about this objective..." 
+                  className="min-h-20"
+                />
+                <Button className="mt-2" size="sm">Add Comment</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-semibold">Checklist Progress</h3>
+              <div className="space-y-2">
+                {foundObjective.checklist?.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 p-2 rounded border">
+                    <CheckCircle className={`h-4 w-4 ${item.is_completed ? 'text-green-600' : 'text-gray-300'}`} />
+                    <span className={item.is_completed ? "line-through text-muted-foreground" : ""}>
+                      {item.item_text}
+                    </span>
+                  </div>
+                ))}
+                {(!foundObjective.checklist || foundObjective.checklist.length === 0) && (
+                  <p className="text-muted-foreground text-sm">No checklist items to display</p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ---------- My Shares Dashboard ----------
+const MyShares = () => {
+  const [refresh, setRefresh] = useState(0);
+  const navigate = useNavigate();
+  const shares = getShares();
+  const accepted: { objectiveId: string; mode: string; token: string }[] = [];
+
+  for (const [objectiveId, data] of Object.entries<any>(shares)) {
+    (data.accepted || []).forEach((token: string) => {
+      const mode = data.viewer === token ? "viewer" : data.editor === token ? "editor" : "revoked";
+      if (mode !== "revoked") accepted.push({ objectiveId, mode, token });
+    });
+  }
+
+  const { objectives } = useStrategicPlanning();
+
+  const handleRevoke = (objectiveId: string, token: string) => {
+    revokeShare(objectiveId, token);
+    setRefresh((r) => r + 1); // trigger re-render
+    toast.success("Share access revoked");
+  };
+
+  if (!accepted.length) {
+    return (
+      <div className="container mx-auto p-6 max-w-4xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2">My Shared Objectives</h1>
+          <Button onClick={() => navigate("/")} variant="outline" size="sm">
+            ← Back to Strategic Planning
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">No shared objectives accessed yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              When you access shared objectives via links, they'll appear here.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">My Shared Objectives</h1>
+        <Button onClick={() => navigate("/")} variant="outline" size="sm">
+          ← Back to Strategic Planning
+        </Button>
+      </div>
+      
+      <div className="space-y-4">
+        {accepted.map((share, idx) => {
+          const objective = objectives.find(obj => obj.id === share.objectiveId);
+          return (
+            <Card key={idx}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline">
+                        {share.mode === "viewer" ? "Viewer" : "Editor"}
+                      </Badge>
+                      {objective && <h3 className="font-semibold">{objective.title}</h3>}
+                    </div>
+                    {objective && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {objective.description}
+                      </p>
+                    )}
+                    {!objective && (
+                      <p className="text-sm text-muted-foreground">
+                        Objective #{share.objectiveId} (data not available)
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/strategic-planning/share/${share.token}/${share.mode}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Open
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleRevoke(share.objectiveId, share.token)}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Revoke
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 const cmpObjectivesByDue = (a: StrategicObjective, b: StrategicObjective) => 
   safeDate(a?.target_date) - safeDate(b?.target_date);
 
@@ -45,7 +326,7 @@ interface NewObjectiveForm {
   completion_percentage: number;
 }
 
-export const StrategicPlanning = () => {
+export const StrategicPlanningMain = () => {
   const {
     objectives,
     stats,
@@ -274,10 +555,38 @@ export const StrategicPlanning = () => {
               
               {/* Sharing Buttons */}
               {!isEditing && (
-                <>
-                  <CopyLinkButton objectiveId={objective.id} role="viewer" />
-                  <CopyLinkButton objectiveId={objective.id} role="editor" />
-                </>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const token = getOrCreateToken(objective.id, "viewer");
+                      const url = `${window.location.origin}/strategic-planning/share/${token}/viewer`;
+                      navigator.clipboard.writeText(url);
+                      toast.success("Viewer link copied!");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const token = getOrCreateToken(objective.id, "editor");
+                      const url = `${window.location.origin}/strategic-planning/share/${token}/editor`;
+                      navigator.clipboard.writeText(url);
+                      toast.success("Editor link copied!");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" />
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
               
               <div className="flex flex-col items-end gap-1">
@@ -519,6 +828,13 @@ export const StrategicPlanning = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <Link 
+            to="/strategic-planning/my-shares" 
+            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+          >
+            <Share2 className="h-4 w-4" />
+            My Shares
+          </Link>
           <div style={{display:'flex', gap:8}}>
             <button 
               aria-pressed={sortMode==='priority'} 
@@ -699,5 +1015,18 @@ export const StrategicPlanning = () => {
         )}
       </div>
     </div>
+  );
+};
+
+// ---------- Main Strategic Planning with Routing ----------
+export const StrategicPlanning = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<StrategicPlanningMain />} />
+        <Route path="/share/:token/:mode" element={<SharePage />} />
+        <Route path="/my-shares" element={<MyShares />} />
+      </Routes>
+    </Router>
   );
 };
