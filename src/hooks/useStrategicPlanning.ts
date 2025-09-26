@@ -10,12 +10,14 @@ import {
   UpdateObjectiveRequest,
   CreateChecklistItemRequest,
   UpdateChecklistItemRequest,
+  CreateCollaboratorRequest,
+  CreateCommentRequest,
 } from '@/types/strategicPlanning';
 
 export const useStrategicPlanning = () => {
   const { currentCompany } = useCompany();
 
-  // Fetch objectives with their checklist items
+  // Fetch objectives with their checklist items, collaborators, comments, and activity
   const objectivesQuery = useSupabaseQuery(
     async () => {
       if (!currentCompany?.id) {
@@ -34,19 +36,46 @@ export const useStrategicPlanning = () => {
       // Fetch checklist items for all objectives
       const objectiveIds = objectivesData?.map(obj => obj.id) || [];
       let checklistData: any[] = [];
+      let collaboratorsData: any[] = [];
+      let commentsData: any[] = [];
+      let activityData: any[] = [];
 
       if (objectiveIds.length > 0) {
-        const { data: checklistResponse, error: checklistError } = await supabase
-          .from('strategic_objective_checklist')
-          .select('*')
-          .in('objective_id', objectiveIds)
-          .order('sort_order', { ascending: true });
+        const [checklistResponse, collaboratorsResponse, commentsResponse, activityResponse] = await Promise.all([
+          supabase
+            .from('strategic_objective_checklist')
+            .select('*')
+            .in('objective_id', objectiveIds)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('strategic_objective_collaborators')
+            .select('*')
+            .in('objective_id', objectiveIds)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('strategic_objective_comments')
+            .select('*')
+            .in('objective_id', objectiveIds)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('strategic_objective_activity')
+            .select('*')
+            .in('objective_id', objectiveIds)
+            .order('created_at', { ascending: false })
+        ]);
 
-        if (checklistError) throw checklistError;
-        checklistData = checklistResponse || [];
+        if (checklistResponse.error) throw checklistResponse.error;
+        if (collaboratorsResponse.error) throw collaboratorsResponse.error;
+        if (commentsResponse.error) throw commentsResponse.error;
+        if (activityResponse.error) throw activityResponse.error;
+
+        checklistData = checklistResponse.data || [];
+        collaboratorsData = collaboratorsResponse.data || [];
+        commentsData = commentsResponse.data || [];
+        activityData = activityResponse.data || [];
       }
 
-      // Combine objectives with their checklist items  
+      // Combine objectives with their related data
       const objectives: StrategicObjective[] = (objectivesData || []).map(objective => {
         const checklistItems = checklistData.filter(item => item.objective_id === objective.id);
         const completedItems = checklistItems.filter(item => item.is_completed).length;
@@ -67,7 +96,10 @@ export const useStrategicPlanning = () => {
           checklist: checklistItems.map(item => ({
             ...item,
             company_id: objective.company_id // Add company_id to checklist items
-          }))
+          })),
+          collaborators: collaboratorsData.filter(collab => collab.objective_id === objective.id),
+          comments: commentsData.filter(comment => comment.objective_id === objective.id),
+          activity: activityData.filter(act => act.objective_id === objective.id)
         };
       });
 
@@ -203,6 +235,85 @@ export const useStrategicPlanning = () => {
     }
   );
 
+  // Add collaborator mutation
+  const addCollaboratorMutation = useSupabaseMutation(
+    async (request: CreateCollaboratorRequest) => {
+      if (!currentCompany?.id) throw new Error('No company selected');
+      
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('strategic_objective_collaborators')
+        .insert({
+          ...request,
+          company_id: currentCompany.id,
+          invited_by: user.id
+        });
+
+      // Log activity
+      if (!error) {
+        await supabase.from('strategic_objective_activity').insert({
+          objective_id: request.objective_id,
+          activity_type: 'shared',
+          activity_description: `Invited ${request.user_email} as ${request.role.replace('_', ' ')}`,
+          user_email: user.email,
+          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
+          company_id: currentCompany.id
+        });
+      }
+      
+      return { data, error };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Collaborator invited successfully',
+      context: 'addCollaborator'
+    }
+  );
+
+  // Add comment mutation
+  const addCommentMutation = useSupabaseMutation(
+    async (request: CreateCommentRequest) => {
+      if (!currentCompany?.id) throw new Error('No company selected');
+      
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('strategic_objective_comments')
+        .insert({
+          ...request,
+          company_id: currentCompany.id,
+          user_email: user.email || '',
+          user_name: user.user_metadata?.display_name || user.email || 'Unknown User'
+        });
+
+      // Log activity
+      if (!error) {
+        await supabase.from('strategic_objective_activity').insert({
+          objective_id: request.objective_id,
+          activity_type: 'commented',
+          activity_description: `Added a comment`,
+          user_email: user.email,
+          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
+          company_id: currentCompany.id
+        });
+      }
+      
+      return { data, error };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Comment added successfully',
+      context: 'addComment'
+    }
+  );
+
   return {
     // Data
     objectives: objectivesQuery.data || [],
@@ -220,6 +331,8 @@ export const useStrategicPlanning = () => {
     createChecklistItem: createChecklistItemMutation.mutate,
     updateChecklistItem: updateChecklistItemMutation.mutate,
     deleteChecklistItem: deleteChecklistItemMutation.mutate,
+    addCollaborator: addCollaboratorMutation.mutate,
+    addComment: addCommentMutation.mutate,
 
     // Mutation states
     creating: createObjectiveMutation.loading,
@@ -228,5 +341,7 @@ export const useStrategicPlanning = () => {
     creatingItem: createChecklistItemMutation.loading,
     updatingItem: updateChecklistItemMutation.loading,
     deletingItem: deleteChecklistItemMutation.loading,
+    addingCollaborator: addCollaboratorMutation.loading,
+    addingComment: addCommentMutation.loading,
   };
 };

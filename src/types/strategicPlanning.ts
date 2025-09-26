@@ -11,6 +11,9 @@ export interface StrategicObjective {
   created_at: string;
   updated_at: string;
   checklist?: ChecklistItem[];
+  collaborators?: ObjectiveCollaborator[];
+  comments?: ObjectiveComment[];
+  activity?: ObjectiveActivity[];
 }
 
 export interface ChecklistItem {
@@ -98,6 +101,52 @@ export const getObjectiveStatusColor = (status: StrategicObjective['status']): s
   } as const;
   return colors[status] || 'secondary';
 };
+
+export interface ObjectiveCollaborator {
+  id: string;
+  objective_id: string;
+  user_email: string;
+  role: 'accountability_partner' | 'collaborator' | 'viewer';
+  status: 'pending' | 'accepted' | 'declined';
+  invited_by: string;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ObjectiveComment {
+  id: string;
+  objective_id: string;
+  user_email: string;
+  user_name: string;
+  content: string;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ObjectiveActivity {
+  id: string;
+  objective_id: string;
+  user_email: string | null;
+  user_name: string | null;
+  activity_type: 'created' | 'updated' | 'commented' | 'shared' | 'completed_checklist_item';
+  activity_description: string;
+  metadata: Record<string, any>;
+  company_id: string;
+  created_at: string;
+}
+
+export interface CreateCollaboratorRequest {
+  objective_id: string;
+  user_email: string;
+  role: ObjectiveCollaborator['role'];
+}
+
+export interface CreateCommentRequest {
+  objective_id: string;
+  content: string;
+}
 
 export const calculateChecklistProgress = (checklist: ChecklistItem[]): number => {
   if (!checklist || checklist.length === 0) return 0;

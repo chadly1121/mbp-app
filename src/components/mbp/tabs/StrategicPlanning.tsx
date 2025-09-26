@@ -11,11 +11,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle } from 'lucide-react';
+import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp } from 'lucide-react';
 import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
+import { CollaborationPanel } from '@/components/mbp/tabs/shared/CollaborationPanel';
 
 interface NewObjectiveForm {
   title: string;
@@ -36,7 +37,11 @@ export const StrategicPlanning = () => {
     updateObjective,
     createChecklistItem,
     updateChecklistItem,
-    deleteChecklistItem
+    deleteChecklistItem,
+    addCollaborator,
+    addComment,
+    addingCollaborator,
+    addingComment
   } = useStrategicPlanning();
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
