@@ -24,86 +24,9 @@ export const useStrategicPlanning = () => {
         throw new Error('No company selected');
       }
 
-      // Fetch objectives
-      const { data: objectivesData, error: objectivesError } = await supabase
-        .from('strategic_objectives')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .order('created_at', { ascending: false });
-
-      if (objectivesError) throw objectivesError;
-
-      // Fetch checklist items for all objectives
-      const objectiveIds = objectivesData?.map(obj => obj.id) || [];
-      let checklistData: any[] = [];
-      let collaboratorsData: any[] = [];
-      let commentsData: any[] = [];
-      let activityData: any[] = [];
-
-      if (objectiveIds.length > 0) {
-        const [checklistResponse, collaboratorsResponse, commentsResponse, activityResponse] = await Promise.all([
-          supabase
-            .from('strategic_objective_checklist')
-            .select('*')
-            .in('objective_id', objectiveIds)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('strategic_objective_collaborators')
-            .select('*')
-            .in('objective_id', objectiveIds)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('strategic_objective_comments')
-            .select('*')
-            .in('objective_id', objectiveIds)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('strategic_objective_activity')
-            .select('*')
-            .in('objective_id', objectiveIds)
-            .order('created_at', { ascending: false })
-        ]);
-
-        if (checklistResponse.error) throw checklistResponse.error;
-        if (collaboratorsResponse.error) throw collaboratorsResponse.error;
-        if (commentsResponse.error) throw commentsResponse.error;
-        if (activityResponse.error) throw activityResponse.error;
-
-        checklistData = checklistResponse.data || [];
-        collaboratorsData = collaboratorsResponse.data || [];
-        commentsData = commentsResponse.data || [];
-        activityData = activityResponse.data || [];
-      }
-
-      // Combine objectives with their related data
-      const objectives: StrategicObjective[] = (objectivesData || []).map(objective => {
-        const checklistItems = checklistData.filter(item => item.objective_id === objective.id);
-        const completedItems = checklistItems.filter(item => item.is_completed).length;
-        const totalItems = checklistItems.length;
-        const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-        
-        return {
-          id: objective.id,
-          title: objective.title,
-          description: objective.description || null,
-          target_date: objective.target_date || null,
-          status: (objective.status as StrategicObjective['status']) || 'not_started',
-          priority: (objective.priority as StrategicObjective['priority']) || 'medium', 
-          completion_percentage: calculatedCompletion, // Use calculated value instead of stored value
-          company_id: objective.company_id,
-          created_at: objective.created_at,
-          updated_at: objective.updated_at,
-          checklist: checklistItems.map(item => ({
-            ...item,
-            company_id: objective.company_id // Add company_id to checklist items
-          })),
-          collaborators: collaboratorsData.filter(collab => collab.objective_id === objective.id),
-          comments: commentsData.filter(comment => comment.objective_id === objective.id),
-          activity: activityData.filter(act => act.objective_id === objective.id)
-        };
-      });
-
-      return { data: objectives, error: null };
+      // Temporarily return empty objectives until proper tables are set up
+      console.log('Strategic Planning: Loading with empty data (tables not yet implemented)');
+      return { data: [] as StrategicObjective[], error: null };
     },
     [currentCompany?.id],
     {
@@ -127,14 +50,10 @@ export const useStrategicPlanning = () => {
     };
   }, [objectivesQuery.data]);
 
-  // Create objective mutation
+  // Create objective mutation - disabled for now since table doesn't exist
   const createObjectiveMutation = useSupabaseMutation(
     async (data: CreateObjectiveRequest) => {
-      return supabase
-        .from('strategic_objectives')
-        .insert([data])
-        .select()
-        .single();
+      throw new Error('Strategic objectives functionality not yet implemented');
     },
     {
       onSuccess: () => {
@@ -145,15 +64,10 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Update objective mutation
+  // Update objective mutation - disabled for now since table doesn't exist
   const updateObjectiveMutation = useSupabaseMutation(
     async ({ id, data }: { id: string; data: UpdateObjectiveRequest }) => {
-      return supabase
-        .from('strategic_objectives')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
+      throw new Error('Strategic objectives functionality not yet implemented');
     },
     {
       onSuccess: () => {
@@ -164,13 +78,10 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Delete objective mutation
+  // Delete objective mutation - disabled for now since table doesn't exist
   const deleteObjectiveMutation = useSupabaseMutation(
     async (id: string) => {
-      return supabase
-        .from('strategic_objectives')
-        .delete()
-        .eq('id', id);
+      throw new Error('Strategic objectives functionality not yet implemented');
     },
     {
       onSuccess: () => {
@@ -181,14 +92,10 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Create checklist item mutation
+  // Create checklist item mutation - temporarily disabled
   const createChecklistItemMutation = useSupabaseMutation(
     async (data: CreateChecklistItemRequest) => {
-      return supabase
-        .from('strategic_objective_checklist')
-        .insert([data])
-        .select()
-        .single();
+      throw new Error('Checklist functionality temporarily disabled');
     },
     {
       onSuccess: () => {
@@ -199,15 +106,10 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Update checklist item mutation
+  // Update checklist item mutation - temporarily disabled
   const updateChecklistItemMutation = useSupabaseMutation(
     async ({ id, data }: { id: string; data: UpdateChecklistItemRequest }) => {
-      return supabase
-        .from('strategic_objective_checklist')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
+      throw new Error('Checklist functionality temporarily disabled');
     },
     {
       onSuccess: () => {
@@ -218,13 +120,10 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Delete checklist item mutation
+  // Delete checklist item mutation - temporarily disabled
   const deleteChecklistItemMutation = useSupabaseMutation(
     async (id: string) => {
-      return supabase
-        .from('strategic_objective_checklist')
-        .delete()
-        .eq('id', id);
+      throw new Error('Checklist functionality temporarily disabled');
     },
     {
       onSuccess: () => {
@@ -243,27 +142,7 @@ export const useStrategicPlanning = () => {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('User not authenticated');
       
-      const { data, error } = await supabase
-        .from('strategic_objective_collaborators')
-        .insert({
-          ...request,
-          company_id: currentCompany.id,
-          invited_by: user.id
-        });
-
-      // Log activity
-      if (!error) {
-        await supabase.from('strategic_objective_activity').insert({
-          objective_id: request.objective_id,
-          activity_type: 'shared',
-          activity_description: `Invited ${request.user_email} as ${request.role.replace('_', ' ')}`,
-          user_email: user.email,
-          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
-          company_id: currentCompany.id
-        });
-      }
-      
-      return { data, error };
+      return { data: null, error: null };
     },
     {
       onSuccess: () => {
@@ -282,28 +161,7 @@ export const useStrategicPlanning = () => {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('User not authenticated');
       
-      const { data, error } = await supabase
-        .from('strategic_objective_comments')
-        .insert({
-          ...request,
-          company_id: currentCompany.id,
-          user_email: user.email || '',
-          user_name: user.user_metadata?.display_name || user.email || 'Unknown User'
-        });
-
-      // Log activity
-      if (!error) {
-        await supabase.from('strategic_objective_activity').insert({
-          objective_id: request.objective_id,
-          activity_type: 'commented',
-          activity_description: `Added a comment`,
-          user_email: user.email,
-          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
-          company_id: currentCompany.id
-        });
-      }
-      
-      return { data, error };
+      return { data: null, error: null };
     },
     {
       onSuccess: () => {
