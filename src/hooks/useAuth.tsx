@@ -1,11 +1,9 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { Navigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { useToast } from './use-toast';
 import { handleSupabaseError, logError } from '../utils/errorHandling';
 import { ApiError } from '../types/common';
-import { BetaAccessPending } from '../components/BetaAccessPending';
 
 interface AuthContextType {
   user: User | null;
@@ -208,55 +206,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-interface ProtectedRouteProps {
-  children: ReactNode;
-  requireBetaAccess?: boolean;
-  requireAdmin?: boolean;
-}
-
-export const ProtectedRoute = ({ 
-  children, 
-  requireBetaAccess = true, 
-  requireAdmin = false 
-}: ProtectedRouteProps) => {
-  logger.debug('ProtectedRoute rendering', { requireBetaAccess, requireAdmin });
-  const { user, loading, hasBetaAccess, isAdmin } = useAuth();
-
-  logger.debug('ProtectedRoute state:', { user: !!user, loading, hasBetaAccess, isAdmin });
-
-  if (loading) {
-    logger.debug('ProtectedRoute: showing loading spinner');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    logger.debug('ProtectedRoute: no user, redirecting to /auth');
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (requireAdmin && !isAdmin) {
-    logger.debug('ProtectedRoute: admin required but user is not admin');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-          <p className="text-muted-foreground">You need admin privileges to access this page.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (requireBetaAccess && !hasBetaAccess && !isAdmin) {
-    logger.debug('ProtectedRoute: beta access required but user does not have access');
-    return <BetaAccessPending />;
-  }
-
-  logger.debug('ProtectedRoute: rendering children');
-  return <>{children}</>;
 };

@@ -12,6 +12,7 @@ import QBOCallback from "./pages/QBOCallback";
 import Legal from "./pages/Legal";
 import ShareObjective from "./pages/ShareObjective";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { AuthProvider } from "./hooks/useAuth";
 import { CompanyProvider } from "./hooks/useCompany";
 import SharePage from "./pages/SharePage";
 import MyShares from "./pages/MyShares";
@@ -47,6 +48,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <ErrorBoundary>
+          <AuthProvider>
           <Routes>
             {/* PUBLIC routes: no auth required */}
             <Route path="/shared/:token/:mode" element={<SharePage />} />
@@ -73,6 +75,7 @@ const App = () => {
             {/* 404 catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AuthProvider>
         </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
