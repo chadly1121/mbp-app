@@ -36,6 +36,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   isAddingCollaborator = false,
   isAddingComment = false,
 }) => {
+  console.log('CollaborationPanel rendering for objective:', objective?.id);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
   const [newCollaboratorRole, setNewCollaboratorRole] = useState<ObjectiveCollaborator['role']>('accountability_partner');
   const [newComment, setNewComment] = useState('');

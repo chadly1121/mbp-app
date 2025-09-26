@@ -28,6 +28,7 @@ interface NewObjectiveForm {
 }
 
 export const StrategicPlanning = () => {
+  console.log('StrategicPlanning component rendering');
   const {
     objectives,
     stats,
@@ -43,6 +44,8 @@ export const StrategicPlanning = () => {
     addingCollaborator,
     addingComment
   } = useStrategicPlanning();
+  
+  console.log('StrategicPlanning state:', { objectives, stats, loading, error });
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());

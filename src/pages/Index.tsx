@@ -20,14 +20,19 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  console.log('Index component rendering');
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
+  
+  console.log('Index state:', { activeSection, currentCompany, isMobile });
 
   const renderContent = () => {
+    console.log('Rendering content for section:', activeSection);
     switch (activeSection) {
       case 'strategic':
+        console.log('Rendering StrategicPlanning component');
         return <StrategicPlanning />;
       case 'gsr':
         return <GSRDashboard />;
