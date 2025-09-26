@@ -16,7 +16,7 @@ import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
 import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
 import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
 import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
-import { CollaborationPanel } from '@/components/mbp/tabs/shared/CollaborationPanel';
+import { SimpleCollaborationButton } from '@/components/mbp/tabs/shared/SimpleCollaborationButton';
 
 interface NewObjectiveForm {
   title: string;
@@ -138,6 +138,20 @@ export const StrategicPlanning = () => {
   };
 
   const ObjectiveCard = ({ objective }: { objective: any }) => {
+    // Debug logging for collaboration data
+    console.log('Objective data:', {
+      id: objective.id,
+      title: objective.title,
+      hasCollaborators: !!objective.collaborators,
+      hasComments: !!objective.comments,
+      hasActivity: !!objective.activity,
+      collaboratorsType: typeof objective.collaborators,
+      commentsType: typeof objective.comments,
+      activityType: typeof objective.activity,
+      collaborators: objective.collaborators,
+      comments: objective.comments,
+      activity: objective.activity
+    });
     const [isEditing, setIsEditing] = useState(false);
     const [newChecklistItem, setNewChecklistItem] = useState('');
     const isExpanded = expandedCards.has(objective.id);
@@ -395,13 +409,7 @@ export const StrategicPlanning = () => {
                         <CheckSquare className="h-4 w-4" />
                         Checklist ({completedItems}/{totalItems})
                       </h5>
-                      <CollaborationPanel
-                        objective={objective}
-                        onAddCollaborator={addCollaborator}
-                        onAddComment={addComment}
-                        isAddingCollaborator={addingCollaborator}
-                        isAddingComment={addingComment}
-                      />
+                      <SimpleCollaborationButton objective={objective} />
                     </div>
                     
                     {objective.checklist && objective.checklist.length > 0 && (
