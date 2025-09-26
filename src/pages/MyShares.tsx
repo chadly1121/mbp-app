@@ -33,7 +33,7 @@ export default function MyShares() {
       <ul className="space-y-2">
         {accepted.map((s, i) => (
           <li key={i} className="flex items-center gap-3">
-            <Link className="underline text-blue-600" to={`/share/${s.token}/${s.mode}`}>
+            <Link className="underline text-blue-600" to={`/shared/${s.token}/${s.mode}`}>
               Objective #{s.cardId} ({s.mode})
             </Link>
             <button

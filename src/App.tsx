@@ -27,7 +27,7 @@ const App = () => {
       <Sonner />
       <Routes>
         {/* PUBLIC routes: no auth */}
-        <Route path="/share/:token/:mode" element={<SharePage />} />
+        <Route path="/shared/:token/:mode" element={<SharePage />} />
         <Route path="/my-shares" element={<MyShares />} />
         
         <Route path="/auth" element={<Auth />} />
