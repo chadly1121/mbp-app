@@ -1,63 +1,63 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import { Routes, Route } from "react-router-dom";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { CompanyProvider } from "@/hooks/useCompany";
-import { BetaAdminPanel } from "@/components/BetaAdminPanel";
-import Index from "./pages/Index";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { Toaster } from "./components/ui/toaster";
+import { Toaster as Sonner } from "./components/ui/sonner";
 import Auth from "./pages/Auth";
-import QBOCallback from "./pages/QBOCallback";
-import Legal from "./pages/Legal";
 import NotFound from "./pages/NotFound";
-import Invite from "./pages/Invite";
-import ShareObjective from "./pages/ShareObjective";
+import Index from "./pages/Index";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { CompanyProvider } from "./hooks/useCompany";
 import SharePage from "./pages/SharePage";
 import MyShares from "./pages/MyShares";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log('App component rendering');
+  // quick smoke route to prove rendering works
+  const Smoke = () => (
+    <div className="p-4">
+      <h1 className="text-xl font-semibold">Smoke OK</h1>
+      <StrategicObjectiveCard id="1" title="Grow Revenue" />
+    </div>
+  );
+
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Routes>
-        {/* PUBLIC routes: no auth */}
-        <Route path="/shared/:token/:mode" element={<SharePage />} />
-        <Route path="/my-shares" element={<MyShares />} />
-        
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/invite/:token" element={<Invite />} />
-        <Route path="/share/:token" element={<ShareObjective />} />
-        <Route path="/qbo-callback" element={<QBOCallback />} />
-        <Route path="/legal" element={<Legal />} />
-        <Route 
-          path="/admin/beta" 
-          element={
-            <ProtectedRoute>
-              <BetaAdminPanel />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <CompanyProvider>
-                <Index />
-              </CompanyProvider>
-            </ProtectedRoute>
-          } 
-        />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </TooltipProvider>
-  </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <ErrorBoundary>
+          <Routes>
+            {/* PUBLIC */}
+            <Route path="/share/:token/:mode" element={<SharePage />} />
+            <Route path="/my-shares" element={<MyShares />} />
+            <Route path="/smoke" element={<Smoke />} />
+
+            {/* AUTH */}
+            <Route path="/auth" element={<Auth />} />
+
+            {/* PROTECTED */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <CompanyProvider>
+                    <Index />
+                  </CompanyProvider>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
