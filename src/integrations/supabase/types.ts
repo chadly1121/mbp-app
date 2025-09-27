@@ -1156,6 +1156,80 @@ export type Database = {
         }
         Relationships: []
       }
+      objective_checklist_items: {
+        Row: {
+          company_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          objective_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          objective_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          objective_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      objective_checklist_subitems: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_completed: boolean
+          parent_item_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          parent_item_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          parent_item_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objective_checklist_subitems_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "objective_checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       objective_collab_members: {
         Row: {
           email: string
