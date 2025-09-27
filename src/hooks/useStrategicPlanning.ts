@@ -26,7 +26,10 @@ export const useStrategicPlanning = () => {
 
       const { data: objectives, error } = await supabase
         .from('strategic_objectives')
-        .select('*')
+        .select(`
+          *,
+          checklist:objective_checklist_items(*)
+        `)
         .eq('company_id', currentCompany.id);
 
       if (error) throw error;
@@ -43,7 +46,16 @@ export const useStrategicPlanning = () => {
         company_id: obj.company_id,
         created_at: obj.created_at,
         updated_at: obj.updated_at,
-        checklist: [],
+        checklist: (obj.checklist || []).map((item: any) => ({
+          id: item.id,
+          objective_id: item.objective_id,
+          item_text: item.title,
+          is_completed: false, // Note: this field doesn't exist in the current schema
+          sort_order: item.sort_order,
+          company_id: item.company_id,
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        })),
         collaborators: [],
         comments: [],
         activity: []
