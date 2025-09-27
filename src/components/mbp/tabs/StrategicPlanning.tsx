@@ -1,5 +1,5 @@
 import React, { useState, useMemo, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';  
 import { Input } from '@/components/ui/input';
@@ -1018,15 +1018,7 @@ export const StrategicPlanningMain = () => {
   );
 };
 
-// ---------- Main Strategic Planning with Routing ----------
+// ---------- Main Strategic Planning ----------
 export const StrategicPlanning = () => {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<StrategicPlanningMain />} />
-        <Route path="/share/:token/:mode" element={<SharePage />} />
-        <Route path="/my-shares" element={<MyShares />} />
-      </Routes>
-    </Router>
-  );
+  return <StrategicPlanningMain />;
 };
