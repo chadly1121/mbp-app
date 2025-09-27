@@ -6,6 +6,7 @@ import { Suspense, lazy } from "react";
 import { ProtectedRoute } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 // Lazy load components for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -36,6 +37,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner />
+        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
