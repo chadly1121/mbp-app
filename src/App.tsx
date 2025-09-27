@@ -17,7 +17,7 @@ import { CompanyProvider } from "./hooks/useCompany";
 import SharePage from "./pages/SharePage";
 import MyShares from "./pages/MyShares";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
+import { ObjectiveCard } from "./components/objectives";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +27,10 @@ const App = () => {
     <div className="p-4">
       <h1 className="text-xl font-semibold">Smoke Test - App is Working!</h1>
       <p className="mb-4">If you can see this, React is rendering successfully.</p>
-      <StrategicObjectiveCard id="1" title="Test Objective - Grow Revenue" />
+      <div className="border rounded p-3 mb-2">
+        <h3 className="font-semibold">Test Objective - Grow Revenue</h3>
+        <p className="text-sm text-muted-foreground">Smoke test for objective cards working</p>
+      </div>
       <div className="mt-4 space-y-2">
         <p><strong>Available routes:</strong></p>
         <ul className="list-disc list-inside space-y-1">
