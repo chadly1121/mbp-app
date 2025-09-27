@@ -1,23 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
+  - package-ecosystem: npm
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "@octocat"
-    assignees:
-      - "@octocat"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-  
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+    schedule: { interval: weekly }
