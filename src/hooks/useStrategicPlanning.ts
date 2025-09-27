@@ -17,16 +17,39 @@ import {
 export const useStrategicPlanning = () => {
   const { currentCompany } = useCompany();
 
-  // Fetch objectives with their checklist items, collaborators, comments, and activity
+  // Fetch objectives
   const objectivesQuery = useSupabaseQuery(
     async () => {
       if (!currentCompany?.id) {
         throw new Error('No company selected');
       }
 
-      // Temporarily return empty objectives until proper tables are set up
-      console.log('Strategic Planning: Loading with empty data (tables not yet implemented)');
-      return { data: [] as StrategicObjective[], error: null };
+      const { data: objectives, error } = await supabase
+        .from('strategic_objectives')
+        .select('*')
+        .eq('company_id', currentCompany.id);
+
+      if (error) throw error;
+
+      // Transform the data to match our interface
+      const transformedObjectives: StrategicObjective[] = (objectives || []).map(obj => ({
+        id: obj.id,
+        title: obj.title,
+        description: obj.description,
+        target_date: obj.target_date,
+        status: obj.status as StrategicObjective['status'],
+        priority: obj.priority as StrategicObjective['priority'], 
+        completion_percentage: obj.completion_percentage || 0,
+        company_id: obj.company_id,
+        created_at: obj.created_at,
+        updated_at: obj.updated_at,
+        checklist: [],
+        collaborators: [],
+        comments: [],
+        activity: []
+      }));
+
+      return { data: transformedObjectives, error: null };
     },
     [currentCompany?.id],
     {
@@ -50,10 +73,21 @@ export const useStrategicPlanning = () => {
     };
   }, [objectivesQuery.data]);
 
-  // Create objective mutation - disabled for now since table doesn't exist
+  // Create objective mutation
   const createObjectiveMutation = useSupabaseMutation(
     async (data: CreateObjectiveRequest) => {
-      throw new Error('Strategic objectives functionality not yet implemented');
+      if (!currentCompany?.id) throw new Error('No company selected');
+      
+      const result = await supabase
+        .from('strategic_objectives')
+        .insert([{
+          ...data,
+          company_id: currentCompany.id
+        }])
+        .select()
+        .single();
+
+      return result;
     },
     {
       onSuccess: () => {
@@ -64,10 +98,17 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Update objective mutation - disabled for now since table doesn't exist
+  // Update objective mutation
   const updateObjectiveMutation = useSupabaseMutation(
     async ({ id, data }: { id: string; data: UpdateObjectiveRequest }) => {
-      throw new Error('Strategic objectives functionality not yet implemented');
+      const result = await supabase
+        .from('strategic_objectives')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      return result;
     },
     {
       onSuccess: () => {
@@ -78,10 +119,15 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Delete objective mutation - disabled for now since table doesn't exist
+  // Delete objective mutation
   const deleteObjectiveMutation = useSupabaseMutation(
     async (id: string) => {
-      throw new Error('Strategic objectives functionality not yet implemented');
+      const result = await supabase
+        .from('strategic_objectives')
+        .delete()
+        .eq('id', id);
+
+      return result;
     },
     {
       onSuccess: () => {
