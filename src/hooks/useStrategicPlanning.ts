@@ -50,7 +50,7 @@ export const useStrategicPlanning = () => {
           id: item.id,
           objective_id: item.objective_id,
           item_text: item.title,
-          is_completed: false, // Note: this field doesn't exist in the current schema
+          is_completed: item.is_completed || false,
           sort_order: item.sort_order,
           company_id: item.company_id,
           created_at: item.created_at,
@@ -182,6 +182,7 @@ export const useStrategicPlanning = () => {
     async ({ id, data }: { id: string; data: UpdateChecklistItemRequest }) => {
       const updateData: any = {};
       if (data.item_text !== undefined) updateData.title = data.item_text;
+      if (data.is_completed !== undefined) updateData.is_completed = data.is_completed;
       if (data.sort_order !== undefined) updateData.sort_order = data.sort_order;
       
       const result = await supabase

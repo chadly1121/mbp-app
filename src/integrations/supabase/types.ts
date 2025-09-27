@@ -1162,6 +1162,7 @@ export type Database = {
           created_at: string
           due_date: string | null
           id: string
+          is_completed: boolean
           objective_id: string
           sort_order: number
           title: string
@@ -1172,6 +1173,7 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
+          is_completed?: boolean
           objective_id: string
           sort_order?: number
           title: string
@@ -1182,6 +1184,7 @@ export type Database = {
           created_at?: string
           due_date?: string | null
           id?: string
+          is_completed?: boolean
           objective_id?: string
           sort_order?: number
           title?: string
