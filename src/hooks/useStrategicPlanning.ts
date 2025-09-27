@@ -46,7 +46,7 @@ export const useStrategicPlanning = () => {
         company_id: obj.company_id,
         created_at: obj.created_at,
         updated_at: obj.updated_at,
-        checklist: (obj.checklist || []).map((item: any) => ({
+        checklist: Array.isArray(obj.checklist) ? obj.checklist.map((item: any) => ({
           id: item.id,
           objective_id: item.objective_id,
           item_text: item.title,
@@ -55,7 +55,7 @@ export const useStrategicPlanning = () => {
           company_id: item.company_id,
           created_at: item.created_at,
           updated_at: item.updated_at
-        })),
+        })) : [],
         collaborators: [],
         comments: [],
         activity: []
