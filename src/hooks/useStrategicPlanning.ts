@@ -192,13 +192,47 @@ export const useStrategicPlanning = () => {
         .select()
         .single();
 
+      // If we're updating completion status, also update the objective status
+      if (data.is_completed !== undefined && result.data) {
+        const checklistItem = result.data;
+        
+        // Get all checklist items for this objective
+        const { data: allItems } = await supabase
+          .from('objective_checklist_items')
+          .select('id, is_completed')
+          .eq('objective_id', checklistItem.objective_id);
+
+        if (allItems && allItems.length > 0) {
+          const completedItems = allItems.filter(item => item.is_completed).length;
+          const totalItems = allItems.length;
+          
+          let newStatus: 'not_started' | 'in_progress' | 'completed';
+          
+          if (completedItems === 0) {
+            newStatus = 'not_started';
+          } else if (completedItems === totalItems) {
+            newStatus = 'completed';
+          } else {
+            newStatus = 'in_progress';
+          }
+          
+          // Update the objective status
+          await supabase
+            .from('strategic_objectives')
+            .update({ 
+              status: newStatus,
+              completion_percentage: Math.round((completedItems / totalItems) * 100)
+            })
+            .eq('id', checklistItem.objective_id);
+        }
+      }
+
       return result;
     },
     {
       onSuccess: () => {
         objectivesQuery.refetch();
       },
-      successMessage: 'Checklist item updated successfully',
       context: 'updateChecklistItem'
     }
   );
