@@ -138,10 +138,23 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Create checklist item mutation - temporarily disabled
+  // Create checklist item mutation
   const createChecklistItemMutation = useSupabaseMutation(
     async (data: CreateChecklistItemRequest) => {
-      throw new Error('Checklist functionality temporarily disabled');
+      if (!currentCompany?.id) throw new Error('No company selected');
+      
+      const result = await supabase
+        .from('objective_checklist_items')
+        .insert([{
+          objective_id: data.objective_id,
+          title: data.item_text,
+          sort_order: data.sort_order || 0,
+          company_id: currentCompany.id
+        }])
+        .select()
+        .single();
+
+      return result;
     },
     {
       onSuccess: () => {
@@ -152,10 +165,21 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Update checklist item mutation - temporarily disabled
+  // Update checklist item mutation
   const updateChecklistItemMutation = useSupabaseMutation(
     async ({ id, data }: { id: string; data: UpdateChecklistItemRequest }) => {
-      throw new Error('Checklist functionality temporarily disabled');
+      const updateData: any = {};
+      if (data.item_text !== undefined) updateData.title = data.item_text;
+      if (data.sort_order !== undefined) updateData.sort_order = data.sort_order;
+      
+      const result = await supabase
+        .from('objective_checklist_items')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      return result;
     },
     {
       onSuccess: () => {
@@ -166,10 +190,15 @@ export const useStrategicPlanning = () => {
     }
   );
 
-  // Delete checklist item mutation - temporarily disabled
+  // Delete checklist item mutation
   const deleteChecklistItemMutation = useSupabaseMutation(
     async (id: string) => {
-      throw new Error('Checklist functionality temporarily disabled');
+      const result = await supabase
+        .from('objective_checklist_items')
+        .delete()
+        .eq('id', id);
+
+      return result;
     },
     {
       onSuccess: () => {
