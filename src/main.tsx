@@ -1,20 +1,26 @@
 import "./refresh-shim";
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import App from "./App.tsx";
 import "./index.css";
-import { AuthProvider } from "@/hooks/useAuth";
 
-const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error("Failed to find the root element");
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
+createRoot(document.getElementById('root')!).render(
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
         <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>
-);
+      </TooltipProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
+)
