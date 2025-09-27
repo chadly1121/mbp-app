@@ -1,9 +1,11 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../integrations/supabase/client';
-import { useToast } from './use-toast';
-import { handleSupabaseError, logError } from '../utils/errorHandling';
-import { ApiError } from '../types/common';
+import { Navigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { handleSupabaseError, logError } from '@/utils/errorHandling';
+import { ApiError } from '@/types/common';
+import { BetaAccessPending } from '@/components/BetaAccessPending';
 
 interface AuthContextType {
   user: User | null;
@@ -22,10 +24,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-import { logger } from "@/utils/logger";
-
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  logger.debug('AuthProvider rendering');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +61,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(false);
       }
     }).catch((error) => {
-      logger.error('Error getting session', error);
+      console.error('Error getting session:', error);
       setLoading(false);
     });
 
@@ -84,7 +83,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsAdmin(adminData || false);
       
     } catch (error) {
-      logger.error('Error checking user permissions', error);
+      console.error('Error checking user permissions:', error);
       setHasBetaAccess(false);
       setIsAdmin(false);
     } finally {
@@ -206,4 +205,47 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+  requireBetaAccess?: boolean;
+  requireAdmin?: boolean;
+}
+
+export const ProtectedRoute = ({ 
+  children, 
+  requireBetaAccess = true, 
+  requireAdmin = false 
+}: ProtectedRouteProps) => {
+  const { user, loading, hasBetaAccess, isAdmin } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+          <p className="text-muted-foreground">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (requireBetaAccess && !hasBetaAccess && !isAdmin) {
+    return <BetaAccessPending />;
+  }
+
+  return <>{children}</>;
 };

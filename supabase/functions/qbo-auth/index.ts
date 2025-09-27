@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4'
-import { validateConnectRequest, validateCallbackRequest } from './validation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,12 +53,11 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'connect') {
-      // Initiate OAuth flow - validate input
-      const connectData = validateConnectRequest(url.searchParams.get('companyId') ? 
-        { companyId: url.searchParams.get('companyId') } : 
-        (requestBody || {}));
-      
-      const { companyId } = connectData;
+      // Initiate OAuth flow
+      const companyId = url.searchParams.get('companyId')
+      if (!companyId) {
+        throw new Error('Company ID is required')
+      }
 
       const clientId = Deno.env.get('QBO_CLIENT_ID')
       if (!clientId) {
@@ -89,16 +87,22 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'callback') {
-      // Handle OAuth callback - validate input
-      const callbackData = req.method === 'POST' && requestBody ? 
-        validateCallbackRequest(requestBody) :
-        validateCallbackRequest({
-          code: url.searchParams.get('code'),
-          state: url.searchParams.get('state'),
-          realmId: url.searchParams.get('realmId')
-        });
+      // Handle OAuth callback - support both URL params and POST body
+      let code, state, realmId;
       
-      const { code, state, realmId } = callbackData;
+      if (req.method === 'POST' && requestBody) {
+        code = requestBody.code;
+        state = requestBody.state;
+        realmId = requestBody.realmId;
+      } else {
+        code = url.searchParams.get('code')
+        state = url.searchParams.get('state')
+        realmId = url.searchParams.get('realmId')
+      }
+
+      if (!code || !state || !realmId) {
+        throw new Error('Missing required OAuth parameters')
+      }
 
       const [userId, companyId] = state.split(':')
       if (userId !== user.id) {

@@ -9,11 +9,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm i
-      - run: npx eslint .
-      - run: npx tsc --noEmit
-      - run: npx vitest run --reporter=dot
-      - run: npx vite build
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
       - run: npm audit --audit-level=high || true
   deno:
     runs-on: ubuntu-latest

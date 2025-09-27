@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { useToast } from './use-toast';
-import { handleSupabaseError, logError } from '../utils/errorHandling';
-import { ApiError } from '../types/common';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { handleSupabaseError, logError } from '@/utils/errorHandling';
+import { ApiError } from '@/types/common';
 
-import { Company } from '../types/common';
+import { Company } from '@/types/common';
 
 interface CompanyContextType {
   companies: Company[];
@@ -30,10 +30,7 @@ interface CompanyProviderProps {
   children: ReactNode;
 }
 
-import { logger } from "@/utils/logger";
-
 export const CompanyProvider = ({ children }: CompanyProviderProps) => {
-  logger.debug('CompanyProvider rendering');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +97,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
 
       if (coaError) {
         // Log error but don't throw - the company was created successfully
-        logger.error('Error creating default chart of accounts', coaError);
+        console.error('Error creating default chart of accounts:', coaError);
       }
 
       await refreshCompanies();

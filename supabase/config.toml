@@ -5,12 +5,3 @@ verify_jwt = true
 
 [functions.qbo-sync]
 verify_jwt = true
-
-[functions.collab-create-invite]
-verify_jwt = true
-
-[functions.collab-redeem]
-verify_jwt = false
-
-[functions.objective-link]
-verify_jwt = false

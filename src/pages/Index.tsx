@@ -19,10 +19,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import { logger } from "@/utils/logger";
-
 const Index = () => {
-  logger.debug('Index component rendering');
   const [activeSection, setActiveSection] = useState('strategic');
   const { signOut } = useAuth();
   const { currentCompany } = useCompany();
@@ -36,48 +33,6 @@ const Index = () => {
         return <GSRDashboard />;
       case 'mbp':
         return <MBPTabs />;
-      case 'dashboard':
-        return (
-          <>
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-              <MetricCard
-                title="Total Revenue"
-                value="$847,230"
-                change={{ value: "+12.5% from last month", trend: "up" }}
-                icon={<DollarSign className="h-5 w-5" />}
-                variant="success"
-              />
-              <MetricCard
-                title="Growth Rate"
-                value="23.1%"
-                change={{ value: "+2.3% from last quarter", trend: "up" }}
-                icon={<TrendingUp className="h-5 w-5" />}
-                variant="info"
-              />
-              <MetricCard
-                title="Active Customers"
-                value="1,234"
-                change={{ value: "+89 new this month", trend: "up" }}
-                icon={<Users className="h-5 w-5" />}
-                variant="default"
-              />
-              <MetricCard
-                title="Conversion Rate"
-                value="3.2%"
-                change={{ value: "-0.1% from last week", trend: "down" }}
-                icon={<ShoppingCart className="h-5 w-5" />}
-                variant="warning"
-              />
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              <RevenueChart />
-              <SalesPipeline />
-            </div>
-          </>
-        );
       case 'analytics':
         return <AnalyticsSection />;
       case 'growth':

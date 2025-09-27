@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { handleSupabaseError, logError } from '@/utils/errorHandling';
-import type { PostgrestError } from '@supabase/supabase-js';
 
 export interface QueryState<T> {
   data: T | null;
@@ -18,7 +17,7 @@ interface UseSupabaseQueryOptions {
 }
 
 export function useSupabaseQuery<T>(
-  queryFn: () => Promise<{ data: T; error: PostgrestError | null }>,
+  queryFn: () => Promise<{ data: T; error: any }>,
   dependencies: React.DependencyList = [],
   options: UseSupabaseQueryOptions = {}
 ): QueryState<T> {
@@ -90,7 +89,7 @@ export function useSupabaseQuery<T>(
 // Specialized hook for company-dependent queries
 export function useCompanyQuery<T>(
   companyId: string | null,
-  queryFn: (companyId: string) => Promise<{ data: T; error: PostgrestError | null }>,
+  queryFn: (companyId: string) => Promise<{ data: T; error: any }>,
   dependencies: React.DependencyList = [],
   options: UseSupabaseQueryOptions = {}
 ): QueryState<T> {
