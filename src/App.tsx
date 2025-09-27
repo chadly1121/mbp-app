@@ -34,7 +34,7 @@ const App = () => (
         <Route 
           path="/" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireBetaAccess={false}>
               <CompanyProvider>
                 <Index />
               </CompanyProvider>
