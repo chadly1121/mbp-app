@@ -74,13 +74,60 @@ const Index = () => {
           });
         }
       } else if (inviteId && !user) {
-        console.log('Invite found but user not logged in');
-        // User is not logged in, show message
+        console.log('Invite found but user not logged in - redirecting to auth');
+        
+        // Store the invite in session storage so it persists after login
+        sessionStorage.setItem('pendingInvite', inviteId);
+        
+        // Show message and redirect to auth
         toast({
-          title: "Login Required",
-          description: "Please log in to accept this collaboration invitation.",
-          variant: "destructive"
+          title: "Account Required",
+          description: "Please sign in or create an account to accept this collaboration invitation.",
         });
+        
+        // Redirect to auth page with the invite preserved in session storage
+        window.location.href = '/auth';
+      }
+      
+      // Check for pending invite after login
+      const pendingInvite = sessionStorage.getItem('pendingInvite');
+      if (pendingInvite && user && !inviteId) {
+        console.log('Processing pending invite after login:', pendingInvite);
+        
+        // Clear the pending invite
+        sessionStorage.removeItem('pendingInvite');
+        
+        try {
+          // Update the collaborator status to 'accepted'
+          const { error } = await supabase
+            .from('strategic_objective_collaborators')
+            .update({ status: 'accepted' })
+            .eq('id', pendingInvite);
+
+          if (error) {
+            console.error('Failed to accept pending invitation:', error);
+            toast({
+              title: "Invitation Error",
+              description: "Failed to accept invitation. The link may be invalid or expired.",
+              variant: "destructive"
+            });
+          } else {
+            console.log('Pending invitation accepted successfully');
+            toast({
+              title: "Welcome! Invitation Accepted! 🎉",
+              description: "You have successfully joined the collaboration. You can now access the objective.",
+            });
+            
+            setActiveSection('strategic');
+          }
+        } catch (error) {
+          console.error('Error processing pending invitation:', error);
+          toast({
+            title: "Invitation Error",
+            description: "An error occurred while processing your invitation.",
+            variant: "destructive"
+          });
+        }
       }
     };
 
