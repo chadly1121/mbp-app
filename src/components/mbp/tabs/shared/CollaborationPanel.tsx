@@ -5,11 +5,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Users, MessageSquare, Activity, UserPlus, Send, Clock } from 'lucide-react';
+import { Users, MessageSquare, Activity, UserPlus, Send, Clock, Trash2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { z } from 'zod';
@@ -26,16 +26,20 @@ interface CollaborationPanelProps {
   objective: StrategicObjective;
   onAddCollaborator: (request: CreateCollaboratorRequest) => Promise<any>;
   onAddComment: (request: CreateCommentRequest) => Promise<void>;
+  onRemoveCollaborator?: (collaboratorId: string) => Promise<void>;
   isAddingCollaborator?: boolean;
   isAddingComment?: boolean;
+  isRemovingCollaborator?: boolean;
 }
 
 export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   objective,
   onAddCollaborator,
   onAddComment,
+  onRemoveCollaborator,
   isAddingCollaborator = false,
   isAddingComment = false,
+  isRemovingCollaborator = false,
 }) => {
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
   const [newCollaboratorRole, setNewCollaboratorRole] = useState<ObjectiveCollaborator['role']>('accountability_partner');
@@ -95,6 +99,25 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
     } catch (error) {
       console.error('Failed to add comment:', error);
       toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveCollaborator = async (collaboratorId: string, collaboratorEmail: string) => {
+    if (!onRemoveCollaborator) return;
+    
+    try {
+      await onRemoveCollaborator(collaboratorId);
+      toast({ 
+        title: "Success", 
+        description: `${collaboratorEmail} has been removed from this objective` 
+      });
+    } catch (error) {
+      console.error('Failed to remove collaborator:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to remove collaborator", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -205,6 +228,47 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                         <Badge variant={getStatusBadgeVariant(collaborator.status)}>
                           {collaborator.status}
                         </Badge>
+                        {onRemoveCollaborator && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground hover:text-destructive"
+                                disabled={isRemovingCollaborator}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <AlertCircle className="w-5 h-5 text-orange-500" />
+                                  Remove Collaborator
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to remove <strong>{collaborator.user_email}</strong> from this objective?
+                                  This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex gap-2 mt-4">
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleRemoveCollaborator(collaborator.id, collaborator.user_email)}
+                                  disabled={isRemovingCollaborator}
+                                  className="flex-1"
+                                >
+                                  {isRemovingCollaborator ? "Removing..." : "Remove"}
+                                </Button>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="flex-1">
+                                    Cancel
+                                  </Button>
+                                </DialogTrigger>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
                       </div>
                     </div>
                   ))

@@ -313,6 +313,51 @@ export const useStrategicPlanning = () => {
     }
   );
 
+  // Remove collaborator mutation
+  const removeCollaboratorMutation = useSupabaseMutation(
+    async (collaboratorId: string) => {
+      if (!currentCompany?.id) throw new Error('No company selected');
+      
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error('User not authenticated');
+
+      // Get collaborator details before deletion for activity log
+      const { data: collaborator } = await supabase
+        .from('strategic_objective_collaborators')
+        .select('user_email, role, objective_id')
+        .eq('id', collaboratorId)
+        .single();
+      
+      const { error } = await supabase
+        .from('strategic_objective_collaborators')
+        .delete()
+        .eq('id', collaboratorId);
+
+      if (error) throw error;
+
+      // Log activity
+      if (collaborator) {
+        await supabase.from('strategic_objective_activity').insert({
+          objective_id: collaborator.objective_id,
+          activity_type: 'unshared',
+          activity_description: `Removed ${collaborator.user_email} (${collaborator.role.replace('_', ' ')}) from collaboration`,
+          user_email: user.email,
+          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
+          company_id: currentCompany.id
+        });
+      }
+      
+      return { data: null, error: null };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Collaborator removed successfully',
+      context: 'removeCollaborator'
+    }
+  );
+
   // Add comment mutation
   const addCommentMutation = useSupabaseMutation(
     async (request: CreateCommentRequest) => {
@@ -372,6 +417,7 @@ export const useStrategicPlanning = () => {
     deleteChecklistItem: deleteChecklistItemMutation.mutate,
     addCollaborator: addCollaboratorMutation.mutate,
     addComment: addCommentMutation.mutate,
+    removeCollaborator: removeCollaboratorMutation.mutate,
 
     // Mutation states
     creating: createObjectiveMutation.loading,
@@ -382,5 +428,6 @@ export const useStrategicPlanning = () => {
     deletingItem: deleteChecklistItemMutation.loading,
     addingCollaborator: addCollaboratorMutation.loading,
     addingComment: addCommentMutation.loading,
+    removingCollaborator: removeCollaboratorMutation.loading,
   };
 };

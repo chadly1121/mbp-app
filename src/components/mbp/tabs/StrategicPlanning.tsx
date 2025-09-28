@@ -40,8 +40,10 @@ export const StrategicPlanning = () => {
     deleteChecklistItem,
     addCollaborator,
     addComment,
+    removeCollaborator,
     addingCollaborator,
-    addingComment
+    addingComment,
+    removingCollaborator
   } = useStrategicPlanning();
   
   const [isAddingObjective, setIsAddingObjective] = useState(false);
@@ -293,8 +295,10 @@ export const StrategicPlanning = () => {
               objective={objective}
               onAddCollaborator={addCollaborator}
               onAddComment={addComment}
+              onRemoveCollaborator={removeCollaborator}
               isAddingCollaborator={addingCollaborator}
               isAddingComment={addingComment}
+              isRemovingCollaborator={removingCollaborator}
             />
             <Button
               variant="outline"
