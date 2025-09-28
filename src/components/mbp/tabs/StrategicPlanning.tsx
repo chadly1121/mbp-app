@@ -190,11 +190,11 @@ export const StrategicPlanning = () => {
     return (
       <Card 
         key={objective.id} 
-        className={`transition-all duration-200 hover:shadow-md cursor-pointer group ${isExpanded ? 'ring-2 ring-blue-200' : ''}`}
+        className={`transition-all duration-200 hover:shadow-md cursor-pointer group ${isExpanded ? 'ring-2 ring-blue-200' : ''} ${!isEditing ? 'hover:ring-1 hover:ring-blue-100' : ''}`}
       >
         <CardHeader 
           className="pb-3"
-          onClick={() => !isEditing && toggleCardExpansion(objective.id)}
+          onClick={() => !isEditing && setIsEditing(true)}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -209,9 +209,15 @@ export const StrategicPlanning = () => {
                     onChange={(e) => setEditData({ ...editData, title: e.target.value })}
                     className="text-lg font-semibold"
                     onClick={(e) => e.stopPropagation()}
+                    autoFocus
                   />
                 ) : (
-                  <h4 className="text-lg font-semibold truncate">{objective.title}</h4>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold truncate">{objective.title}</h4>
+                    <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                      Click to edit
+                    </div>
+                  </div>
                 )}
               </div>
               
@@ -229,26 +235,12 @@ export const StrategicPlanning = () => {
                 />
               </div>
               
-              {!isExpanded && (
+              {!isExpanded && !isEditing && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
               )}
             </div>
             
             <div className="flex items-center gap-2 ml-4">
-              {!isEditing && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsEditing(true);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-              )}
-              
               <div className="flex flex-col items-end gap-1">
                 <Badge className={getPriorityColor(objective.priority || 'medium')}>
                   {objective.priority || 'medium'}
@@ -378,22 +370,22 @@ export const StrategicPlanning = () => {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
-                    <Button onClick={handleSave} size="sm">
-                      <Check className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button variant="outline" onClick={handleCancel} size="sm">
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={handleSave} size="sm">
+                        <Check className="h-4 w-4 mr-2" />
+                        Save
+                      </Button>
+                      <Button variant="outline" onClick={handleCancel} size="sm">
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-muted-foreground">{objective.description}</p>
-                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-muted-foreground">{objective.description}</p>
+                    </div>
                   
                   <div className="grid grid-cols-1 gap-4 text-sm">
                     <div className="flex items-center gap-2">
