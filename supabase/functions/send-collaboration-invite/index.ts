@@ -73,8 +73,12 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const roleDescription = getRoleDescription(role);
-    const baseUrl = supabaseUrl.replace('.supabase.co', '.lovableproject.com');
-    const acceptUrl = `${baseUrl}/?invite=${collaboratorId}`;
+    
+    // Use the correct app URL - get from the current request or use environment
+    const currentOrigin = req.headers.get('origin') || req.headers.get('referer')?.replace(/\/$/, '') || 'https://mbp-app.lovable.app';
+    const acceptUrl = `${currentOrigin}/?invite=${collaboratorId}`;
+    
+    console.log('Generated invite URL:', acceptUrl);
 
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; line-height: 1.6; color: #333;">
