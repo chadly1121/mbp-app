@@ -1,4 +1,9 @@
 {
+  "nodeModulesDir": "auto",
+  "imports": {
+    "resend": "npm:resend@4.0.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.57.4"
+  },
   "fmt": { "useTabs": false, "lineWidth": 100 },
   "lint": { "rules": { "tags": ["recommended"] } },
   "tasks": { 

@@ -24,7 +24,7 @@ import type {
 
 interface CollaborationPanelProps {
   objective: StrategicObjective;
-  onAddCollaborator: (request: CreateCollaboratorRequest) => Promise<void>;
+  onAddCollaborator: (request: CreateCollaboratorRequest) => Promise<any>;
   onAddComment: (request: CreateCommentRequest) => Promise<void>;
   isAddingCollaborator?: boolean;
   isAddingComment?: boolean;

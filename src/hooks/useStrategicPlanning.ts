@@ -249,27 +249,66 @@ export const useStrategicPlanning = () => {
           ...request,
           company_id: currentCompany.id,
           invited_by: user.id
-        });
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
 
       // Log activity
-      if (!error) {
-        await supabase.from('strategic_objective_activity').insert({
-          objective_id: request.objective_id,
-          activity_type: 'shared',
-          activity_description: `Invited ${request.user_email} as ${request.role.replace('_', ' ')}`,
-          user_email: user.email,
-          user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
-          company_id: currentCompany.id
+      await supabase.from('strategic_objective_activity').insert({
+        objective_id: request.objective_id,
+        activity_type: 'shared',
+        activity_description: `Invited ${request.user_email} as ${request.role.replace('_', ' ')}`,
+        user_email: user.email,
+        user_name: user.user_metadata?.display_name || user.email || 'Unknown User',
+        company_id: currentCompany.id
+      });
+
+      // Get objective details for email
+      const { data: objective } = await supabase
+        .from('strategic_objectives')
+        .select('title, description')
+        .eq('id', request.objective_id)
+        .single();
+
+      // Send email invitation
+      try {
+        const session = await supabase.auth.getSession();
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-collaboration-invite', {
+          body: {
+            email: request.user_email,
+            role: request.role,
+            objectiveTitle: objective?.title || 'Strategic Objective',
+            objectiveDescription: objective?.description,
+            inviterName: user.user_metadata?.display_name || user.email || 'Team Member',
+            inviterEmail: user.email || '',
+            companyName: currentCompany.name || 'Your Company',
+            collaboratorId: data.id
+          },
+          headers: {
+            Authorization: `Bearer ${session.data.session?.access_token}`
+          }
         });
+
+        if (emailError) {
+          console.error('Failed to send email:', emailError);
+          // Don't throw error - collaboration was created successfully
+        } else {
+          console.log('Email sent successfully:', emailResult);
+        }
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        // Don't throw error - collaboration was created successfully
       }
       
-      return { data, error };
+      return { data, error: null };
     },
     {
       onSuccess: () => {
         objectivesQuery.refetch();
       },
-      successMessage: 'Collaborator invited successfully',
+      successMessage: 'Collaborator invited and email sent successfully',
       context: 'addCollaborator'
     }
   );
