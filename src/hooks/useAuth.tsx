@@ -229,7 +229,12 @@ export const ProtectedRoute = ({
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    // Preserve invite parameter when redirecting to auth
+    const currentUrl = new URL(window.location.href);
+    const inviteParam = currentUrl.searchParams.get('invite');
+    const redirectPath = inviteParam ? `/?invite=${inviteParam}` : '/';
+    
+    return <Navigate to={`/auth?redirect=${encodeURIComponent(redirectPath)}`} replace />;
   }
 
   if (requireAdmin && !isAdmin) {

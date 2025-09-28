@@ -73,7 +73,8 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const roleDescription = getRoleDescription(role);
-    const acceptUrl = `${supabaseUrl.replace('.supabase.co', '')}.lovableproject.com/?invite=${collaboratorId}`;
+    const baseUrl = supabaseUrl.replace('.supabase.co', '.lovableproject.com');
+    const acceptUrl = `${baseUrl}/?invite=${collaboratorId}`;
 
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; line-height: 1.6; color: #333;">

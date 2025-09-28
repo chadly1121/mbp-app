@@ -25,7 +25,15 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (user && !loading) {
-      navigate('/', { replace: true });
+      // Check for redirect parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectPath = urlParams.get('redirect');
+      
+      if (redirectPath) {
+        navigate(decodeURIComponent(redirectPath), { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     }
   }, [user, loading, navigate]);
 

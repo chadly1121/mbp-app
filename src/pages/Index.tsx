@@ -1,5 +1,5 @@
 import { DollarSign, TrendingUp, Users, ShoppingCart, LogOut, Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -18,12 +18,74 @@ import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('strategic');
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
+
+  // Handle collaboration invite acceptance
+  useEffect(() => {
+    const handleInviteAcceptance = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const inviteId = urlParams.get('invite');
+      
+      console.log('Checking for invite parameter:', inviteId, 'User:', !!user);
+      
+      if (inviteId && user) {
+        try {
+          console.log('Processing invite acceptance for ID:', inviteId);
+          
+          // Update the collaborator status to 'accepted'
+          const { error } = await supabase
+            .from('strategic_objective_collaborators')
+            .update({ status: 'accepted' })
+            .eq('id', inviteId);
+
+          if (error) {
+            console.error('Failed to accept invitation:', error);
+            toast({
+              title: "Invitation Error",
+              description: "Failed to accept invitation. The link may be invalid or expired.",
+              variant: "destructive"
+            });
+          } else {
+            console.log('Invitation accepted successfully');
+            toast({
+              title: "Invitation Accepted! 🎉",
+              description: "You have successfully joined the collaboration. You can now access the objective.",
+            });
+            
+            // Remove the invite parameter from URL and redirect to strategic planning
+            const url = new URL(window.location.href);
+            url.searchParams.delete('invite');
+            window.history.replaceState({}, '', url.toString());
+            setActiveSection('strategic');
+          }
+        } catch (error) {
+          console.error('Error processing invitation:', error);
+          toast({
+            title: "Invitation Error",
+            description: "An error occurred while processing your invitation.",
+            variant: "destructive"
+          });
+        }
+      } else if (inviteId && !user) {
+        console.log('Invite found but user not logged in');
+        // User is not logged in, show message
+        toast({
+          title: "Login Required",
+          description: "Please log in to accept this collaboration invitation.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    handleInviteAcceptance();
+  }, [user]);
 
   const renderContent = () => {
     switch (activeSection) {
