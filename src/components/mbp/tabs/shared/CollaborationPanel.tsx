@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Users, MessageSquare, Activity, UserPlus, Send, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { z } from 'zod';
 import type { 
   StrategicObjective, 
   ObjectiveCollaborator, 
@@ -40,40 +41,65 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   const [newCollaboratorRole, setNewCollaboratorRole] = useState<ObjectiveCollaborator['role']>('accountability_partner');
   const [newComment, setNewComment] = useState('');
 
+  // Input validation schemas
+  const collaboratorSchema = z.object({
+    email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }),
+    role: z.enum(['accountability_partner', 'collaborator', 'viewer'])
+  });
+
+  const commentSchema = z.object({
+    content: z.string().trim().min(1, { message: "Comment cannot be empty" }).max(1000, { message: "Comment must be less than 1000 characters" })
+  });
+
   const handleAddCollaborator = async () => {
-    if (!newCollaboratorEmail.trim()) {
-      toast({ title: "Error", description: "Please enter a valid email address", variant: "destructive" });
+    // Validate input
+    const validation = collaboratorSchema.safeParse({
+      email: newCollaboratorEmail,
+      role: newCollaboratorRole
+    });
+
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || "Invalid input";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
       return;
     }
 
     try {
       await onAddCollaborator({
         objective_id: objective.id,
-        user_email: newCollaboratorEmail.trim(),
-        role: newCollaboratorRole,
+        user_email: validation.data.email,
+        role: validation.data.role,
       });
       setNewCollaboratorEmail('');
-      toast({ title: "Success", description: "Collaborator invited successfully!" });
+      toast({ title: "Success", description: `Collaborator invited as ${validation.data.role.replace('_', ' ')}!` });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to invite collaborator", variant: "destructive" });
+      console.error('Failed to invite collaborator:', error);
+      toast({ title: "Error", description: "Failed to invite collaborator. Please try again.", variant: "destructive" });
     }
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) {
-      toast({ title: "Error", description: "Please enter a comment", variant: "destructive" });
+    // Validate input
+    const validation = commentSchema.safeParse({
+      content: newComment
+    });
+
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || "Invalid input";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
       return;
     }
 
     try {
       await onAddComment({
         objective_id: objective.id,
-        content: newComment.trim(),
+        content: validation.data.content,
       });
       setNewComment('');
       toast({ title: "Success", description: "Comment added successfully!" });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
+      console.error('Failed to add comment:', error);
+      toast({ title: "Error", description: "Failed to add comment. Please try again.", variant: "destructive" });
     }
   };
 
@@ -139,6 +165,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                   value={newCollaboratorEmail}
                   onChange={(e) => setNewCollaboratorEmail(e.target.value)}
                   type="email"
+                  maxLength={255}
                 />
                 <Select value={newCollaboratorRole} onValueChange={(value) => setNewCollaboratorRole(value as ObjectiveCollaborator['role'])}>
                   <SelectTrigger>
@@ -204,6 +231,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                   onChange={(e) => setNewComment(e.target.value)}
                   className="flex-1"
                   rows={3}
+                  maxLength={1000}
                 />
                 <Button onClick={handleAddComment} disabled={isAddingComment} className="self-end">
                   <Send className="w-4 h-4" />
