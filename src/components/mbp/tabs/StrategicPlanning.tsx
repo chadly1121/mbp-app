@@ -194,7 +194,13 @@ export const StrategicPlanning = () => {
       >
         <CardHeader 
           className="pb-3"
-          onClick={() => !isEditing && setIsEditing(true)}
+          onClick={(e) => {
+            if (!isEditing) {
+              e.stopPropagation();
+              setIsEditing(true);
+              toggleCardExpansion(objective.id);
+            }
+          }}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
