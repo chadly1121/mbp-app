@@ -191,16 +191,17 @@ export const StrategicPlanning = () => {
       <Card 
         key={objective.id} 
         className={`transition-all duration-200 hover:shadow-md cursor-pointer group ${isExpanded ? 'ring-2 ring-blue-200' : ''} ${!isEditing ? 'hover:ring-1 hover:ring-blue-100' : ''}`}
+        onClick={(e) => {
+          if (!isEditing && !e.defaultPrevented) {
+            setIsEditing(true);
+            if (!isExpanded) {
+              toggleCardExpansion(objective.id);
+            }
+          }
+        }}
       >
         <CardHeader 
           className="pb-3"
-          onClick={(e) => {
-            if (!isEditing) {
-              e.stopPropagation();
-              setIsEditing(true);
-              toggleCardExpansion(objective.id);
-            }
-          }}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -302,6 +303,7 @@ export const StrategicPlanning = () => {
               variant="outline"
               size="sm"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 toggleCardExpansion(objective.id);
               }}
