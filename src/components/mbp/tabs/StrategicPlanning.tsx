@@ -498,7 +498,8 @@ export const StrategicPlanning = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     const newSubItemText = newSubItems[item.id] || '';
                                     setNewSubItems(prev => ({ ...prev, [item.id]: newSubItemText }));
                                     setExpandedItems(prev => new Set([...prev, item.id]));
@@ -511,7 +512,10 @@ export const StrategicPlanning = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteChecklistItem(item.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteChecklistItem(item.id);
+                                  }}
                                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -535,7 +539,10 @@ export const StrategicPlanning = () => {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleDeleteSubItem(subitem.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteSubItem(subitem.id);
+                                        }}
                                         className="opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
                                         <Trash2 className="h-3 w-3 text-destructive" />
@@ -556,7 +563,10 @@ export const StrategicPlanning = () => {
                                     className="text-sm"
                                   />
                                   <Button 
-                                    onClick={() => handleAddSubItem(item.id)} 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddSubItem(item.id);
+                                    }} 
                                     size="sm"
                                     className="text-xs"
                                   >
