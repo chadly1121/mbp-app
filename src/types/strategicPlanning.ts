@@ -16,6 +16,17 @@ export interface StrategicObjective {
   activity?: ObjectiveActivity[];
 }
 
+export interface ChecklistSubItem {
+  id: string;
+  parent_item_id: string;
+  title: string;
+  is_completed: boolean;
+  sort_order: number;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ChecklistItem {
   id: string;
   objective_id: string;
@@ -25,6 +36,7 @@ export interface ChecklistItem {
   company_id: string;
   created_at: string;
   updated_at: string;
+  subitems?: ChecklistSubItem[];
 }
 
 export interface CreateObjectiveRequest {
@@ -49,6 +61,18 @@ export interface UpdateObjectiveRequest {
 export interface CreateChecklistItemRequest {
   objective_id: string;
   item_text: string;
+  sort_order?: number;
+}
+
+export interface CreateSubItemRequest {
+  parent_item_id: string;
+  title: string;
+  sort_order?: number;
+}
+
+export interface UpdateSubItemRequest {
+  title?: string;
+  is_completed?: boolean;
   sort_order?: number;
 }
 

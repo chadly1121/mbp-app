@@ -6,10 +6,13 @@ import { useCompany } from '@/hooks/useCompany';
 import {
   StrategicObjective,
   ChecklistItem,
+  ChecklistSubItem,
   CreateObjectiveRequest,
   UpdateObjectiveRequest,
   CreateChecklistItemRequest,
   UpdateChecklistItemRequest,
+  CreateSubItemRequest,
+  UpdateSubItemRequest,
   CreateCollaboratorRequest,
   CreateCommentRequest,
 } from '@/types/strategicPlanning';
@@ -41,11 +44,15 @@ export const useStrategicPlanning = () => {
       let activityData: any[] = [];
 
       if (objectiveIds.length > 0) {
-        const [checklistResponse, collaboratorsResponse, commentsResponse, activityResponse] = await Promise.all([
+        const [checklistResponse, subitemsResponse, collaboratorsResponse, commentsResponse, activityResponse] = await Promise.all([
           supabase
             .from('strategic_objective_checklist')
             .select('*')
             .in('objective_id', objectiveIds)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('objective_checklist_subitems')
+            .select('*')
             .order('sort_order', { ascending: true }),
           supabase
             .from('strategic_objective_collaborators')
@@ -65,14 +72,22 @@ export const useStrategicPlanning = () => {
         ]);
 
         if (checklistResponse.error) throw checklistResponse.error;
+        if (subitemsResponse.error) throw subitemsResponse.error;
         if (collaboratorsResponse.error) throw collaboratorsResponse.error;
         if (commentsResponse.error) throw commentsResponse.error;
         if (activityResponse.error) throw activityResponse.error;
 
         checklistData = checklistResponse.data || [];
+        const subitemsData = subitemsResponse.data || [];
         collaboratorsData = collaboratorsResponse.data || [];
         commentsData = commentsResponse.data || [];
         activityData = activityResponse.data || [];
+
+        // Add subitems to checklist items
+        checklistData = checklistData.map(item => ({
+          ...item,
+          subitems: subitemsData.filter(subitem => subitem.parent_item_id === item.id)
+        }));
       }
 
       // Combine objectives with their related data
@@ -398,6 +413,67 @@ export const useStrategicPlanning = () => {
     }
   );
 
+  // Create subitem mutation
+  const createSubItemMutation = useSupabaseMutation(
+    async (data: CreateSubItemRequest) => {
+      const { data: result, error } = await supabase
+        .from('objective_checklist_subitems')
+        .insert({
+          parent_item_id: data.parent_item_id,
+          title: data.title,
+          sort_order: data.sort_order || 1,
+          company_id: currentCompany?.id
+        });
+
+      return { data: result, error };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Sub-step added successfully',
+      context: 'createSubItem'
+    }
+  );
+
+  // Update subitem mutation
+  const updateSubItemMutation = useSupabaseMutation(
+    async ({ id, data }: { id: string; data: UpdateSubItemRequest }) => {
+      const { data: result, error } = await supabase
+        .from('objective_checklist_subitems')
+        .update(data)
+        .eq('id', id);
+
+      return { data: result, error };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Sub-step updated successfully',
+      context: 'updateSubItem'
+    }
+  );
+
+  // Delete subitem mutation
+  const deleteSubItemMutation = useSupabaseMutation(
+    async (id: string) => {
+      const { data: result, error } = await supabase
+        .from('objective_checklist_subitems')
+        .delete()
+        .eq('id', id);
+
+      return { data: result, error };
+    },
+    {
+      onSuccess: () => {
+        objectivesQuery.refetch();
+      },
+      successMessage: 'Sub-step deleted successfully',
+      context: 'deleteSubItem'
+    }
+  );
+
   return {
     // Data
     objectives: objectivesQuery.data || [],
@@ -415,6 +491,9 @@ export const useStrategicPlanning = () => {
     createChecklistItem: createChecklistItemMutation.mutate,
     updateChecklistItem: updateChecklistItemMutation.mutate,
     deleteChecklistItem: deleteChecklistItemMutation.mutate,
+    createSubItem: createSubItemMutation.mutate,
+    updateSubItem: updateSubItemMutation.mutate,
+    deleteSubItem: deleteSubItemMutation.mutate,
     addCollaborator: addCollaboratorMutation.mutate,
     addComment: addCommentMutation.mutate,
     removeCollaborator: removeCollaboratorMutation.mutate,
@@ -426,6 +505,9 @@ export const useStrategicPlanning = () => {
     creatingItem: createChecklistItemMutation.loading,
     updatingItem: updateChecklistItemMutation.loading,
     deletingItem: deleteChecklistItemMutation.loading,
+    creatingSubItem: createSubItemMutation.loading,
+    updatingSubItem: updateSubItemMutation.loading,
+    deletingSubItem: deleteSubItemMutation.loading,
     addingCollaborator: addCollaboratorMutation.loading,
     addingComment: addCommentMutation.loading,
     removingCollaborator: removeCollaboratorMutation.loading,

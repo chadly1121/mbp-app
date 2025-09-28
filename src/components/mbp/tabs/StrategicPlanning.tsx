@@ -38,6 +38,9 @@ export const StrategicPlanning = () => {
     createChecklistItem,
     updateChecklistItem,
     deleteChecklistItem,
+    createSubItem,
+    updateSubItem,
+    deleteSubItem,
     addCollaborator,
     addComment,
     removeCollaborator,
@@ -142,6 +145,8 @@ export const StrategicPlanning = () => {
   const ObjectiveCard = ({ objective }: { objective: any }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newChecklistItem, setNewChecklistItem] = useState('');
+    const [newSubItems, setNewSubItems] = useState<Record<string, string>>({});
+    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const isExpanded = expandedCards.has(objective.id);
     const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
     const totalItems = objective.checklist?.length || 0;
@@ -185,6 +190,40 @@ export const StrategicPlanning = () => {
         handleAddChecklistItem(objective.id, newChecklistItem);
         setNewChecklistItem('');
       }
+    };
+
+    const handleAddSubItem = (parentItemId: string) => {
+      const subItemText = newSubItems[parentItemId];
+      if (subItemText?.trim()) {
+        const parentItem = objective.checklist?.find(item => item.id === parentItemId);
+        const sortOrder = (parentItem?.subitems?.length || 0) + 1;
+        
+        createSubItem({
+          parent_item_id: parentItemId,
+          title: subItemText.trim(),
+          sort_order: sortOrder
+        });
+        
+        setNewSubItems(prev => ({ ...prev, [parentItemId]: '' }));
+      }
+    };
+
+    const handleUpdateSubItem = (subItemId: string, updates: any) => {
+      updateSubItem({ id: subItemId, data: updates });
+    };
+
+    const handleDeleteSubItem = (subItemId: string) => {
+      deleteSubItem(subItemId);
+    };
+
+    const toggleItemExpansion = (itemId: string) => {
+      const newExpanded = new Set(expandedItems);
+      if (newExpanded.has(itemId)) {
+        newExpanded.delete(itemId);
+      } else {
+        newExpanded.add(itemId);
+      }
+      setExpandedItems(newExpanded);
     };
 
     return (
@@ -426,27 +465,108 @@ export const StrategicPlanning = () => {
                     
                     {objective.checklist && objective.checklist.length > 0 && (
                       <div className="space-y-2">
-                        {objective.checklist.map((item) => (
-                          <div key={item.id} className="flex items-center gap-3 group">
-                            <Checkbox
-                              checked={item.is_completed}
-                              onCheckedChange={(checked) => 
-                                handleUpdateChecklistItem(item.id, { is_completed: checked as boolean })
-                              }
-                            />
-                            <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                              {item.item_text}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteChecklistItem(item.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
+                        {objective.checklist.map((item) => {
+                          const hasSubItems = item.subitems && item.subitems.length > 0;
+                          const isItemExpanded = expandedItems.has(item.id);
+                          
+                          return (
+                            <div key={item.id} className="space-y-2">
+                              {/* Main checklist item */}
+                              <div className="flex items-center gap-3 group">
+                                <Checkbox
+                                  checked={item.is_completed}
+                                  onCheckedChange={(checked) => 
+                                    handleUpdateChecklistItem(item.id, { is_completed: checked as boolean })
+                                  }
+                                />
+                                {hasSubItems && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleItemExpansion(item.id)}
+                                    className="p-0 h-4 w-4"
+                                  >
+                                    {isItemExpanded ? 
+                                      <ChevronDown className="h-3 w-3" /> : 
+                                      <ChevronRight className="h-3 w-3" />
+                                    }
+                                  </Button>
+                                )}
+                                <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                  {item.item_text}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newSubItemText = newSubItems[item.id] || '';
+                                    setNewSubItems(prev => ({ ...prev, [item.id]: newSubItemText }));
+                                    setExpandedItems(prev => new Set([...prev, item.id]));
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                                  title="Add sub-step"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteChecklistItem(item.id)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+
+                              {/* Sub-items */}
+                              {hasSubItems && isItemExpanded && (
+                                <div className="ml-8 space-y-2">
+                                  {item.subitems?.map((subitem) => (
+                                    <div key={subitem.id} className="flex items-center gap-3 group">
+                                      <Checkbox
+                                        checked={subitem.is_completed}
+                                        onCheckedChange={(checked) => 
+                                          handleUpdateSubItem(subitem.id, { is_completed: checked as boolean })
+                                        }
+                                      />
+                                      <span className={`flex-1 text-sm ${subitem.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                        {subitem.title}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteSubItem(subitem.id)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Add sub-item input */}
+                              {expandedItems.has(item.id) && (
+                                <div className="ml-8 flex gap-2">
+                                  <Input
+                                    placeholder="Add sub-step..."
+                                    value={newSubItems[item.id] || ''}
+                                    onChange={(e) => setNewSubItems(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubItem(item.id)}
+                                    className="text-sm"
+                                  />
+                                  <Button 
+                                    onClick={() => handleAddSubItem(item.id)} 
+                                    size="sm"
+                                    className="text-xs"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     
