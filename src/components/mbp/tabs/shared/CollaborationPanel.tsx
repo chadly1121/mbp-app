@@ -42,24 +42,22 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   const [newComment, setNewComment] = useState('');
 
   // Input validation schemas
-  const collaboratorSchema = z.object({
-    email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }),
-    role: z.enum(['accountability_partner', 'collaborator', 'viewer'])
-  });
+  const emailSchema = z.string()
+    .trim()
+    .min(1, "Email is required")
+    .max(255, "Email must be less than 255 characters")
+    .email("Please enter a valid email address");
 
-  const commentSchema = z.object({
-    content: z.string().trim().min(1, { message: "Comment cannot be empty" }).max(1000, { message: "Comment must be less than 1000 characters" })
-  });
+  const commentSchema = z.string()
+    .trim()
+    .min(1, "Comment cannot be empty")
+    .max(1000, "Comment must be less than 1000 characters");
 
   const handleAddCollaborator = async () => {
-    // Validate input
-    const validation = collaboratorSchema.safeParse({
-      email: newCollaboratorEmail,
-      role: newCollaboratorRole
-    });
-
+    // Validate email input
+    const validation = emailSchema.safeParse(newCollaboratorEmail);
     if (!validation.success) {
-      const errorMessage = validation.error.errors[0]?.message || "Invalid input";
+      const errorMessage = validation.error.errors[0]?.message || "Invalid email address";
       toast({ title: "Error", description: errorMessage, variant: "destructive" });
       return;
     }
@@ -67,25 +65,22 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
     try {
       await onAddCollaborator({
         objective_id: objective.id,
-        user_email: validation.data.email,
-        role: validation.data.role,
+        user_email: validation.data,
+        role: newCollaboratorRole,
       });
       setNewCollaboratorEmail('');
-      toast({ title: "Success", description: `Collaborator invited as ${validation.data.role.replace('_', ' ')}!` });
+      toast({ title: "Success", description: "Collaborator invited successfully!" });
     } catch (error) {
       console.error('Failed to invite collaborator:', error);
-      toast({ title: "Error", description: "Failed to invite collaborator. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to invite collaborator", variant: "destructive" });
     }
   };
 
   const handleAddComment = async () => {
-    // Validate input
-    const validation = commentSchema.safeParse({
-      content: newComment
-    });
-
+    // Validate comment input
+    const validation = commentSchema.safeParse(newComment);
     if (!validation.success) {
-      const errorMessage = validation.error.errors[0]?.message || "Invalid input";
+      const errorMessage = validation.error.errors[0]?.message || "Invalid comment";
       toast({ title: "Error", description: errorMessage, variant: "destructive" });
       return;
     }
@@ -93,13 +88,13 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
     try {
       await onAddComment({
         objective_id: objective.id,
-        content: validation.data.content,
+        content: validation.data,
       });
       setNewComment('');
       toast({ title: "Success", description: "Comment added successfully!" });
     } catch (error) {
       console.error('Failed to add comment:', error);
-      toast({ title: "Error", description: "Failed to add comment. Please try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
     }
   };
 
