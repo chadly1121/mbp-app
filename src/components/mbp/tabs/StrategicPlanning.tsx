@@ -483,7 +483,10 @@ export const StrategicPlanning = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => toggleItemExpansion(item.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleItemExpansion(item.id);
+                                    }}
                                     className="p-0 h-4 w-4"
                                   >
                                     {isItemExpanded ? 
@@ -559,7 +562,15 @@ export const StrategicPlanning = () => {
                                     placeholder="Add sub-step..."
                                     value={newSubItems[item.id] || ''}
                                     onChange={(e) => setNewSubItems(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubItem(item.id)}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.stopPropagation();
+                                        handleAddSubItem(item.id);
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onFocus={(e) => e.stopPropagation()}
+                                    onBlur={(e) => e.stopPropagation()}
                                     className="text-sm"
                                   />
                                   <Button 
@@ -585,9 +596,22 @@ export const StrategicPlanning = () => {
                         placeholder="Add checklist item..."
                         value={newChecklistItem}
                         onChange={(e) => setNewChecklistItem(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && addChecklistItem()}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.stopPropagation();
+                            addChecklistItem();
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
                       />
-                      <Button onClick={addChecklistItem} size="sm">
+                      <Button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addChecklistItem();
+                        }} 
+                        size="sm"
+                      >
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
