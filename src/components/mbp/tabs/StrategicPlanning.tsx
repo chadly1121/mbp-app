@@ -51,6 +51,8 @@ export const StrategicPlanning = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [editingSubItem, setEditingSubItem] = useState<string | null>(null);
+  const [editSubText, setEditSubText] = useState('');
 
   // Strategic planning hook
   const {
@@ -251,6 +253,19 @@ export const StrategicPlanning = () => {
       setEditText('');
     };
 
+    const handleSaveSubEdit = () => {
+      if (editingSubItem && editSubText.trim()) {
+        handleUpdateSubItem(editingSubItem, { title: editSubText.trim() });
+        setEditingSubItem(null);
+        setEditSubText('');
+      }
+    };
+
+    const handleCancelSubEdit = () => {
+      setEditingSubItem(null);
+      setEditSubText('');
+    };
+
     return (
       <Card key={objective.id} className="mb-4">
         <Collapsible open={isExpanded} onOpenChange={() => toggleObjectiveExpansion(objective.id)}>
@@ -357,6 +372,11 @@ export const StrategicPlanning = () => {
                         const hasSubItems = item.subitems && item.subitems.length > 0;
                         const isItemExpanded = expandedItems.has(item.id);
                         
+                        // Calculate individual item progress
+                        const subItemsCount = item.subitems?.length || 0;
+                        const completedSubItems = item.subitems?.filter(sub => sub.is_completed).length || 0;
+                        const itemProgress = subItemsCount > 0 ? `(${completedSubItems}/${subItemsCount})` : '';
+                        
                         return (
                           <div key={item.id} className="space-y-2">
                             {/* Edit mode for checklist item */}
@@ -417,8 +437,17 @@ export const StrategicPlanning = () => {
                                   </Button>
                                 )}
                                 
-                                <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                                  {item.item_text}
+                                {/* Clickable text that also expands/collapses */}
+                                <span 
+                                  className={`flex-1 cursor-pointer select-none ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (hasSubItems) {
+                                      toggleItemExpansion(item.id);
+                                    }
+                                  }}
+                                >
+                                  {item.item_text} {itemProgress && <span className="text-muted-foreground text-sm ml-1">{itemProgress}</span>}
                                 </span>
                                 
                                 {/* Edit button */}
@@ -467,27 +496,78 @@ export const StrategicPlanning = () => {
                             {hasSubItems && isItemExpanded && (
                               <div className="ml-8 space-y-2">
                                 {item.subitems?.map((subitem) => (
-                                  <div key={subitem.id} className="flex items-center gap-3 group">
-                                    <Checkbox
-                                      checked={subitem.is_completed}
-                                      onCheckedChange={(checked) => 
-                                        handleUpdateSubItem(subitem.id, { is_completed: checked as boolean })
-                                      }
-                                    />
-                                    <span className={`flex-1 text-sm ${subitem.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                                      {subitem.title}
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteSubItem(subitem.id);
-                                      }}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="h-3 w-3 text-destructive" />
-                                    </Button>
+                                  <div key={subitem.id} className="space-y-1">
+                                    {/* Edit mode for sub-item */}
+                                    {editingSubItem === subitem.id ? (
+                                      <div className="flex items-center gap-3">
+                                        <Input
+                                          value={editSubText}
+                                          onChange={(e) => setEditSubText(e.target.value)}
+                                          onKeyPress={(e) => {
+                                            if (e.key === 'Enter') {
+                                              handleSaveSubEdit();
+                                            } else if (e.key === 'Escape') {
+                                              handleCancelSubEdit();
+                                            }
+                                          }}
+                                          autoFocus
+                                          className="flex-1 text-sm"
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={handleSaveSubEdit}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={handleCancelSubEdit}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-3 group">
+                                        <Checkbox
+                                          checked={subitem.is_completed}
+                                          onCheckedChange={(checked) => 
+                                            handleUpdateSubItem(subitem.id, { is_completed: checked as boolean })
+                                          }
+                                        />
+                                        <span className={`flex-1 text-sm ${subitem.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                          {subitem.title}
+                                        </span>
+                                        
+                                        {/* Edit button for sub-item */}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingSubItem(subitem.id);
+                                            setEditSubText(subitem.title);
+                                          }}
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                        
+                                        {/* Delete button for sub-item */}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteSubItem(subitem.id);
+                                          }}
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <Trash2 className="h-3 w-3 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
