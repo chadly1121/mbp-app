@@ -194,6 +194,7 @@ export const StrategicPlanning = () => {
 
     const handleAddSubItem = (parentItemId: string) => {
       const subItemText = newSubItems[parentItemId];
+      console.log('Adding sub-item:', { parentItemId, subItemText });
       
       if (subItemText?.trim()) {
         const parentItem = objective.checklist?.find(item => item.id === parentItemId);
@@ -205,6 +206,8 @@ export const StrategicPlanning = () => {
           sort_order: sortOrder
         });
         
+        // Auto-expand the parent item to show the new sub-item
+        setExpandedItems(prev => new Set([...prev, parentItemId]));
         setNewSubItems(prev => ({ ...prev, [parentItemId]: '' }));
       }
     };

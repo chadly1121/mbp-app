@@ -430,6 +430,7 @@ export const useStrategicPlanning = () => {
   // Create subitem mutation
   const createSubItemMutation = useSupabaseMutation(
     async (data: CreateSubItemRequest) => {
+      console.log('Creating sub-item with data:', data);
       const { data: result, error } = await supabase
         .from('objective_checklist_subitems')
         .insert({
@@ -439,6 +440,7 @@ export const useStrategicPlanning = () => {
           company_id: currentCompany?.id
         });
 
+      console.log('Sub-item creation result:', { result, error });
       return { data: result, error };
     },
     {
