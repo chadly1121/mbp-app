@@ -93,8 +93,22 @@ export const useStrategicPlanning = () => {
       // Combine objectives with their related data
       const objectives: StrategicObjective[] = (objectivesData || []).map(objective => {
         const checklistItems = checklistData.filter(item => item.objective_id === objective.id);
-        const completedItems = checklistItems.filter(item => item.is_completed).length;
-        const totalItems = checklistItems.length;
+        
+        // Calculate completion including sub-items
+        let totalItems = 0;
+        let completedItems = 0;
+        
+        checklistItems.forEach(item => {
+          totalItems += 1; // Count the main item
+          if (item.is_completed) completedItems += 1;
+          
+          // Count sub-items
+          if (item.subitems?.length > 0) {
+            totalItems += item.subitems.length;
+            completedItems += item.subitems.filter(sub => sub.is_completed).length;
+          }
+        });
+        
         const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
         
         return {
@@ -416,6 +430,9 @@ export const useStrategicPlanning = () => {
   // Create subitem mutation
   const createSubItemMutation = useSupabaseMutation(
     async (data: CreateSubItemRequest) => {
+      console.log('Creating sub-item:', data);
+      console.log('Current company:', currentCompany?.id);
+      
       const { data: result, error } = await supabase
         .from('objective_checklist_subitems')
         .insert({
@@ -425,6 +442,7 @@ export const useStrategicPlanning = () => {
           company_id: currentCompany?.id
         });
 
+      console.log('Sub-item creation result:', { result, error });
       return { data: result, error };
     },
     {
