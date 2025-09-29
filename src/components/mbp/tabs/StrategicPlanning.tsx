@@ -1,57 +1,40 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Target, Calendar, User, TrendingUp, Edit2, Check, X, ChevronDown, ChevronRight, CheckSquare, Square, Trash2, CheckCircle, ChevronUp } from 'lucide-react';
-import { useStrategicPlanning } from '@/hooks/useStrategicPlanning';
-import { ErrorHandlingTemplate, LoadingTemplate, EmptyStateTemplate } from '@/components/mbp/tabs/shared/ErrorHandlingTemplate';
-import { CountdownTimer } from '@/components/mbp/tabs/shared/CountdownTimer';
-import { PerformanceGauge } from '@/components/mbp/tabs/shared/PerformanceGauge';
-import { CollaborationPanel } from '@/components/mbp/tabs/shared/CollaborationPanel';
-
-interface NewObjectiveForm {
-  title: string;
-  description: string;
-  target_date: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
-  completion_percentage: number;
-}
+import React, { useState, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CalendarIcon, Plus, Target, Users, MessageSquare, Share2, ChevronDown, ChevronRight, Trash2, CheckSquare, CheckCircle, ChevronUp, Pencil } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useCompany } from "@/hooks/useCompany";
+import { useStrategicPlanning } from "@/hooks/useStrategicPlanning";
+import {
+  StrategicObjective,
+  OBJECTIVE_PRIORITIES,
+  OBJECTIVE_STATUSES,
+  getObjectivePriorityColor,
+  getObjectiveStatusColor,
+  ObjectiveFormData
+} from "@/types/strategicPlanning";
+import { BaseMBPTab } from "../shared/BaseMBPTab";
+import { ErrorHandlingTemplate } from "./shared/ErrorHandlingTemplate";
+import { CountdownTimer } from "./shared/CountdownTimer";
+import { PerformanceGauge } from "./shared/PerformanceGauge";
+import { useToast } from "@/hooks/use-toast";
 
 export const StrategicPlanning = () => {
-  const {
-    objectives,
-    stats,
-    loading,
-    error,
-    createObjective,
-    updateObjective,
-    createChecklistItem,
-    updateChecklistItem,
-    deleteChecklistItem,
-    createSubItem,
-    updateSubItem,
-    deleteSubItem,
-    addCollaborator,
-    addComment,
-    removeCollaborator,
-    addingCollaborator,
-    addingComment,
-    removingCollaborator
-  } = useStrategicPlanning();
+  const { currentCompany } = useCompany();
+  const { toast } = useToast();
   
-  const [isAddingObjective, setIsAddingObjective] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [newObjective, setNewObjective] = useState<NewObjectiveForm>({
+  // Form state
+  const [formData, setFormData] = useState<ObjectiveFormData>({
     title: '',
     description: '',
     target_date: '',
@@ -59,142 +42,185 @@ export const StrategicPlanning = () => {
     status: 'not_started',
     completion_percentage: 0
   });
+  
+  const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [newSubItems, setNewSubItems] = useState<Record<string, string>>({});
+  const [expandedObjectives, setExpandedObjectives] = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
-  // Removed manual fetch logic - now using useStrategicPlanning hook
+  // Strategic planning hook
+  const {
+    objectives,
+    loading,
+    error,
+    createObjective,
+    updateObjective,
+    deleteObjective,
+    createChecklistItem,
+    updateChecklistItem,
+    deleteChecklistItem,
+    createSubItem,
+    updateSubItem,
+    deleteSubItem
+  } = useStrategicPlanning();
 
-  const handleAddObjective = async () => {
-    if (!newObjective.title) return;
-
-    createObjective({
-      title: newObjective.title,
-      description: newObjective.description,
-      target_date: newObjective.target_date,
-      priority: newObjective.priority,
-      status: newObjective.status,
-      completion_percentage: newObjective.completion_percentage,
-      company_id: '' // This will be set by the hook
-    });
-    
-    setNewObjective({
-      title: '',
-      description: '',
-      target_date: '',
-      priority: 'medium',
-      status: 'not_started',
-      completion_percentage: 0
-    });
-    setIsAddingObjective(false);
+  // Helper functions
+  const handleInputChange = (field: keyof ObjectiveFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleUpdateObjective = (objectiveId: string, updates: any) => {
-    // Remove checklist from updates as it's not a column in the table
-    const { checklist, ...dbUpdates } = updates;
-    updateObjective({ id: objectiveId, data: dbUpdates });
-  };
-
-  const handleAddChecklistItem = (objectiveId: string, itemText: string) => {
-    if (!itemText.trim()) return;
-
-    const objective = objectives.find(obj => obj.id === objectiveId);
-    const sortOrder = (objective?.checklist?.length || 0) + 1;
-
-    createChecklistItem({
-      objective_id: objectiveId,
-      item_text: itemText.trim(),
-      sort_order: sortOrder
-    });
-  };
-
-  const handleUpdateChecklistItem = (itemId: string, updates: any) => {
-    updateChecklistItem({ id: itemId, data: updates });
-  };
-
-  const handleDeleteChecklistItem = (itemId: string) => {
-    deleteChecklistItem(itemId);
-  };
-
-  const toggleCardExpansion = (objectiveId: string) => {
-    const newExpanded = new Set(expandedCards);
-    if (newExpanded.has(objectiveId)) {
-      newExpanded.delete(objectiveId);
-    } else {
-      newExpanded.add(objectiveId);
+  const handleSubmit = async () => {
+    if (!currentCompany || !formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in the required fields",
+        variant: "destructive"
+      });
+      return;
     }
-    setExpandedCards(newExpanded);
+
+    try {
+      await createObjective({
+        ...formData,
+        company_id: currentCompany.id,
+        title: formData.title.trim(),
+        description: formData.description.trim()
+      });
+
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        target_date: '',
+        priority: 'medium',
+        status: 'not_started',
+        completion_percentage: 0
+      });
+      setSelectedDate(undefined);
+
+      toast({
+        title: "Success",
+        description: "Strategic objective created successfully"
+      });
+    } catch (error) {
+      console.error('Error creating objective:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create strategic objective",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleObjectiveExpansion = (objectiveId: string) => {
+    setExpandedObjectives(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(objectiveId)) {
+        newSet.delete(objectiveId);
+      } else {
+        newSet.add(objectiveId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleItemExpansion = (itemId: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
-      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'critical': return 'destructive';
+      case 'high': return 'default';
+      case 'medium': return 'secondary';
+      case 'low': return 'outline';
+      default: return 'secondary';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'in_progress': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'on_hold': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'completed': return 'default';
+      case 'in_progress': return 'secondary';
+      case 'on_hold': return 'outline';
+      case 'not_started': return 'destructive';
+      default: return 'secondary';
     }
   };
 
-  const ObjectiveCard = ({ objective }: { objective: any }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [newChecklistItem, setNewChecklistItem] = useState('');
-    const [newSubItems, setNewSubItems] = useState<Record<string, string>>({});
-    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-    const isExpanded = expandedCards.has(objective.id);
-    const completedItems = objective.checklist?.filter(item => item.is_completed).length || 0;
-    const totalItems = objective.checklist?.length || 0;
-    
-    // Calculate completion percentage based on checklist items
-    const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-    
-    const [editData, setEditData] = useState({
-      ...objective,
-      status: objective.status || 'not_started',
-      priority: objective.priority || 'medium',
-      completion_percentage: calculatedCompletion, // Use calculated value
-      description: objective.description || '',
-      target_date: objective.target_date || ''
-    });
+  // Loading and error states
+  const LoadingTemplate = ({ message }: { message: string }) => (
+    <div className="flex items-center justify-center p-8">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
 
-    const handleSave = () => {
-      // Update with calculated completion percentage
-      const updatedData = {
-        ...editData,
-        completion_percentage: calculatedCompletion
-      };
-      handleUpdateObjective(objective.id, updatedData);
-      setIsEditing(false);
+  // Helper function to calculate checklist progress
+  const calculateChecklistProgress = (checklist: any[]): number => {
+    if (!checklist || checklist.length === 0) return 0;
+    const completed = checklist.filter(item => item.is_completed).length;
+    return Math.round((completed / checklist.length) * 100);
+  };
+
+  // Objective Component
+  const ObjectiveCard = ({ objective }: { objective: StrategicObjective }) => {
+    const isExpanded = expandedObjectives.has(objective.id);
+    const checklistProgress = calculateChecklistProgress(objective.checklist || []);
+    
+    // Calculate total items and completed items including sub-items
+    const totalItems = (objective.checklist || []).reduce((total, item) => {
+      return total + 1 + (item.subitems?.length || 0);
+    }, 0);
+    
+    const completedItems = (objective.checklist || []).reduce((completed, item) => {
+      let itemCount = item.is_completed ? 1 : 0;
+      const completedSubItems = (item.subitems || []).filter(sub => sub.is_completed).length;
+      return completed + itemCount + completedSubItems;
+    }, 0);
+    
+    const calculatedCompletion = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    const handleUpdateChecklistItem = (itemId: string, updates: { item_text?: string; is_completed?: boolean }) => {
+      updateChecklistItem({ id: itemId, data: updates });
     };
 
-    const handleCancel = () => {
-      setEditData({
-        ...objective,
-        status: objective.status || 'not_started',
-        priority: objective.priority || 'medium',
-        completion_percentage: calculatedCompletion, // Use calculated value
-        description: objective.description || '',
-        target_date: objective.target_date || ''
-      });
-      setIsEditing(false);
+    const handleDeleteChecklistItem = (itemId: string) => {
+      deleteChecklistItem(itemId);
+    };
+
+    const handleUpdateSubItem = (subItemId: string, updates: { title?: string; is_completed?: boolean }) => {
+      updateSubItem({ id: subItemId, data: updates });
     };
 
     const addChecklistItem = () => {
       if (newChecklistItem.trim()) {
-        handleAddChecklistItem(objective.id, newChecklistItem);
+        const sortOrder = (objective.checklist?.length || 0) + 1;
+        createChecklistItem({
+          objective_id: objective.id,
+          item_text: newChecklistItem.trim(),
+          sort_order: sortOrder
+        });
         setNewChecklistItem('');
       }
     };
 
     const handleAddSubItem = (parentItemId: string) => {
       const subItemText = newSubItems[parentItemId];
-      console.log('Adding sub-item:', { parentItemId, subItemText });
       
       if (subItemText?.trim()) {
         const parentItem = objective.checklist?.find(item => item.id === parentItemId);
@@ -212,270 +238,159 @@ export const StrategicPlanning = () => {
       }
     };
 
-    const handleUpdateSubItem = (subItemId: string, updates: any) => {
-      updateSubItem({ id: subItemId, data: updates });
-    };
-
-    const handleDeleteSubItem = (subItemId: string) => {
-      deleteSubItem(subItemId);
-    };
-
-    const toggleItemExpansion = (itemId: string) => {
-      const newExpanded = new Set(expandedItems);
-      if (newExpanded.has(itemId)) {
-        newExpanded.delete(itemId);
-      } else {
-        newExpanded.add(itemId);
+    const handleSaveEdit = () => {
+      if (editingItem && editText.trim()) {
+        handleUpdateChecklistItem(editingItem, { item_text: editText.trim() });
+        setEditingItem(null);
+        setEditText('');
       }
-      setExpandedItems(newExpanded);
+    };
+
+    const handleCancelEdit = () => {
+      setEditingItem(null);
+      setEditText('');
     };
 
     return (
-      <Card 
-        key={objective.id} 
-        className={`transition-all duration-200 hover:shadow-md cursor-pointer group ${isExpanded ? 'ring-2 ring-blue-200' : ''} ${!isEditing ? 'hover:ring-1 hover:ring-blue-100' : ''}`}
-        onClick={(e) => {
-          if (!isEditing && !e.defaultPrevented) {
-            setIsEditing(true);
-            if (!isExpanded) {
-              toggleCardExpansion(objective.id);
-            }
-          }
-        }}
-      >
-        <CardHeader 
-          className="pb-3"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                {isExpanded ? 
-                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : 
-                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                }
-                {isEditing ? (
-                  <Input
-                    value={editData.title}
-                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                    className="text-lg font-semibold"
-                    onClick={(e) => e.stopPropagation()}
-                    autoFocus
-                  />
-                ) : (
+      <Card key={objective.id} className="mb-4">
+        <Collapsible open={isExpanded} onOpenChange={() => toggleObjectiveExpansion(objective.id)}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  {isExpanded ? (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground mt-1" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 text-muted-foreground mt-1" />
+                  )}
                   <div className="flex-1">
-                    <h4 className="text-lg font-semibold truncate">{objective.title}</h4>
-                    <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      Click to edit
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Countdown Timer - shows completion if all items checked */}
-              <div className="mb-2">
-                <CountdownTimer 
-                  targetDate={objective.target_date}
-                  isCompleted={totalItems > 0 && completedItems === totalItems}
-                  completedAt={totalItems > 0 && completedItems === totalItems ? 
-                    objective.checklist?.filter(item => item.is_completed)
-                      .reduce((latest, item) => 
-                        !latest || new Date(item.updated_at) > new Date(latest) ? 
-                        item.updated_at : latest, null as string | null) : null
-                  }
-                />
-              </div>
-              
-              {!isExpanded && !isEditing && (
-                <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 ml-4">
-              <div className="flex flex-col items-end gap-1">
-                <Badge className={getPriorityColor(objective.priority || 'medium')}>
-                  {objective.priority || 'medium'}
-                </Badge>
-                <Badge className={getStatusColor(objective.status || 'not_started')}>
-                  {(objective.status || 'not_started').replace('_', ' ')}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar - using calculated completion with completion status */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{calculatedCompletion}%</span>
-                {totalItems > 0 && completedItems === totalItems && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Complete
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <Progress value={calculatedCompletion} className="h-2" />
-            {totalItems > 0 ? (
-              <div className="text-sm text-muted-foreground">
-                {completedItems} of {totalItems} checklist items completed
-                {completedItems === totalItems && totalItems > 0 && (
-                  <span className="text-green-600 font-medium ml-2">✓ All done!</span>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Add checklist items to track progress
-              </div>
-            )}
-          </div>
-          
-          {/* Collaboration and Action Buttons */}
-          <div className="flex items-center justify-between mt-4">
-            <CollaborationPanel
-              objective={objective}
-              onAddCollaborator={addCollaborator}
-              onAddComment={addComment}
-              onRemoveCollaborator={removeCollaborator}
-              isAddingCollaborator={addingCollaborator}
-              isAddingComment={addingComment}
-              isRemovingCollaborator={removingCollaborator}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleCardExpansion(objective.id);
-              }}
-              className="gap-2"
-            >
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {isExpanded ? 'Collapse' : 'Expand'}
-            </Button>
-          </div>
-        </CardHeader>
-
-        <Collapsible open={isExpanded}>
-          <CollapsibleContent>
-            <CardContent className="pt-0 space-y-4">
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Description</Label>
-                    <Textarea
-                      value={editData.description || ''}
-                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Status</Label>
-                      <Select 
-                        value={editData.status} 
-                        onValueChange={(value: any) => setEditData({ ...editData, status: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="not_started">Not Started</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center gap-3 mb-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">{objective.title}</h3>
                     </div>
                     
-                    <div>
-                      <Label>Priority</Label>
-                      <Select 
-                        value={editData.priority} 
-                        onValueChange={(value: any) => setEditData({ ...editData, priority: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="critical">Critical</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <Label>Target Date & Time</Label>
-                      <Input
-                        type="datetime-local"
-                        value={editData.target_date || ''}
-                        onChange={(e) => setEditData({ ...editData, target_date: e.target.value })}
+                    {/* Countdown Timer - shows completion if all items checked */}
+                    <div className="mb-2">
+                      <CountdownTimer 
+                        targetDate={objective.target_date}
+                        isCompleted={totalItems > 0 && completedItems === totalItems}
+                        completedAt={totalItems > 0 && completedItems === totalItems ? 
+                          objective.checklist?.filter(item => item.is_completed)
+                            .reduce((latest, item) => 
+                              !latest || new Date(item.updated_at) > new Date(latest) ? 
+                              item.updated_at : latest, null as string | null) : null
+                        }
                       />
                     </div>
+                    
+                    {!isExpanded && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{objective.description}</p>
+                    )}
                   </div>
                   
-                    <div className="flex gap-2">
-                      <Button onClick={handleSave} size="sm">
-                        <Check className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                      <Button variant="outline" onClick={handleCancel} size="sm">
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
+                  <div className="flex items-center gap-2 ml-4">
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className={getPriorityColor(objective.priority || 'medium')}>
+                        {objective.priority || 'medium'}
+                      </Badge>
+                      <Badge className={getStatusColor(objective.status || 'not_started')}>
+                        {(objective.status || 'not_started').replace('_', ' ')}
+                      </Badge>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar - using calculated completion with completion status */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Progress</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{calculatedCompletion}%</span>
+                    {totalItems > 0 && completedItems === totalItems && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Complete
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Progress value={calculatedCompletion} className="h-2" />
+                {totalItems > 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    {completedItems} of {totalItems} checklist items completed
+                    {completedItems === totalItems && totalItems > 0 && (
+                      <span className="text-green-600 font-medium ml-2">✓ All done!</span>
+                    )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-muted-foreground">{objective.description}</p>
-                    </div>
-                  
-                  <div className="grid grid-cols-1 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {objective.target_date ? 
-                          new Date(objective.target_date).toLocaleString() : 
-                          'No target date & time'
-                        }
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {calculatedCompletion}% complete (auto-calculated)
-                      </span>
-                    </div>
+                  <div className="text-sm text-muted-foreground">
+                    Add checklist items to track progress
                   </div>
+                )}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
 
-                  <Separator />
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-4">
+                {isExpanded && objective.description && (
+                  <div>
+                    <h4 className="font-medium mb-2">Description</h4>
+                    <p className="text-sm text-muted-foreground">{objective.description}</p>
+                  </div>
+                )}
 
-                  {/* Checklist Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="font-medium flex items-center gap-2">
-                        <CheckSquare className="h-4 w-4" />
-                        Checklist ({completedItems}/{totalItems})
-                      </h5>
-                    </div>
-                    
-                    {objective.checklist && objective.checklist.length > 0 && (
-                      <div className="space-y-2">
-                        {objective.checklist.map((item) => {
-                          const hasSubItems = item.subitems && item.subitems.length > 0;
-                          const isItemExpanded = expandedItems.has(item.id);
-                          
-                          return (
-                            <div key={item.id} className="space-y-2">
-                              {/* Main checklist item */}
+                {/* Checklist Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-medium flex items-center gap-2">
+                      <CheckSquare className="h-4 w-4" />
+                      Checklist ({completedItems}/{totalItems})
+                    </h5>
+                  </div>
+                  
+                  {objective.checklist && objective.checklist.length > 0 && (
+                    <div className="space-y-2">
+                      {objective.checklist.map((item) => {
+                        const hasSubItems = item.subitems && item.subitems.length > 0;
+                        const isItemExpanded = expandedItems.has(item.id);
+                        
+                        return (
+                          <div key={item.id} className="space-y-2">
+                            {/* Edit mode for checklist item */}
+                            {editingItem === item.id ? (
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleSaveEdit();
+                                    } else if (e.key === 'Escape') {
+                                      handleCancelEdit();
+                                    }
+                                  }}
+                                  autoFocus
+                                  className="flex-1"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleSaveEdit}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleCancelEdit}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
                               <div className="flex items-center gap-3 group">
                                 <Checkbox
                                   checked={item.is_completed}
@@ -483,6 +398,8 @@ export const StrategicPlanning = () => {
                                     handleUpdateChecklistItem(item.id, { is_completed: checked as boolean })
                                   }
                                 />
+                                
+                                {/* Expand/Collapse button for sub-items */}
                                 {hasSubItems && (
                                   <Button
                                     variant="ghost"
@@ -499,23 +416,39 @@ export const StrategicPlanning = () => {
                                     }
                                   </Button>
                                 )}
+                                
                                 <span className={`flex-1 ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
                                   {item.item_text}
                                 </span>
+                                
+                                {/* Edit button */}
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const newSubItemText = newSubItems[item.id] || '';
-                                    setNewSubItems(prev => ({ ...prev, [item.id]: newSubItemText }));
+                                    setEditingItem(item.id);
+                                    setEditText(item.item_text);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                
+                                {/* Add sub-item button */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setExpandedItems(prev => new Set([...prev, item.id]));
                                   }}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                                  title="Add sub-step"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
-                                  <Plus className="h-3 w-3" />
+                                  <Plus className="h-4 w-4" />
                                 </Button>
+                                
+                                {/* Delete button */}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -528,100 +461,100 @@ export const StrategicPlanning = () => {
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </div>
+                            )}
 
-                              {/* Sub-items */}
-                              {hasSubItems && isItemExpanded && (
-                                <div className="ml-8 space-y-2">
-                                  {item.subitems?.map((subitem) => (
-                                    <div key={subitem.id} className="flex items-center gap-3 group">
-                                      <Checkbox
-                                        checked={subitem.is_completed}
-                                        onCheckedChange={(checked) => 
-                                          handleUpdateSubItem(subitem.id, { is_completed: checked as boolean })
-                                        }
-                                      />
-                                      <span className={`flex-1 text-sm ${subitem.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                                        {subitem.title}
-                                      </span>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteSubItem(subitem.id);
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                      >
-                                        <Trash2 className="h-3 w-3 text-destructive" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {/* Add sub-item input */}
-                              {expandedItems.has(item.id) && (
-                                <div className="ml-8 flex gap-2">
-                                  <Input
-                                    placeholder="Add sub-step..."
-                                    value={newSubItems[item.id] || ''}
-                                    onChange={(e) => setNewSubItems(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                    onKeyPress={(e) => {
-                                      if (e.key === 'Enter') {
-                                        e.stopPropagation();
-                                        handleAddSubItem(item.id);
+                            {/* Sub-items */}
+                            {hasSubItems && isItemExpanded && (
+                              <div className="ml-8 space-y-2">
+                                {item.subitems?.map((subitem) => (
+                                  <div key={subitem.id} className="flex items-center gap-3 group">
+                                    <Checkbox
+                                      checked={subitem.is_completed}
+                                      onCheckedChange={(checked) => 
+                                        handleUpdateSubItem(subitem.id, { is_completed: checked as boolean })
                                       }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onFocus={(e) => e.stopPropagation()}
-                                    onBlur={(e) => e.stopPropagation()}
-                                    className="text-sm"
-                                  />
-                                  <Button 
-                                    onClick={(e) => {
+                                    />
+                                    <span className={`flex-1 text-sm ${subitem.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                                      {subitem.title}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteSubItem(subitem.id);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Add sub-item input */}
+                            {expandedItems.has(item.id) && (
+                              <div className="ml-8 flex gap-2">
+                                <Input
+                                  placeholder="Add sub-step..."
+                                  value={newSubItems[item.id] || ''}
+                                  onChange={(e) => setNewSubItems(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
                                       e.stopPropagation();
                                       handleAddSubItem(item.id);
-                                    }} 
-                                    size="sm"
-                                    className="text-xs"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Add checklist item..."
-                        value={newChecklistItem}
-                        onChange={(e) => setNewChecklistItem(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.stopPropagation();
-                            addChecklistItem();
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onFocus={(e) => e.stopPropagation()}
-                      />
-                      <Button 
-                        onClick={(e) => {
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onFocus={(e) => e.stopPropagation()}
+                                  onBlur={(e) => e.stopPropagation()}
+                                  className="text-sm"
+                                />
+                                <Button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddSubItem(item.id);
+                                  }} 
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add checklist item..."
+                      value={newChecklistItem}
+                      onChange={(e) => setNewChecklistItem(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
                           e.stopPropagation();
                           addChecklistItem();
-                        }} 
-                        size="sm"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onFocus={(e) => e.stopPropagation()}
+                    />
+                    <Button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addChecklistItem();
+                      }} 
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
@@ -651,164 +584,120 @@ export const StrategicPlanning = () => {
       {/* Performance Gauge */}
       <PerformanceGauge objectives={objectives} />
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-semibold">Strategic Planning</h3>
-          <p className="text-sm text-muted-foreground">
-            Define and track your strategic goals and initiatives. Click cards to expand and edit.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Strategic Objective
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add Strategic Objective</DialogTitle>
-                <DialogDescription>
-                  Create a new strategic objective or initiative
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Objective Title</Label>
-                  <Input
-                    value={newObjective.title}
-                    onChange={(e) => setNewObjective({ ...newObjective, title: e.target.value })}
-                    placeholder="e.g., Expand to New Markets"
+      {/* Create New Objective Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Create New Strategic Objective
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title *</label>
+              <Input
+                placeholder="Enter objective title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Target Date</label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : "Select target date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      handleInputChange('target_date', date ? format(date, 'yyyy-MM-dd') : '');
+                      setCalendarOpen(false);
+                    }}
+                    initialFocus
                   />
-                </div>
-                
-                <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    value={newObjective.description}
-                    onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
-                    placeholder="Describe the objective, goals, and expected outcomes..."
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Priority</Label>
-                    <Select value={newObjective.priority} onValueChange={(value: any) => setNewObjective({ ...newObjective, priority: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                    <div>
-                      <Label>Target Date & Time</Label>
-                      <Input
-                        type="datetime-local"
-                        value={newObjective.target_date}
-                        onChange={(e) => setNewObjective({ ...newObjective, target_date: e.target.value })}
-                      />
-                    </div>
-                </div>
-                
-                <Button 
-                  onClick={handleAddObjective} 
-                  className="w-full"
-                  disabled={!newObjective.title}
-                >
-                  Add Strategic Objective
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Priority</label>
+              <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OBJECTIVE_PRIORITIES.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OBJECTIVE_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Description</label>
+            <Textarea
+              placeholder="Describe your strategic objective"
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              rows={3}
+            />
+          </div>
+          
+          <Button onClick={handleSubmit} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Objective
+          </Button>
+        </CardContent>
+      </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Total Objectives
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {objectives.length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-blue-600" />
-              In Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {objectives.filter(o => o.status === 'in_progress').length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="h-4 w-4 text-green-600" />
-              Completed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {objectives.filter(o => o.status === 'completed').length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="h-4 w-4 text-red-600" />
-              Critical Priority
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {objectives.filter(o => o.priority === 'critical').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Strategic Objectives */}
+      {/* Objectives List */}
       <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Strategic Objectives</h2>
         {objectives.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h4 className="text-lg font-semibold mb-2">No Strategic Objectives</h4>
-            <p className="text-muted-foreground mb-4">Start by creating your first strategic objective to guide your business planning.</p>
-            <Dialog open={isAddingObjective} onOpenChange={setIsAddingObjective}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Objective
-                </Button>
-              </DialogTrigger>
-            </Dialog>
+          <Card>
+            <CardContent className="text-center py-8">
+              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Strategic Objectives</h3>
+              <p className="text-muted-foreground">
+                Create your first strategic objective to start tracking your business goals.
+              </p>
+            </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4 group">
+          <div className="space-y-4">
             {objectives.map((objective) => (
               <ObjectiveCard key={objective.id} objective={objective} />
             ))}
