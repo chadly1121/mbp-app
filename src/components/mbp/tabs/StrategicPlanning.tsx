@@ -194,14 +194,10 @@ export const StrategicPlanning = () => {
 
     const handleAddSubItem = (parentItemId: string) => {
       const subItemText = newSubItems[parentItemId];
-      console.log('Adding sub-item:', { parentItemId, subItemText });
       
       if (subItemText?.trim()) {
         const parentItem = objective.checklist?.find(item => item.id === parentItemId);
         const sortOrder = (parentItem?.subitems?.length || 0) + 1;
-        
-        console.log('Parent item found:', parentItem);
-        console.log('Sort order:', sortOrder);
         
         createSubItem({
           parent_item_id: parentItemId,
@@ -210,8 +206,6 @@ export const StrategicPlanning = () => {
         });
         
         setNewSubItems(prev => ({ ...prev, [parentItemId]: '' }));
-      } else {
-        console.log('No sub-item text provided');
       }
     };
 

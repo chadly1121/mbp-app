@@ -1236,7 +1236,7 @@ export type Database = {
             foreignKeyName: "objective_checklist_subitems_parent_item_id_fkey"
             columns: ["parent_item_id"]
             isOneToOne: false
-            referencedRelation: "objective_checklist_items"
+            referencedRelation: "strategic_objective_checklist"
             referencedColumns: ["id"]
           },
         ]
