@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign, TrendingDown } from 'lucide-react';
+import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign, TrendingDown, Edit, Trash2 } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,7 @@ interface FinancialMetric {
 export const GSRDashboard = () => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
-  const { createKPI, creating } = useKPIs();
+  const { updateKPI, updating, createKPI, creating } = useKPIs();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetric>({
@@ -48,6 +48,8 @@ export const GSRDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalFormData, setGoalFormData] = useState({
     name: '',
     description: '',
@@ -165,6 +167,55 @@ export const GSRDashboard = () => {
     });
     setIsAddingGoal(false);
     fetchData(); // Refresh the data
+  };
+
+  const handleEditGoal = (goal: Goal) => {
+    setGoalFormData({
+      name: goal.name,
+      description: '', // Goals from KPIs don't have description in the interface, but we can add it
+      current_value: goal.current_value,
+      target_value: goal.target_value,
+      unit: goal.unit,
+      frequency: goal.frequency
+    });
+    setEditingGoalId(goal.id);
+    setIsEditingGoal(true);
+  };
+
+  const handleUpdateGoal = async () => {
+    if (!editingGoalId) return;
+    
+    await updateKPI({
+      id: editingGoalId,
+      data: {
+        ...goalFormData,
+        frequency: goalFormData.frequency as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+      }
+    });
+    setGoalFormData({
+      name: '',
+      description: '',
+      current_value: 0,
+      target_value: 0,
+      unit: '',
+      frequency: 'monthly'
+    });
+    setIsEditingGoal(false);
+    setEditingGoalId(null);
+    fetchData(); // Refresh the data
+  };
+
+  const handleCancelEdit = () => {
+    setGoalFormData({
+      name: '',
+      description: '',
+      current_value: 0,
+      target_value: 0,
+      unit: '',
+      frequency: 'monthly'
+    });
+    setIsEditingGoal(false);
+    setEditingGoalId(null);
   };
 
   if (loading) {
@@ -342,10 +393,21 @@ export const GSRDashboard = () => {
                   const status = getGoalStatus(goal.current_value, goal.target_value);
                   
                   return (
-                    <div key={goal.id} className="space-y-2">
+                    <div key={goal.id} className="space-y-2 p-3 border rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h4 className="font-medium text-sm">{goal.name}</h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm">{goal.name}</h4>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditGoal(goal)}
+                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                                title="Edit goal"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {goal.current_value.toLocaleString()}{goal.unit} / {goal.target_value.toLocaleString()}{goal.unit}
                           </p>
@@ -459,6 +521,94 @@ export const GSRDashboard = () => {
         onSubmit={handleCreateGoal}
         submitLabel="Create Goal"
         loading={creating}
+        submitDisabled={!goalFormData.name || !goalFormData.target_value}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Goal Name</label>
+            <input
+              type="text"
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={goalFormData.name}
+              onChange={(e) => setGoalFormData({ ...goalFormData, name: e.target.value })}
+              placeholder="e.g., Monthly Revenue"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <textarea
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={goalFormData.description}
+              onChange={(e) => setGoalFormData({ ...goalFormData, description: e.target.value })}
+              placeholder="Describe what this goal measures..."
+              rows={2}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Current Value</label>
+              <input
+                type="number"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.current_value}
+                onChange={(e) => setGoalFormData({ ...goalFormData, current_value: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Target Value</label>
+              <input
+                type="number"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.target_value}
+                onChange={(e) => setGoalFormData({ ...goalFormData, target_value: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Unit</label>
+              <input
+                type="text"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.unit}
+                onChange={(e) => setGoalFormData({ ...goalFormData, unit: e.target.value })}
+                placeholder="$, %, units"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Frequency</label>
+              <select
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.frequency}
+                onChange={(e) => setGoalFormData({ ...goalFormData, frequency: e.target.value })}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Edit Goal Dialog */}
+      <FormDialog
+        open={isEditingGoal}
+        onOpenChange={(open) => {
+          if (!open) handleCancelEdit();
+        }}
+        title="Edit Goal"
+        description="Update your goal settings and progress"
+        onSubmit={handleUpdateGoal}
+        submitLabel="Update Goal"
+        loading={updating}
         submitDisabled={!goalFormData.name || !goalFormData.target_value}
       >
         <div className="space-y-4">
