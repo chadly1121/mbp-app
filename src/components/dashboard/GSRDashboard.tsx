@@ -7,6 +7,8 @@ import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
+import { useKPIs } from '@/hooks/useKPIs';
 
 interface Goal {
   id: string;
@@ -35,6 +37,7 @@ interface FinancialMetric {
 export const GSRDashboard = () => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
+  const { createKPI, creating } = useKPIs();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetric>({
@@ -44,6 +47,15 @@ export const GSRDashboard = () => {
     grossMargin: 0
   });
   const [loading, setLoading] = useState(true);
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [goalFormData, setGoalFormData] = useState({
+    name: '',
+    description: '',
+    current_value: 0,
+    target_value: 0,
+    unit: '',
+    frequency: 'monthly'
+  });
 
   useEffect(() => {
     if (currentCompany) {
@@ -138,6 +150,23 @@ export const GSRDashboard = () => {
     return { label: 'Not Started', color: 'text-gray-600 bg-gray-50' };
   };
 
+  const handleCreateGoal = async () => {
+    await createKPI({
+      ...goalFormData,
+      frequency: goalFormData.frequency as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+    });
+    setGoalFormData({
+      name: '',
+      description: '',
+      current_value: 0,
+      target_value: 0,
+      unit: '',
+      frequency: 'monthly'
+    });
+    setIsAddingGoal(false);
+    fetchData(); // Refresh the data
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading GSR Dashboard...</div>;
   }
@@ -172,11 +201,11 @@ export const GSRDashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast({ title: "Coming Soon", description: "Review scheduling will be available soon!" })}>
             <Clock className="h-4 w-4 mr-2" />
             Schedule Review
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsAddingGoal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Set New Goal
           </Button>
@@ -401,25 +430,111 @@ export const GSRDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => setIsAddingGoal(true)}>
               <Target className="h-6 w-6" />
               <span className="text-xs text-center">Set New Goal</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Progress updates will be available soon!" })}>
               <TrendingUp className="h-6 w-6" />
               <span className="text-xs text-center">Update Progress</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Objective reviews will be available soon!" })}>
               <CheckSquare className="h-6 w-6" />
               <span className="text-xs text-center">Review Objectives</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Review scheduling will be available soon!" })}>
               <Clock className="h-6 w-6" />
               <span className="text-xs text-center">Schedule Review</span>
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Goal Dialog */}
+      <FormDialog
+        open={isAddingGoal}
+        onOpenChange={setIsAddingGoal}
+        title="Set New Goal"
+        description="Create a new goal to track your progress"
+        onSubmit={handleCreateGoal}
+        submitLabel="Create Goal"
+        loading={creating}
+        submitDisabled={!goalFormData.name || !goalFormData.target_value}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Goal Name</label>
+            <input
+              type="text"
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={goalFormData.name}
+              onChange={(e) => setGoalFormData({ ...goalFormData, name: e.target.value })}
+              placeholder="e.g., Monthly Revenue"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <textarea
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={goalFormData.description}
+              onChange={(e) => setGoalFormData({ ...goalFormData, description: e.target.value })}
+              placeholder="Describe what this goal measures..."
+              rows={2}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Current Value</label>
+              <input
+                type="number"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.current_value}
+                onChange={(e) => setGoalFormData({ ...goalFormData, current_value: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Target Value</label>
+              <input
+                type="number"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.target_value}
+                onChange={(e) => setGoalFormData({ ...goalFormData, target_value: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Unit</label>
+              <input
+                type="text"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.unit}
+                onChange={(e) => setGoalFormData({ ...goalFormData, unit: e.target.value })}
+                placeholder="$, %, units"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Frequency</label>
+              <select
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.frequency}
+                onChange={(e) => setGoalFormData({ ...goalFormData, frequency: e.target.value })}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </FormDialog>
     </div>
   );
 };
