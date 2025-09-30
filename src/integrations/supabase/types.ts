@@ -2584,29 +2584,7 @@ export type Database = {
       }
     }
     Views: {
-      current_user_memberships: {
-        Row: {
-          org_id: string | null
-          role: Database["public"]["Enums"]["member_role"] | null
-        }
-        Insert: {
-          org_id?: string | null
-          role?: Database["public"]["Enums"]["member_role"] | null
-        }
-        Update: {
-          org_id?: string | null
-          role?: Database["public"]["Enums"]["member_role"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_members_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       can_access_qbo_connection: {
@@ -2616,6 +2594,13 @@ export type Database = {
       create_default_chart_of_accounts: {
         Args: { company_id_param: string }
         Returns: undefined
+      }
+      get_current_user_memberships: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          org_id: string
+          role: Database["public"]["Enums"]["member_role"]
+        }[]
       }
       get_qbo_connection_status: {
         Args: { p_company_id: string }
