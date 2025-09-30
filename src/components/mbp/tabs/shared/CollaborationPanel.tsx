@@ -160,17 +160,17 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="collaborators" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="collaborators" className="flex items-center gap-2">
+        <Tabs defaultValue="collaborators" className="w-full" onClick={(e) => e.stopPropagation()}>
+          <TabsList className="grid w-full grid-cols-3" onClick={(e) => e.stopPropagation()}>
+            <TabsTrigger value="collaborators" className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Users className="w-4 h-4" />
               Team ({objective.collaborators?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="comments" className="flex items-center gap-2">
+            <TabsTrigger value="comments" className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <MessageSquare className="w-4 h-4" />
               Discussion ({objective.comments?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
+            <TabsTrigger value="activity" className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Activity className="w-4 h-4" />
               Activity ({objective.activity?.length || 0})
             </TabsTrigger>
