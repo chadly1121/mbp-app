@@ -54,6 +54,8 @@ export const StrategicPlanning = () => {
   const [editText, setEditText] = useState('');
   const [editingSubItem, setEditingSubItem] = useState<string | null>(null);
   const [editSubText, setEditSubText] = useState('');
+  const [editingDescription, setEditingDescription] = useState<string | null>(null);
+  const [editDescriptionText, setEditDescriptionText] = useState('');
 
   // Strategic planning hook
   const {
@@ -270,6 +272,27 @@ export const StrategicPlanning = () => {
       setEditSubText('');
     };
 
+    const handleEditDescription = () => {
+      setEditingDescription(objective.id);
+      setEditDescriptionText(objective.description || '');
+    };
+
+    const handleSaveDescription = () => {
+      if (editingDescription && editDescriptionText.trim()) {
+        updateObjective({ 
+          id: editingDescription, 
+          data: { description: editDescriptionText.trim() } 
+        });
+        setEditingDescription(null);
+        setEditDescriptionText('');
+      }
+    };
+
+    const handleCancelDescriptionEdit = () => {
+      setEditingDescription(null);
+      setEditDescriptionText('');
+    };
+
     return (
       <Card key={objective.id} className="mb-4">
         <Collapsible open={isExpanded} onOpenChange={() => toggleObjectiveExpansion(objective.id)}>
@@ -361,10 +384,52 @@ export const StrategicPlanning = () => {
           <CollapsibleContent>
             <CardContent className="pt-0">
               <div className="space-y-4">
-                {isExpanded && objective.description && (
+                {isExpanded && (
                   <div>
-                    <h4 className="font-medium mb-2">Description</h4>
-                    <p className="text-sm text-muted-foreground">{objective.description}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">Description</h4>
+                      {editingDescription !== objective.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleEditDescription}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {editingDescription === objective.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editDescriptionText}
+                          onChange={(e) => setEditDescriptionText(e.target.value)}
+                          placeholder="Describe your strategic objective"
+                          rows={4}
+                          className="w-full"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSaveDescription}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancelDescriptionEdit}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {objective.description || 'No description provided. Click the edit button to add one.'}
+                      </p>
+                    )}
                   </div>
                 )}
 
