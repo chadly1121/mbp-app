@@ -432,7 +432,8 @@ Deno.serve(async (req) => {
       console.log(`QBO Company ID: ${tokenData.qbo_company_id}`)
       console.log(`Date range: ${startDate} to ${endDate}`)
       
-      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}`
+      // Request monthly columns from QBO for proper monthly breakdown
+      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Month`
       console.log('Calling P&L URL:', plUrl)
       
       try {
@@ -444,9 +445,19 @@ Deno.serve(async (req) => {
           console.log('=== SUCCESS! Got P&L data from QBO ===')
           console.log('Response keys:', Object.keys(plData))
           
-          // Parse the REAL QBO P&L response structure (direct format, no QueryResponse wrapper)
-          if (plData.Rows && plData.Rows.Row) {
+          // Parse the REAL QBO P&L response structure with monthly columns
+          if (plData.Rows && plData.Rows.Row && plData.Columns && plData.Columns.Column) {
             console.log(`Processing ${plData.Rows.Row.length} sections from QBO P&L`)
+            
+            // Extract month information from columns
+            // Column 0 is account name, columns 1+ are the month data
+            const monthColumns = plData.Columns.Column.slice(1).map((col: any, idx: number) => ({
+              index: idx + 1,
+              month: idx + 1,  // Month number 1-12
+              title: col.ColTitle || `Month ${idx + 1}`
+            }))
+            
+            console.log(`Found ${monthColumns.length} month columns`)
             
             // Function to recursively process the nested row structure
             const processRows = async (rows: any[], parentGroup = '') => {
@@ -456,60 +467,70 @@ Deno.serve(async (req) => {
                   const sectionName = row.group || parentGroup || 'Unknown'
                   console.log(`Processing section: ${sectionName} with ${row.Rows.Row.length} items`)
                   await processRows(row.Rows.Row, sectionName)
-                } else if (row.type === 'Data' && row.ColData && row.ColData.length >= 2) {
+                } else if (row.type === 'Data' && row.ColData && row.ColData.length > 1) {
                   // This is actual account data
                   const accountName = row.ColData[0]?.value
-                  const amountStr = row.ColData[1]?.value
                   const accountId = row.ColData[0]?.id
                   
-                  if (accountName && amountStr && !accountName.includes('Total')) {
-                    const amount = parseFloat(amountStr.replace(/,/g, ''))
+                  if (accountName && !accountName.includes('Total')) {
+                    // Determine account type based on parent section
+                    let accountType = 'expense'
+                    const lowerGroup = parentGroup.toLowerCase()
                     
-                    if (!isNaN(amount) && Math.abs(amount) > 0) {
-                      // Determine account type based on parent section more precisely
-                      let accountType = 'expense'
-                      const lowerGroup = parentGroup.toLowerCase()
-                      
-                      if (lowerGroup === 'income') {
-                        accountType = 'revenue'  // Main business revenue only
-                      } else if (lowerGroup === 'other income') {
-                        accountType = 'other_income'  // Separate from main revenue
-                      } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
-                        accountType = 'cost_of_goods_sold'
+                    if (lowerGroup === 'income') {
+                      accountType = 'revenue'
+                    } else if (lowerGroup === 'otherincome') {
+                      accountType = 'expense'  // Treat other income as expense reduction
+                    } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
+                      accountType = 'cost_of_goods_sold'
+                    }
+                    
+                    // Process each month column
+                    for (const monthCol of monthColumns) {
+                      const amountStr = row.ColData[monthCol.index]?.value
+                      if (amountStr) {
+                        const amount = parseFloat(amountStr.replace(/,/g, ''))
+                        
+                        if (!isNaN(amount) && Math.abs(amount) > 0.01) {
+                          const month = monthCol.month
+                          const quarter = Math.ceil(month / 3)
+                          
+                          const plEntry = {
+                            company_id: companyId,
+                            account_id: null,
+                            account_name: accountName,
+                            account_type: accountType,
+                            qbo_account_id: accountId,
+                            report_date: `${fiscalYear}-${String(month).padStart(2, '0')}-01`,
+                            fiscal_year: fiscalYear,
+                            fiscal_quarter: quarter,
+                            fiscal_month: month,
+                            current_month: Math.abs(amount),
+                            quarter_to_date: 0,  // Will be calculated separately if needed
+                            year_to_date: 0,     // Will be calculated separately if needed
+                            budget_current_month: 0,
+                            budget_quarter_to_date: 0,
+                            budget_year_to_date: 0,
+                            variance_current_month: Math.abs(amount),
+                            variance_quarter_to_date: 0,
+                            variance_year_to_date: 0
+                          }
+                          
+                          const { error: insertError } = await supabase
+                            .from('qbo_profit_loss')
+                            .insert(plEntry)
+                          
+                          if (!insertError) {
+                            plDataCount++
+                          } else {
+                            console.error(`Error inserting P&L data for ${accountName} month ${month}:`, insertError)
+                          }
+                        }
                       }
-                      
-                      const plEntry = {
-                        company_id: companyId,
-                        account_id: null,
-                        account_name: accountName,
-                        account_type: accountType,
-                        qbo_account_id: accountId,
-                        report_date: endDate,
-                        fiscal_year: fiscalYear,
-                        fiscal_quarter: currentQuarter,
-                        fiscal_month: currentMonth,
-                        current_month: Math.round(amount * 0.083),
-                        quarter_to_date: Math.round(amount * 0.25),
-                        year_to_date: amount,
-                        budget_current_month: 0,
-                        budget_quarter_to_date: 0,
-                        budget_year_to_date: 0,
-                        variance_current_month: Math.round(amount * 0.083),
-                        variance_quarter_to_date: Math.round(amount * 0.25),
-                        variance_year_to_date: amount
-                      }
-                      
-                      console.log(`Inserting REAL P&L data: ${accountName} = $${amount} (${accountType})`)
-                      
-                      const { error: insertError } = await supabase
-                        .from('qbo_profit_loss')
-                        .insert(plEntry)
-                      
-                      if (!insertError) {
-                        plDataCount++
-                      } else {
-                        console.error(`Error inserting P&L data for ${accountName}:`, insertError)
-                      }
+                    }
+                    
+                    if (plDataCount > 0 && plDataCount % 10 === 0) {
+                      console.log(`Processed ${plDataCount} P&L entries so far...`)
                     }
                   }
                 }
