@@ -27,6 +27,7 @@ import { BaseMBPTab } from "../shared/BaseMBPTab";
 import { ErrorHandlingTemplate } from "./shared/ErrorHandlingTemplate";
 import { CountdownTimer } from "./shared/CountdownTimer";
 import { PerformanceGauge } from "./shared/PerformanceGauge";
+import { CollaborationPanel } from "./shared/CollaborationPanel";
 import { useToast } from "@/hooks/use-toast";
 
 export const StrategicPlanning = () => {
@@ -67,7 +68,10 @@ export const StrategicPlanning = () => {
     deleteChecklistItem,
     createSubItem,
     updateSubItem,
-    deleteSubItem
+    deleteSubItem,
+    addCollaborator,
+    removeCollaborator,
+    addComment
   } = useStrategicPlanning();
 
   // Helper functions
@@ -303,7 +307,14 @@ export const StrategicPlanning = () => {
                     )}
                   </div>
                   
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-3 ml-4">
+                    <CollaborationPanel
+                      objective={objective}
+                      onAddCollaborator={(request) => addCollaborator(request)}
+                      onRemoveCollaborator={(collaboratorId) => removeCollaborator(collaboratorId)}
+                      onAddComment={(request) => addComment(request)}
+                    />
+                    
                     <div className="flex flex-col items-end gap-1">
                       <Badge className={getPriorityColor(objective.priority || 'medium')}>
                         {objective.priority || 'medium'}
