@@ -142,7 +142,12 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Users className="w-4 h-4" />
           Collaborate ({(objective.collaborators?.length || 0) + (objective.comments?.length || 0)})
         </Button>
