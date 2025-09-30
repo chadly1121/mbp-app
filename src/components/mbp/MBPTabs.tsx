@@ -5,7 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { FinancialPlanning } from "./tabs/FinancialPlanning";
 import { RevenueForecast } from "./tabs/RevenueForecast";
 import { CashFlowPlanning } from "./tabs/CashFlowPlanning";
-import { KPITracking } from "./tabs/KPITracking";
+
 import { StrategicPlanning } from "./tabs/StrategicPlanning";
 import { ActionItems } from "./tabs/ActionItems";
 import { MonthlyReview } from "./tabs/MonthlyReview";
@@ -60,12 +60,6 @@ export const MBPTabs = () => {
       label: "Cash Flow",
       icon: Banknote,
       shortLabel: "Cash Flow"
-    },
-    {
-      id: "kpis",
-      label: "KPI Tracking",
-      icon: Target,
-      shortLabel: "KPIs"
     },
     {
       id: "strategic",
@@ -192,10 +186,6 @@ export const MBPTabs = () => {
           
           <TabsContent value="cashflow" className="mt-0">
             <CashFlowPlanning />
-          </TabsContent>
-          
-          <TabsContent value="kpis" className="mt-0">
-            <KPITracking />
           </TabsContent>
           
           <TabsContent value="strategic" className="mt-0">

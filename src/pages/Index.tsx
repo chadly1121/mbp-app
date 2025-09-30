@@ -14,6 +14,7 @@ import CompanySetup from "@/components/company/CompanySetup";
 import { MBPTabs } from "@/components/mbp/MBPTabs";
 import { QBOIntegration } from "@/components/integrations/QBOIntegration";
 import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
+import { KPITrackingPage } from "@/components/kpi/KPITrackingPage";
 import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -140,6 +141,8 @@ const Index = () => {
         return <StrategicPlanning />;
       case 'gsr':
         return <GSRDashboard onSectionChange={setActiveSection} />;
+      case 'kpis':
+        return <KPITrackingPage />;
       case 'mbp':
         return <MBPTabs />;
       case 'analytics':
@@ -234,6 +237,7 @@ const Index = () => {
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
                   {activeSection === 'strategic' ? 'Strategic Planning' :
                    activeSection === 'gsr' ? 'Goal Setting & Review' :
+                   activeSection === 'kpis' ? 'KPI Tracking' :
                    activeSection === 'mbp' ? 'Monthly Business Planning' :
                    activeSection === 'dashboard' ? 'Executive Dashboard' :
                    activeSection === 'analytics' ? 'Analytics Overview' :
@@ -243,20 +247,21 @@ const Index = () => {
                    'Dashboard'}
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground">
-                  {activeSection === 'strategic' ? 'Define and track your strategic objectives and initiatives' :
-                   activeSection === 'gsr' ? 'Set goals, track progress, and conduct regular performance reviews' :
-                   activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
-                   activeSection === 'dashboard' ? 'Your business performance at a glance' :
-                   activeSection === 'analytics' ? 'Detailed analytics and insights' :
-                   activeSection === 'growth' ? 'Track your growth goals and KPIs' :
-                   activeSection === 'integrations' ? 'Connect and sync with external accounting software' :
-                   activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
-                   'Business insights and metrics'}
+                   {activeSection === 'strategic' ? 'Define and track your strategic objectives and initiatives' :
+                    activeSection === 'gsr' ? 'Set goals, track progress, and conduct regular performance reviews' :
+                    activeSection === 'kpis' ? 'Track and monitor key performance indicators' :
+                    activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
+                    activeSection === 'dashboard' ? 'Your business performance at a glance' :
+                    activeSection === 'analytics' ? 'Detailed analytics and insights' :
+                    activeSection === 'growth' ? 'Track your growth goals and KPIs' :
+                    activeSection === 'integrations' ? 'Connect and sync with external accounting software' :
+                    activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
+                    'Business insights and metrics'}
                 </p>
               </div>
 
               {/* Filter Bar - Hide on mobile for MBP and Strategic sections */}
-              {!['mbp', 'strategic', 'gsr'].includes(activeSection) && !isMobile && <FilterBar onFilterChange={() => {}} />}
+              {!['mbp', 'strategic', 'gsr', 'kpis'].includes(activeSection) && !isMobile && <FilterBar onFilterChange={() => {}} />}
               
               {/* Content */}
               {renderContent()}
