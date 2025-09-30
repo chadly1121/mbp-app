@@ -32,7 +32,7 @@ const RevenueChart = () => {
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
-          .eq('account_type', 'Income')
+          .eq('account_type', 'revenue')
           .order('fiscal_month');
 
         // Fetch previous year data
@@ -41,7 +41,7 @@ const RevenueChart = () => {
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', previousYear)
-          .eq('account_type', 'Income')
+          .eq('account_type', 'revenue')
           .order('fiscal_month');
 
         // Fetch forecasted targets
