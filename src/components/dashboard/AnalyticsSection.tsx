@@ -35,7 +35,7 @@ const AnalyticsSection = () => {
           .select('account_name, year_to_date, account_type')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', new Date().getFullYear())
-          .eq('account_type', 'Income')
+          .eq('account_type', 'revenue')
           .gt('year_to_date', 0);
 
         // Fetch monthly trends for bar chart
@@ -55,10 +55,10 @@ const AnalyticsSection = () => {
         for (let i = 1; i <= 12; i++) {
           const monthData = monthlyTrends?.filter(d => d.fiscal_month === i) || [];
           const revenue = monthData
-            .filter(d => d.account_type === 'Income')
+            .filter(d => d.account_type === 'revenue')
             .reduce((sum, d) => sum + (d.current_month || 0), 0);
           const expenses = monthData
-            .filter(d => d.account_type === 'Expense')
+            .filter(d => d.account_type === 'expense' || d.account_type === 'cost_of_goods_sold')
             .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
           
           processedMonthly.push({

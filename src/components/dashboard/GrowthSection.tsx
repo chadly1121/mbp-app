@@ -35,7 +35,7 @@ const GrowthSection = () => {
           .select('year_to_date')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
-          .eq('account_type', 'Income');
+          .eq('account_type', 'revenue');
 
         // Fetch previous year revenue
         const { data: previousYearData } = await supabase
@@ -43,7 +43,7 @@ const GrowthSection = () => {
           .select('year_to_date')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', previousYear)
-          .eq('account_type', 'Income');
+          .eq('account_type', 'revenue');
 
         // Fetch customer count from sales pipeline
         const { data: customers } = await supabase
