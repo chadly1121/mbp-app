@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign, TrendingDown, Edit, Trash2 } from 'lucide-react';
+import { Target, TrendingUp, CheckSquare, Clock, AlertTriangle, Plus, DollarSign, TrendingDown, Edit, Trash2, Calendar } from 'lucide-react';
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
 import { useKPIs } from '@/hooks/useKPIs';
+import { useNavigate } from 'react-router-dom';
 
 interface Goal {
   id: string;
@@ -38,6 +39,7 @@ export const GSRDashboard = () => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const { updateKPI, updating, createKPI, creating } = useKPIs();
+  const navigate = useNavigate();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetric>({
@@ -50,6 +52,9 @@ export const GSRDashboard = () => {
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [isSchedulingReview, setIsSchedulingReview] = useState(false);
+  const [selectedGoalForUpdate, setSelectedGoalForUpdate] = useState<Goal | null>(null);
   const [goalFormData, setGoalFormData] = useState({
     name: '',
     description: '',
@@ -57,6 +62,11 @@ export const GSRDashboard = () => {
     target_value: 0,
     unit: '',
     frequency: 'monthly'
+  });
+  const [reviewScheduleData, setReviewScheduleData] = useState({
+    review_date: '',
+    review_type: 'weekly',
+    notes: ''
   });
 
   useEffect(() => {
@@ -218,6 +228,92 @@ export const GSRDashboard = () => {
     setEditingGoalId(null);
   };
 
+  const handleUpdateProgress = (goal?: Goal) => {
+    if (goal) {
+      setSelectedGoalForUpdate(goal);
+      setGoalFormData({
+        name: goal.name,
+        description: '',
+        current_value: goal.current_value,
+        target_value: goal.target_value,
+        unit: goal.unit,
+        frequency: goal.frequency
+      });
+    }
+    setIsUpdatingProgress(true);
+  };
+
+  const handleProgressUpdate = async () => {
+    if (!selectedGoalForUpdate) return;
+    
+    await updateKPI({
+      id: selectedGoalForUpdate.id,
+      data: {
+        current_value: goalFormData.current_value
+      }
+    });
+    
+    setIsUpdatingProgress(false);
+    setSelectedGoalForUpdate(null);
+    setGoalFormData({
+      name: '',
+      description: '',
+      current_value: 0,
+      target_value: 0,
+      unit: '',
+      frequency: 'monthly'
+    });
+    fetchData();
+    toast({
+      title: "Progress Updated",
+      description: "Goal progress has been successfully updated.",
+    });
+  };
+
+  const handleReviewObjectives = () => {
+    // Navigate to Strategic Planning page
+    navigate('/mbp-dashboard?tab=strategic-planning');
+  };
+
+  const handleScheduleReview = async () => {
+    if (!currentCompany || !reviewScheduleData.review_date) return;
+
+    try {
+      // Create a review reminder/action item
+      const { error } = await supabase
+        .from('action_items')
+        .insert({
+          company_id: currentCompany.id,
+          title: `${reviewScheduleData.review_type.charAt(0).toUpperCase() + reviewScheduleData.review_type.slice(1)} GSR Review`,
+          description: reviewScheduleData.notes || `Scheduled ${reviewScheduleData.review_type} review of goals and objectives`,
+          category: 'Review',
+          due_date: reviewScheduleData.review_date,
+          priority: 'medium',
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      setIsSchedulingReview(false);
+      setReviewScheduleData({
+        review_date: '',
+        review_type: 'weekly',
+        notes: ''
+      });
+      
+      toast({
+        title: "Review Scheduled",
+        description: "Your review has been scheduled and added to action items.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error scheduling review",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading GSR Dashboard...</div>;
   }
@@ -252,7 +348,7 @@ export const GSRDashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => toast({ title: "Coming Soon", description: "Review scheduling will be available soon!" })}>
+          <Button variant="outline" size="sm" onClick={() => setIsSchedulingReview(true)}>
             <Clock className="h-4 w-4 mr-2" />
             Schedule Review
           </Button>
@@ -400,6 +496,13 @@ export const GSRDashboard = () => {
                             <h4 className="font-medium text-sm">{goal.name}</h4>
                             <div className="flex items-center gap-1">
                               <button
+                                onClick={() => handleUpdateProgress(goal)}
+                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                                title="Update progress"
+                              >
+                                <TrendingUp className="h-3 w-3" />
+                              </button>
+                              <button
                                 onClick={() => handleEditGoal(goal)}
                                 className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
                                 title="Edit goal"
@@ -496,15 +599,15 @@ export const GSRDashboard = () => {
               <Target className="h-6 w-6" />
               <span className="text-xs text-center">Set New Goal</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Progress updates will be available soon!" })}>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => handleUpdateProgress()}>
               <TrendingUp className="h-6 w-6" />
               <span className="text-xs text-center">Update Progress</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Objective reviews will be available soon!" })}>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={handleReviewObjectives}>
               <CheckSquare className="h-6 w-6" />
               <span className="text-xs text-center">Review Objectives</span>
             </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => toast({ title: "Coming Soon", description: "Review scheduling will be available soon!" })}>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2" onClick={() => setIsSchedulingReview(true)}>
               <Clock className="h-6 w-6" />
               <span className="text-xs text-center">Schedule Review</span>
             </Button>
@@ -682,6 +785,148 @@ export const GSRDashboard = () => {
                 <option value="yearly">Yearly</option>
               </select>
             </div>
+          </div>
+        </div>
+      </FormDialog>
+
+      {/* Update Progress Dialog */}
+      <FormDialog
+        open={isUpdatingProgress}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsUpdatingProgress(false);
+            setSelectedGoalForUpdate(null);
+          }
+        }}
+        title="Update Progress"
+        description={selectedGoalForUpdate ? `Update current progress for ${selectedGoalForUpdate.name}` : "Update goal progress"}
+        onSubmit={handleProgressUpdate}
+        submitLabel="Update Progress"
+        loading={updating}
+        submitDisabled={!selectedGoalForUpdate}
+      >
+        {selectedGoalForUpdate && (
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <h4 className="font-medium text-sm mb-1">{selectedGoalForUpdate.name}</h4>
+              <p className="text-xs text-muted-foreground">
+                Target: {selectedGoalForUpdate.target_value.toLocaleString()}{selectedGoalForUpdate.unit}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Current Value</label>
+              <input
+                type="number"
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                value={goalFormData.current_value}
+                onChange={(e) => setGoalFormData({ ...goalFormData, current_value: Number(e.target.value) })}
+                placeholder="Enter current progress"
+              />
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              Progress: {selectedGoalForUpdate.target_value > 0 
+                ? Math.min((goalFormData.current_value / selectedGoalForUpdate.target_value) * 100, 100).toFixed(1)
+                : 0}%
+            </div>
+          </div>
+        )}
+        
+        {!selectedGoalForUpdate && goals.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Select a goal to update:</p>
+            {goals.map((goal) => (
+              <Button
+                key={goal.id}
+                variant="outline"
+                className="w-full justify-start text-left h-auto p-3"
+                onClick={() => handleUpdateProgress(goal)}
+              >
+                <div>
+                  <div className="font-medium text-sm">{goal.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {goal.current_value.toLocaleString()}{goal.unit} / {goal.target_value.toLocaleString()}{goal.unit}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+        )}
+        
+        {goals.length === 0 && (
+          <div className="text-center py-6 text-muted-foreground">
+            <Target className="h-8 w-8 mx-auto mb-2" />
+            <p>No goals available to update</p>
+          </div>
+        )}
+      </FormDialog>
+
+      {/* Schedule Review Dialog */}
+      <FormDialog
+        open={isSchedulingReview}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsSchedulingReview(false);
+            setReviewScheduleData({
+              review_date: '',
+              review_type: 'weekly',
+              notes: ''
+            });
+          }
+        }}
+        title="Schedule Review"
+        description="Schedule a regular review of your goals and objectives"
+        onSubmit={handleScheduleReview}
+        submitLabel="Schedule Review"
+        loading={false}
+        submitDisabled={!reviewScheduleData.review_date}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Review Date</label>
+            <input
+              type="date"
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={reviewScheduleData.review_date}
+              onChange={(e) => setReviewScheduleData({ ...reviewScheduleData, review_date: e.target.value })}
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Review Type</label>
+            <select
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={reviewScheduleData.review_type}
+              onChange={(e) => setReviewScheduleData({ ...reviewScheduleData, review_type: e.target.value })}
+            >
+              <option value="weekly">Weekly Review</option>
+              <option value="monthly">Monthly Review</option>
+              <option value="quarterly">Quarterly Review</option>
+              <option value="annual">Annual Review</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Notes (Optional)</label>
+            <textarea
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={reviewScheduleData.notes}
+              onChange={(e) => setReviewScheduleData({ ...reviewScheduleData, notes: e.target.value })}
+              placeholder="Add any specific focus areas or notes for this review..."
+              rows={3}
+            />
+          </div>
+          
+          <div className="p-3 bg-blue-50 rounded-lg text-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-900">Review Details</span>
+            </div>
+            <p className="text-blue-700">
+              This will create an action item to remind you of your scheduled review on {reviewScheduleData.review_date || '[select date]'}.
+            </p>
           </div>
         </div>
       </FormDialog>
