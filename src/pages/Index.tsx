@@ -139,7 +139,7 @@ const Index = () => {
       case 'strategic':
         return <StrategicPlanning />;
       case 'gsr':
-        return <GSRDashboard />;
+        return <GSRDashboard onSectionChange={setActiveSection} />;
       case 'mbp':
         return <MBPTabs />;
       case 'analytics':

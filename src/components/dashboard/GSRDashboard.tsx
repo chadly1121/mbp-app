@@ -35,7 +35,11 @@ interface FinancialMetric {
   grossMargin: number;
 }
 
-export const GSRDashboard = () => {
+interface GSRDashboardProps {
+  onSectionChange?: (section: string) => void;
+}
+
+export const GSRDashboard = ({ onSectionChange }: GSRDashboardProps = {}) => {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const { updateKPI, updating, createKPI, creating } = useKPIs();
@@ -271,8 +275,14 @@ export const GSRDashboard = () => {
   };
 
   const handleReviewObjectives = () => {
-    // Navigate to Strategic Planning page
-    navigate('/mbp-dashboard?tab=strategic-planning');
+    if (onSectionChange) {
+      onSectionChange('strategic');
+    } else {
+      toast({
+        title: "Strategic Planning",
+        description: "Navigate to Strategic Planning section in the sidebar to review objectives.",
+      });
+    }
   };
 
   const handleScheduleReview = async () => {
