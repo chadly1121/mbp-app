@@ -45,14 +45,16 @@ export const FormDialog: React.FC<FormDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {children}
-          <div className="flex justify-end gap-2 pt-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 space-y-4 pr-2">
+            {children}
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t mt-4">
             <Button
               type="button"
               variant="outline"
