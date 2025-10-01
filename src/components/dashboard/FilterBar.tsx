@@ -2,20 +2,28 @@ import { Calendar, Filter, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-
 import { FilterOption } from '@/types/common';
 
-interface FilterBarProps {
-  onFilterChange: (filters: Record<string, unknown>) => void;
+export interface DateRangeFilter {
+  dateRange: '7days' | '30days' | '90days' | '1year' | 'ytd';
+  category: 'all' | 'revenue' | 'customers' | 'products';
 }
 
-const FilterBar = ({ onFilterChange }: FilterBarProps) => {
+interface FilterBarProps {
+  onFilterChange: (filters: DateRangeFilter) => void;
+  currentFilters: DateRangeFilter;
+}
+
+const FilterBar = ({ onFilterChange, currentFilters }: FilterBarProps) => {
   return (
     <Card className="p-4 mb-6 bg-gradient-card">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Select defaultValue="30days">
+          <Select 
+            value={currentFilters.dateRange}
+            onValueChange={(value) => onFilterChange({ ...currentFilters, dateRange: value as DateRangeFilter['dateRange'] })}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Time Period" />
             </SelectTrigger>
@@ -24,13 +32,17 @@ const FilterBar = ({ onFilterChange }: FilterBarProps) => {
               <SelectItem value="30days">Last 30 days</SelectItem>
               <SelectItem value="90days">Last 90 days</SelectItem>
               <SelectItem value="1year">Last year</SelectItem>
+              <SelectItem value="ytd">Year to Date</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select defaultValue="all">
+          <Select 
+            value={currentFilters.category}
+            onValueChange={(value) => onFilterChange({ ...currentFilters, category: value as DateRangeFilter['category'] })}
+          >
             <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
@@ -44,7 +56,7 @@ const FilterBar = ({ onFilterChange }: FilterBarProps) => {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

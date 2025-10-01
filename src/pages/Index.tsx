@@ -7,7 +7,7 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import SalesPipeline from "@/components/dashboard/SalesPipeline";
 import AppSidebar from "@/components/dashboard/Sidebar";
-import FilterBar from "@/components/dashboard/FilterBar";
+import FilterBar, { DateRangeFilter } from "@/components/dashboard/FilterBar";
 import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
@@ -27,6 +27,10 @@ const Index = () => {
   const { signOut, user } = useAuth();
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
+  const [dateFilters, setDateFilters] = useState<DateRangeFilter>({
+    dateRange: 'ytd',
+    category: 'all'
+  });
   const [dashboardMetrics, setDashboardMetrics] = useState({
     totalRevenue: 0,
     growthRate: 0,
@@ -34,31 +38,94 @@ const Index = () => {
     conversionRate: 0,
   });
 
-  // Fetch real dashboard metrics
+  // Calculate date range based on filter
+  const getDateRange = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    switch (dateFilters.dateRange) {
+      case '7days':
+        return {
+          startMonth: currentMonth,
+          endMonth: currentMonth,
+          year: currentYear,
+          days: 7
+        };
+      case '30days':
+        return {
+          startMonth: currentMonth,
+          endMonth: currentMonth,
+          year: currentYear,
+          days: 30
+        };
+      case '90days':
+        const threeMonthsAgo = currentMonth - 2;
+        return {
+          startMonth: threeMonthsAgo > 0 ? threeMonthsAgo : 1,
+          endMonth: currentMonth,
+          year: currentYear,
+          days: 90
+        };
+      case '1year':
+        return {
+          startMonth: 1,
+          endMonth: 12,
+          year: currentYear - 1,
+          days: 365
+        };
+      case 'ytd':
+      default:
+        return {
+          startMonth: 1,
+          endMonth: currentMonth,
+          year: currentYear,
+          days: null
+        };
+    }
+  };
+
+  // Fetch real dashboard metrics with date filtering
   useEffect(() => {
     if (!currentCompany?.id) return;
 
     const fetchDashboardMetrics = async () => {
       try {
+        const dateRange = getDateRange();
         const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth() + 1;
         const previousYear = currentYear - 1;
 
-        // Fetch current year revenue (YTD)
-        const { data: currentRevData } = await supabase
+        // Build query based on date range
+        let currentQuery = supabase
           .from('qbo_profit_loss')
-          .select('current_month')
+          .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', currentYear)
+          .eq('fiscal_year', dateRange.year)
           .eq('account_type', 'revenue');
 
-        // Fetch previous year revenue for growth calculation
-        const { data: previousRevData } = await supabase
+        if (dateRange.startMonth && dateRange.endMonth) {
+          currentQuery = currentQuery
+            .gte('fiscal_month', dateRange.startMonth)
+            .lte('fiscal_month', dateRange.endMonth);
+        }
+
+        const { data: currentRevData } = await currentQuery;
+
+        // Fetch comparison data (previous period)
+        let previousQuery = supabase
           .from('qbo_profit_loss')
-          .select('current_month')
+          .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', previousYear)
+          .eq('fiscal_year', dateRange.year === currentYear ? previousYear : dateRange.year - 1)
           .eq('account_type', 'revenue');
+
+        if (dateRange.startMonth && dateRange.endMonth) {
+          previousQuery = previousQuery
+            .gte('fiscal_month', dateRange.startMonth)
+            .lte('fiscal_month', dateRange.endMonth);
+        }
+
+        const { data: previousRevData } = await previousQuery;
 
         // Fetch customer count
         const { data: customers } = await supabase
@@ -75,7 +142,7 @@ const Index = () => {
           totalRevenue: currentRevenue,
           growthRate,
           activeCustomers: uniqueCustomers.length,
-          conversionRate: 3.2, // This would need to be calculated from actual conversion data
+          conversionRate: 3.2,
         });
       } catch (error) {
         console.error('Error fetching dashboard metrics:', error);
@@ -83,7 +150,7 @@ const Index = () => {
     };
 
     fetchDashboardMetrics();
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, dateFilters.dateRange]);
 
   // Handle collaboration invite acceptance
   useEffect(() => {
@@ -326,7 +393,12 @@ const Index = () => {
               </div>
 
               {/* Filter Bar - Hide on mobile for MBP and Strategic sections */}
-              {!['mbp', 'strategic', 'gsr', 'kpis'].includes(activeSection) && !isMobile && <FilterBar onFilterChange={() => {}} />}
+              {!['mbp', 'strategic', 'gsr', 'kpis'].includes(activeSection) && !isMobile && (
+                <FilterBar 
+                  onFilterChange={setDateFilters} 
+                  currentFilters={dateFilters}
+                />
+              )}
               
               {/* Content */}
               {renderContent()}
