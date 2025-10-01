@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { FilterOption } from '@/types/common';
 
 export interface DateRangeFilter {
-  dateRange: '7days' | '30days' | '90days' | '1year' | 'ytd';
+  dateRange: '7days' | 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'thisYear' | '30days' | '90days' | '1year' | 'ytd';
   category: 'all' | 'revenue' | 'customers' | 'products';
 }
 
@@ -28,10 +28,11 @@ const FilterBar = ({ onFilterChange, currentFilters }: FilterBarProps) => {
               <SelectValue placeholder="Time Period" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7days">Last 7 days</SelectItem>
-              <SelectItem value="30days">Last 30 days</SelectItem>
-              <SelectItem value="90days">Last 90 days</SelectItem>
-              <SelectItem value="1year">Last year</SelectItem>
+              <SelectItem value="7days">Last 7 Days</SelectItem>
+              <SelectItem value="thisMonth">This Month</SelectItem>
+              <SelectItem value="lastMonth">Last Month</SelectItem>
+              <SelectItem value="thisQuarter">This Quarter</SelectItem>
+              <SelectItem value="thisYear">This Year</SelectItem>
               <SelectItem value="ytd">Year to Date</SelectItem>
             </SelectContent>
           </Select>

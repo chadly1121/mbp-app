@@ -43,45 +43,72 @@ const Index = () => {
   const getDateRange = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate();
     
     switch (dateFilters.dateRange) {
       case '7days':
+        // Last 7 days - use current month
         return {
           startMonth: currentMonth,
           endMonth: currentMonth,
           year: currentYear,
-          days: 7
+          startDay: Math.max(1, currentDay - 7),
+          endDay: currentDay
         };
-      case '30days':
+      
+      case 'thisMonth':
+        // Current month only
         return {
           startMonth: currentMonth,
           endMonth: currentMonth,
           year: currentYear,
-          days: 30
+          startDay: 1,
+          endDay: currentDay
         };
-      case '90days':
-        const threeMonthsAgo = currentMonth - 2;
+      
+      case 'lastMonth':
+        // Previous month
+        const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
         return {
-          startMonth: threeMonthsAgo > 0 ? threeMonthsAgo : 1,
+          startMonth: lastMonth,
+          endMonth: lastMonth,
+          year: lastMonthYear,
+          startDay: 1,
+          endDay: new Date(lastMonthYear, lastMonth, 0).getDate() // Last day of that month
+        };
+      
+      case 'thisQuarter':
+        // Current quarter (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)
+        const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3 + 1;
+        return {
+          startMonth: quarterStartMonth,
           endMonth: currentMonth,
           year: currentYear,
-          days: 90
+          startDay: 1,
+          endDay: currentDay
         };
-      case '1year':
+      
+      case 'thisYear':
+        // Full current year
         return {
           startMonth: 1,
           endMonth: 12,
-          year: currentYear - 1,
-          days: 365
+          year: currentYear,
+          startDay: 1,
+          endDay: 31
         };
+      
       case 'ytd':
       default:
+        // Year to date
         return {
           startMonth: 1,
           endMonth: currentMonth,
           year: currentYear,
-          days: null
+          startDay: 1,
+          endDay: currentDay
         };
     }
   };
@@ -271,9 +298,9 @@ const Index = () => {
       case 'mbp':
         return <MBPTabs />;
       case 'analytics':
-        return <AnalyticsSection />;
+        return <AnalyticsSection dateFilters={getDateRange()} />;
       case 'growth':
-        return <GrowthSection />;
+        return <GrowthSection dateFilters={getDateRange()} />;
       case 'integrations':
         return (
           <div className="space-y-6">
@@ -283,7 +310,7 @@ const Index = () => {
       case 'revenue':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <RevenueChart />
+            <RevenueChart dateFilters={getDateRange()} />
             <SalesPipeline />
           </div>
         );
@@ -332,7 +359,7 @@ const Index = () => {
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              <RevenueChart />
+              <RevenueChart dateFilters={getDateRange()} />
               <SalesPipeline />
             </div>
           </>

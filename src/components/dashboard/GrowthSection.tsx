@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 
 interface GrowthMetrics {
   currentYearRevenue: number;
@@ -16,7 +15,7 @@ interface GrowthMetrics {
   growthRate: number;
 }
 
-const GrowthSection = () => {
+const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
   const { currentCompany } = useCompany();
   const [metrics, setMetrics] = useState<GrowthMetrics | null>(null);
   const [goals, setGoals] = useState<any[]>([]);
@@ -27,24 +26,30 @@ const GrowthSection = () => {
 
     const fetchGrowthMetrics = async () => {
       try {
-        const currentYear = new Date().getFullYear();
+        const currentYear = dateFilters?.year || new Date().getFullYear();
         const previousYear = currentYear - 1;
+        const startMonth = dateFilters?.startMonth || 1;
+        const endMonth = dateFilters?.endMonth || 12;
 
-        // Fetch current year revenue
+        // Fetch current period revenue
         const { data: currentYearData } = await supabase
           .from('qbo_profit_loss')
-          .select('year_to_date')
+          .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
-          .eq('account_type', 'revenue');
+          .eq('account_type', 'revenue')
+          .gte('fiscal_month', startMonth)
+          .lte('fiscal_month', endMonth);
 
-        // Fetch previous year revenue
+        // Fetch previous period revenue
         const { data: previousYearData } = await supabase
           .from('qbo_profit_loss')
-          .select('year_to_date')
+          .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', previousYear)
-          .eq('account_type', 'revenue');
+          .eq('account_type', 'revenue')
+          .gte('fiscal_month', startMonth)
+          .lte('fiscal_month', endMonth);
 
         // Fetch customer count from sales pipeline
         const { data: customers } = await supabase
@@ -59,8 +64,8 @@ const GrowthSection = () => {
           .eq('company_id', currentCompany.id)
           .eq('is_active', true);
 
-        const currentRevenue = currentYearData?.reduce((sum, item) => sum + Math.abs(item.year_to_date || 0), 0) || 0;
-        const previousRevenue = previousYearData?.reduce((sum, item) => sum + Math.abs(item.year_to_date || 0), 0) || 0;
+        const currentRevenue = currentYearData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
+        const previousRevenue = previousYearData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
         const growthRate = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
         
         const uniqueCustomers = [...new Set(customers?.map(c => c.client_name).filter(Boolean))];
@@ -92,7 +97,7 @@ const GrowthSection = () => {
     };
 
     fetchGrowthMetrics();
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, dateFilters]);
 
   if (loading) {
     return (

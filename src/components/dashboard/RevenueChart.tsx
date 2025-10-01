@@ -12,7 +12,7 @@ interface MonthlyRevenue {
   target: number;
 }
 
-const RevenueChart = () => {
+const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
   const { currentCompany } = useCompany();
   const [revenueData, setRevenueData] = useState<MonthlyRevenue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ const RevenueChart = () => {
 
     const fetchRevenueData = async () => {
       try {
-        const currentYear = new Date().getFullYear();
+        const currentYear = dateFilters?.year || new Date().getFullYear();
         const previousYear = currentYear - 1;
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -54,7 +54,11 @@ const RevenueChart = () => {
 
         const processedData: MonthlyRevenue[] = [];
 
-        for (let i = 1; i <= 12; i++) {
+        // Determine which months to display based on date filters
+        const startMonth = dateFilters?.startMonth || 1;
+        const endMonth = dateFilters?.endMonth || 12;
+
+        for (let i = startMonth; i <= endMonth; i++) {
           const currentMonthData = currentYearData?.filter(d => d.fiscal_month === i) || [];
           const previousMonthData = previousYearData?.filter(d => d.fiscal_month === i) || [];
           const forecastMonth = forecastData?.find(d => d.month === i);
@@ -81,7 +85,7 @@ const RevenueChart = () => {
     };
 
     fetchRevenueData();
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, dateFilters]);
 
   if (loading) {
     return (
