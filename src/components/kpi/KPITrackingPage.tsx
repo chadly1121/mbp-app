@@ -3,7 +3,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw, Pencil, Trash2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +37,136 @@ import { KPIFormData, getKPIStatus, getProgressPercentage, QBO_METRIC_LABELS, QB
 import { useCompany } from '@/hooks/useCompany';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
+// Sortable KPI Card Component
+interface SortableKPICardProps {
+  kpi: KPI;
+  onEdit: (kpi: KPI) => void;
+  onDelete: (id: string) => void;
+  getStatusColor: (current: number, target: number) => string;
+  getStatusIcon: (current: number, target: number) => any;
+  getTrendIcon: (current: number, target: number) => any;
+  getFrequencyLabel: (frequency: string) => string;
+}
+
+const SortableKPICard = ({
+  kpi,
+  onEdit,
+  onDelete,
+  getStatusColor,
+  getStatusIcon,
+  getTrendIcon,
+  getFrequencyLabel,
+}: SortableKPICardProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: kpi.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const progress = getProgressPercentage(kpi.current_value, kpi.target_value);
+  const statusColor = getStatusColor(kpi.current_value, kpi.target_value);
+  const StatusIcon = getStatusIcon(kpi.current_value, kpi.target_value);
+  const TrendIcon = getTrendIcon(kpi.current_value, kpi.target_value);
+
+  return (
+    <Card ref={setNodeRef} style={style} className="relative">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-2 flex-1">
+            <button
+              className="cursor-grab active:cursor-grabbing mt-1 text-muted-foreground hover:text-foreground"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
+            <div className="flex-1">
+              <CardTitle className="text-base">{kpi.name}</CardTitle>
+              {kpi.description && (
+                <CardDescription className="mt-1">
+                  {kpi.description}
+                </CardDescription>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 ml-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onEdit(kpi)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => onDelete(kpi.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <TrendIcon className="h-4 w-4 text-muted-foreground ml-1" />
+            <StatusIcon className={`h-4 w-4 ${statusColor.split(' ')[0]}`} />
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span>Progress</span>
+            <span>{progress.toFixed(1)}%</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-2xl font-bold">
+              {kpi.current_value.toLocaleString()}{kpi.unit}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              of {kpi.target_value.toLocaleString()}{kpi.unit} {kpi.frequency} target
+            </div>
+            {kpi.data_source === 'qbo' && (
+              <div className="text-xs text-blue-600 mt-1">
+                {getFrequencyLabel(kpi.frequency)} from QuickBooks
+              </div>
+            )}
+          </div>
+          <Badge className={statusColor}>
+            {getKPIStatus(kpi.current_value, kpi.target_value)}
+          </Badge>
+        </div>
+        
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="capitalize">{kpi.frequency} Goal</span>
+          {kpi.data_source === 'qbo' && (
+            <Badge variant="outline" className="text-xs">
+              QBO Auto-sync
+            </Badge>
+          )}
+        </div>
+        {kpi.last_synced_at && (
+          <div className="text-xs text-muted-foreground">
+            Last synced: {new Date(kpi.last_synced_at).toLocaleString()}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 export const KPITrackingPage = () => {
   const {
@@ -156,6 +303,52 @@ export const KPITrackingPage = () => {
     }
   };
 
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = kpis.findIndex((kpi) => kpi.id === active.id);
+    const newIndex = kpis.findIndex((kpi) => kpi.id === over.id);
+
+    // Update the order locally first
+    const newKpis = arrayMove(kpis, oldIndex, newIndex);
+
+    // Update display_order for all affected KPIs
+    try {
+      const updates = newKpis.map((kpi, index) => ({
+        id: kpi.id,
+        display_order: index,
+      }));
+
+      // Batch update all KPIs
+      for (const update of updates) {
+        await supabase
+          .from('kpis')
+          .update({ display_order: update.display_order })
+          .eq('id', update.id);
+      }
+
+      // Refetch to get the latest data
+      refetch();
+    } catch (error) {
+      console.error('Error updating KPI order:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update KPI order',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleSyncKPIs = async () => {
     if (!currentCompany?.id) return;
     
@@ -283,94 +476,28 @@ export const KPITrackingPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {kpis.map((kpi) => {
-            const progress = getProgressPercentage(kpi.current_value, kpi.target_value);
-            const statusColor = getStatusColor(kpi.current_value, kpi.target_value);
-            const StatusIcon = getStatusIcon(kpi.current_value, kpi.target_value);
-            const TrendIcon = getTrendIcon(kpi.current_value, kpi.target_value);
-            
-            return (
-              <Card key={kpi.id} className="relative">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-base">{kpi.name}</CardTitle>
-                      {kpi.description && (
-                        <CardDescription className="mt-1">
-                          {kpi.description}
-                        </CardDescription>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(kpi)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteConfirmId(kpi.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <TrendIcon className="h-4 w-4 text-muted-foreground ml-1" />
-                      <StatusIcon className={`h-4 w-4 ${statusColor.split(' ')[0]}`} />
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{progress.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold">
-                        {kpi.current_value.toLocaleString()}{kpi.unit}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        of {kpi.target_value.toLocaleString()}{kpi.unit} {kpi.frequency} target
-                      </div>
-                      {kpi.data_source === 'qbo' && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          {getFrequencyLabel(kpi.frequency)} from QuickBooks
-                        </div>
-                      )}
-                    </div>
-                    <Badge className={statusColor}>
-                      {getKPIStatus(kpi.current_value, kpi.target_value)}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="capitalize">{kpi.frequency} Goal</span>
-                    {kpi.data_source === 'qbo' && (
-                      <Badge variant="outline" className="text-xs">
-                        QBO Auto-sync
-                      </Badge>
-                    )}
-                  </div>
-                  {kpi.last_synced_at && (
-                    <div className="text-xs text-muted-foreground">
-                      Last synced: {new Date(kpi.last_synced_at).toLocaleString()}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={kpis.map((kpi) => kpi.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {kpis.map((kpi) => (
+                <SortableKPICard
+                  key={kpi.id}
+                  kpi={kpi}
+                  onEdit={handleEdit}
+                  onDelete={setDeleteConfirmId}
+                  getStatusColor={getStatusColor}
+                  getStatusIcon={getStatusIcon}
+                  getTrendIcon={getTrendIcon}
+                  getFrequencyLabel={getFrequencyLabel}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Add/Edit KPI Dialog */}

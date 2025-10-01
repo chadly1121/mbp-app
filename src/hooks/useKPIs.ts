@@ -26,6 +26,7 @@ export const useKPIs = () => {
         .select('*')
         .eq('company_id', currentCompany.id)
         .eq('is_active', true)
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;

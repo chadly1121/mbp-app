@@ -25,6 +25,7 @@ export interface KPI {
   qbo_account_filter?: string | null;
   auto_sync?: boolean;
   last_synced_at?: string | null;
+  display_order?: number | null;
 }
 
 export interface CreateKPIRequest {

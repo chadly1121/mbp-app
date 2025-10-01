@@ -736,6 +736,7 @@ export type Database = {
           current_value: number | null
           data_source: string | null
           description: string | null
+          display_order: number | null
           frequency: string | null
           id: string
           is_active: boolean | null
@@ -754,6 +755,7 @@ export type Database = {
           current_value?: number | null
           data_source?: string | null
           description?: string | null
+          display_order?: number | null
           frequency?: string | null
           id?: string
           is_active?: boolean | null
@@ -772,6 +774,7 @@ export type Database = {
           current_value?: number | null
           data_source?: string | null
           description?: string | null
+          display_order?: number | null
           frequency?: string | null
           id?: string
           is_active?: boolean | null
