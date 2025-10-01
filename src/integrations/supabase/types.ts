@@ -155,6 +155,56 @@ export type Database = {
           },
         ]
       }
+      annual_strategic_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          critical_focus: string | null
+          financial_goal: string | null
+          fiscal_year: number
+          id: string
+          implementation_items_json: Json | null
+          people_goal: string | null
+          revenue_goal: number | null
+          sales_goal: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          critical_focus?: string | null
+          financial_goal?: string | null
+          fiscal_year: number
+          id?: string
+          implementation_items_json?: Json | null
+          people_goal?: string | null
+          revenue_goal?: number | null
+          sales_goal?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          critical_focus?: string | null
+          financial_goal?: string | null
+          fiscal_year?: number
+          id?: string
+          implementation_items_json?: Json | null
+          people_goal?: string | null
+          revenue_goal?: number | null
+          sales_goal?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annual_strategic_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -779,6 +829,53 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      long_term_strategy: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          long_term_vision: string | null
+          tactics_json: Json | null
+          three_year_gp_percent: number | null
+          three_year_np_percent: number | null
+          three_year_revenue_goal: number | null
+          updated_at: string
+          values_json: Json | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          long_term_vision?: string | null
+          tactics_json?: Json | null
+          three_year_gp_percent?: number | null
+          three_year_np_percent?: number | null
+          three_year_revenue_goal?: number | null
+          updated_at?: string
+          values_json?: Json | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          long_term_vision?: string | null
+          tactics_json?: Json | null
+          three_year_gp_percent?: number | null
+          three_year_np_percent?: number | null
+          three_year_revenue_goal?: number | null
+          updated_at?: string
+          values_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "long_term_strategy_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       market_analysis: {
         Row: {
@@ -1882,6 +1979,62 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quarterly_strategic_goals: {
+        Row: {
+          company_id: string
+          created_at: string
+          critical_focus: string | null
+          financial_goal: string | null
+          id: string
+          implementation_items_json: Json | null
+          people_goal: string | null
+          quarter: number
+          results_analysis: string | null
+          revenue_goal: number | null
+          sales_goal: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          critical_focus?: string | null
+          financial_goal?: string | null
+          id?: string
+          implementation_items_json?: Json | null
+          people_goal?: string | null
+          quarter: number
+          results_analysis?: string | null
+          revenue_goal?: number | null
+          sales_goal?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          critical_focus?: string | null
+          financial_goal?: string | null
+          id?: string
+          implementation_items_json?: Json | null
+          people_goal?: string | null
+          quarter?: number
+          results_analysis?: string | null
+          revenue_goal?: number | null
+          sales_goal?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarterly_strategic_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]

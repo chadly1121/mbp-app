@@ -17,6 +17,7 @@ import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
 import { KPITrackingPage } from "@/components/kpi/KPITrackingPage";
 import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
+import StrategicPlan from "@/pages/StrategicPlan";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -289,6 +290,8 @@ const Index = () => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'onepage':
+        return <StrategicPlan />;
       case 'strategic':
         return <StrategicPlanning />;
       case 'gsr':
@@ -395,7 +398,8 @@ const Index = () => {
               {/* Page Header */}
               <div className="space-y-1 md:space-y-2">
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  {activeSection === 'strategic' ? 'Strategic Planning' :
+                  {activeSection === 'onepage' ? 'One Page Strategic Plan' :
+                   activeSection === 'strategic' ? 'Strategic Objectives' :
                    activeSection === 'gsr' ? 'Goal Setting & Review' :
                    activeSection === 'kpis' ? 'KPI Tracking' :
                    activeSection === 'mbp' ? 'Monthly Business Planning' :
@@ -407,7 +411,8 @@ const Index = () => {
                    'Dashboard'}
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground">
-                   {activeSection === 'strategic' ? 'Define and track your strategic objectives and initiatives' :
+                   {activeSection === 'onepage' ? 'Define your BHAG, values, and long-term strategy' :
+                    activeSection === 'strategic' ? 'Define and track your strategic objectives and initiatives' :
                     activeSection === 'gsr' ? 'Set goals, track progress, and conduct regular performance reviews' :
                     activeSection === 'kpis' ? 'Track and monitor key performance indicators' :
                     activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
@@ -421,7 +426,7 @@ const Index = () => {
               </div>
 
               {/* Filter Bar and Sync - Show on pages with QBO data */}
-              {!['mbp', 'strategic', 'gsr', 'kpis', 'integrations'].includes(activeSection) && !isMobile && (
+              {!['mbp', 'onepage', 'strategic', 'gsr', 'kpis', 'integrations'].includes(activeSection) && !isMobile && (
                 <div className="flex items-center justify-between gap-4">
                   <FilterBar 
                     onFilterChange={setDateFilters} 

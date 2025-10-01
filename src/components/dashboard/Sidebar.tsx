@@ -22,7 +22,8 @@ const AppSidebar = ({ activeSection, onSectionChange }: AppSidebarProps) => {
 
   const menuItems = [
     { id: 'gsr', label: 'GSR Dashboard', icon: CheckSquare },
-    { id: 'strategic', label: 'Strategic Plan', icon: Target },
+    { id: 'onepage', label: 'One Page Plan', icon: FileText },
+    { id: 'strategic', label: 'Strategic Objectives', icon: Target },
     { id: 'kpis', label: 'KPI Tracking', icon: TrendingUp },
     { id: 'mbp', label: 'MBP Dashboard', icon: DollarSign },
     { id: 'dashboard', label: 'Executive', icon: Home },
