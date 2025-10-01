@@ -3,10 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw } from 'lucide-react';
+import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
 import { useKPIs } from '@/hooks/useKPIs';
-import { KPIFormData, getKPIStatus, getProgressPercentage, QBO_METRIC_LABELS, QBOMetricType } from '@/types/kpis';
+import { KPIFormData, getKPIStatus, getProgressPercentage, QBO_METRIC_LABELS, QBOMetricType, KPI } from '@/types/kpis';
 
 export const KPITrackingPage = () => {
   const {
@@ -15,11 +25,17 @@ export const KPITrackingPage = () => {
     loading,
     error,
     createKPI,
+    updateKPI,
+    deleteKPI,
     refetch,
-    creating
+    creating,
+    updating,
+    deleting
   } = useKPIs();
 
   const [isAddingKPI, setIsAddingKPI] = useState(false);
+  const [editingKPI, setEditingKPI] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState<KPIFormData>({
     name: '',
     description: '',
@@ -32,7 +48,16 @@ export const KPITrackingPage = () => {
   });
 
   const handleSubmit = async () => {
-    await createKPI(formData);
+    if (editingKPI) {
+      await updateKPI({
+        id: editingKPI,
+        data: formData
+      });
+      setEditingKPI(null);
+    } else {
+      await createKPI(formData);
+    }
+    
     setFormData({
       name: '',
       description: '',
@@ -44,6 +69,47 @@ export const KPITrackingPage = () => {
       auto_sync: false
     });
     setIsAddingKPI(false);
+  };
+
+  const handleEdit = (kpi: KPI) => {
+    setFormData({
+      name: kpi.name,
+      description: kpi.description || '',
+      current_value: kpi.current_value,
+      target_value: kpi.target_value,
+      unit: kpi.unit || '',
+      frequency: kpi.frequency,
+      data_source: kpi.data_source || 'manual',
+      qbo_metric_type: kpi.qbo_metric_type,
+      qbo_account_filter: kpi.qbo_account_filter || undefined,
+      auto_sync: kpi.auto_sync || false
+    });
+    setEditingKPI(kpi.id);
+    setIsAddingKPI(true);
+  };
+
+  const handleDelete = async () => {
+    if (deleteConfirmId) {
+      await deleteKPI(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setIsAddingKPI(false);
+      setEditingKPI(null);
+      setFormData({
+        name: '',
+        description: '',
+        current_value: 0,
+        target_value: 0,
+        unit: '',
+        frequency: 'monthly',
+        data_source: 'manual',
+        auto_sync: false
+      });
+    }
   };
 
   const getStatusColor = (current: number, target: number) => {
@@ -179,7 +245,23 @@ export const KPITrackingPage = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1 ml-2">
-                      <TrendIcon className="h-4 w-4 text-muted-foreground" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleEdit(kpi)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteConfirmId(kpi.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <TrendIcon className="h-4 w-4 text-muted-foreground ml-1" />
                       <StatusIcon className={`h-4 w-4 ${statusColor.split(' ')[0]}`} />
                     </div>
                   </div>
@@ -228,15 +310,15 @@ export const KPITrackingPage = () => {
         </div>
       )}
 
-      {/* Add KPI Dialog */}
+      {/* Add/Edit KPI Dialog */}
       <FormDialog
         open={isAddingKPI}
-        onOpenChange={setIsAddingKPI}
-        title="Add New KPI"
-        description="Create a new key performance indicator to track your progress"
+        onOpenChange={handleDialogClose}
+        title={editingKPI ? "Edit KPI" : "Add New KPI"}
+        description={editingKPI ? "Update your key performance indicator" : "Create a new key performance indicator to track your progress"}
         onSubmit={handleSubmit}
-        submitLabel="Create KPI"
-        loading={creating}
+        submitLabel={editingKPI ? "Update KPI" : "Create KPI"}
+        loading={creating || updating}
         submitDisabled={!formData.name || !formData.target_value}
       >
         <div className="space-y-4">
@@ -370,6 +452,28 @@ export const KPITrackingPage = () => {
           </div>
         </div>
       </FormDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this KPI. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
