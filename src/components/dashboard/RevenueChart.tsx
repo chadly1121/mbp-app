@@ -106,6 +106,15 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         }
 
         setRevenueData(processedData);
+        
+        // Debug logging
+        console.log('Revenue Chart Data:', {
+          totalWeeks: processedData.length,
+          sampleWeeks: processedData.slice(0, 5),
+          maxCurrent: Math.max(...processedData.map(d => d.current)),
+          maxPrevious: Math.max(...processedData.map(d => d.previous)),
+          weeksWithData: processedData.filter(d => d.current > 0 || d.previous > 0).length
+        });
       } catch (error) {
         console.error('Error fetching revenue data:', error);
       } finally {
