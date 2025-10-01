@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface WeeklyRevenue {
   week: string;
@@ -118,8 +119,8 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
     return (
       <Card className="bg-gradient-card shadow-md">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-          <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
+          <CardTitle className="text-lg font-semibold">Weekly Revenue Trends</CardTitle>
+          <CardDescription>Tracking your revenue performance</CardDescription>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-80 w-full" />
@@ -128,15 +129,15 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
     );
   }
 
-  // Filter to show only months with data
+  // Filter to show only weeks with data
   const filteredData = revenueData.filter(d => d.current > 0 || d.previous > 0);
 
   if (filteredData.length === 0) {
     return (
       <Card className="bg-gradient-card shadow-md">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-          <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
+          <CardTitle className="text-lg font-semibold">Weekly Revenue Trends</CardTitle>
+          <CardDescription>Tracking your revenue performance</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-80 text-muted-foreground">
@@ -146,53 +147,73 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
       </Card>
     );
   }
+
+  // Calculate quarter info and totals for summary
+  const currentDate = new Date();
+  const currentQuarter = Math.floor((currentDate.getMonth() / 3)) + 1;
+  const currentYear = dateFilters?.year || currentDate.getFullYear();
+  
+  const totalCurrent = filteredData.reduce((sum, d) => sum + d.current, 0);
+  const totalPrevious = filteredData.reduce((sum, d) => sum + d.previous, 0);
+  const growthRate = totalPrevious > 0 ? ((totalCurrent - totalPrevious) / totalPrevious) * 100 : 0;
+
   return (
     <Card className="bg-gradient-card shadow-md">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-        <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">Weekly Revenue Trends</CardTitle>
+            <CardDescription>Q{currentQuarter} {currentYear} performance vs previous quarter</CardDescription>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold">${(totalCurrent / 1000).toFixed(1)}K</div>
+            <div className={`text-sm flex items-center gap-1 ${growthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {growthRate >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}% vs last quarter
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <LineChart data={filteredData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis 
                 dataKey="week" 
-                className="text-muted-foreground text-xs"
-                axisLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={false}
               />
               <YAxis 
-                className="text-muted-foreground text-xs"
-                axisLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
                 tickLine={false}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="bg-card border border-border rounded-lg shadow-lg p-3">
-                        <p className="font-medium text-foreground">{label}</p>
-                        {payload.map((entry, index) => (
-                          <p key={index} style={{ color: entry.color }} className="text-sm">
-                            {entry.name}: ${(entry.value as number).toLocaleString()}
-                          </p>
-                        ))}
-                      </div>
-                    );
-                  }
-                  return null;
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                 }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 8 }}
+                formatter={(value: number) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, '']}
+              />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="line"
+                formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontSize: '14px' }}>{value}</span>}
               />
               <Line
                 type="monotone"
                 dataKey="current"
                 stroke="hsl(var(--primary))"
                 strokeWidth={3}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                name="Current Year"
+                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 5 }}
+                activeDot={{ r: 7 }}
+                name="Current Quarter"
               />
               <Line
                 type="monotone"
@@ -200,16 +221,16 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                 stroke="hsl(var(--muted-foreground))"
                 strokeWidth={2}
                 strokeDasharray="5 5"
-                dot={{ fill: "hsl(var(--muted-foreground))", strokeWidth: 2, r: 3 }}
+                dot={{ fill: "hsl(var(--muted-foreground))", strokeWidth: 2, r: 4 }}
                 name="Previous Quarter"
               />
               <Line
                 type="monotone"
                 dataKey="target"
-                stroke="hsl(var(--success))"
+                stroke="hsl(220 70% 50%)"
                 strokeWidth={2}
                 strokeDasharray="3 3"
-                dot={{ fill: "hsl(var(--success))", strokeWidth: 2, r: 3 }}
+                dot={{ fill: "hsl(220 70% 50%)", strokeWidth: 2, r: 4 }}
                 name="Target"
               />
             </LineChart>
