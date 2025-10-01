@@ -351,14 +351,15 @@ export default function StrategicPlan() {
                   </Button>
                 </div>
                 {values.map((value, index) => (
-                  <div key={index} className="flex gap-2">
+                  <div key={index} className="flex gap-2 items-center">
                     <Input
                       placeholder="Value name (e.g., Honest)"
                       value={value.name}
                       onChange={(e) => updateValue(index, 'name', e.target.value)}
+                      className="w-48"
                     />
                     <Input
-                      placeholder="Description"
+                      placeholder="Description of this value"
                       value={value.description}
                       onChange={(e) => updateValue(index, 'description', e.target.value)}
                       className="flex-1"
@@ -367,6 +368,7 @@ export default function StrategicPlan() {
                       onClick={() => removeValue(index)}
                       variant="outline"
                       size="sm"
+                      className="shrink-0"
                     >
                       Remove
                     </Button>
