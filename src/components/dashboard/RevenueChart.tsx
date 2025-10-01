@@ -5,8 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 
-interface MonthlyRevenue {
-  month: string;
+interface WeeklyRevenue {
+  week: string;
   current: number;
   previous: number;
   target: number;
@@ -14,7 +14,7 @@ interface MonthlyRevenue {
 
 const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
   const { currentCompany } = useCompany();
-  const [revenueData, setRevenueData] = useState<MonthlyRevenue[]>([]);
+  const [revenueData, setRevenueData] = useState<WeeklyRevenue[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,26 +22,44 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
 
     const fetchRevenueData = async () => {
       try {
-        const currentYear = dateFilters?.year || new Date().getFullYear();
+        const currentDate = new Date();
+        const currentYear = dateFilters?.year || currentDate.getFullYear();
         const previousYear = currentYear - 1;
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Get current quarter to show last 13 weeks
+        const currentQuarter = Math.floor((currentDate.getMonth() / 3)) + 1;
+        const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+        const quarterEndMonth = currentQuarter * 3;
 
-        // Fetch current year data
-        const { data: currentYearData } = await supabase
+        // Fetch current quarter data
+        const { data: currentQuarterData } = await supabase
           .from('qbo_profit_loss')
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
           .eq('account_type', 'revenue')
+          .gte('fiscal_month', quarterStartMonth)
+          .lte('fiscal_month', quarterEndMonth)
           .order('fiscal_month');
 
-        // Fetch previous year data
-        const { data: previousYearData } = await supabase
+        // Fetch previous quarter data (for comparison)
+        let prevQuarter = currentQuarter - 1;
+        let prevQuarterYear = currentYear;
+        if (prevQuarter === 0) {
+          prevQuarter = 4;
+          prevQuarterYear = previousYear;
+        }
+        const prevQuarterStartMonth = (prevQuarter - 1) * 3 + 1;
+        const prevQuarterEndMonth = prevQuarter * 3;
+
+        const { data: previousQuarterData } = await supabase
           .from('qbo_profit_loss')
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', previousYear)
+          .eq('fiscal_year', prevQuarterYear)
           .eq('account_type', 'revenue')
+          .gte('fiscal_month', prevQuarterStartMonth)
+          .lte('fiscal_month', prevQuarterEndMonth)
           .order('fiscal_month');
 
         // Fetch forecasted targets
@@ -50,29 +68,38 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
           .select('month, forecasted_amount')
           .eq('company_id', currentCompany.id)
           .eq('year', currentYear)
+          .gte('month', quarterStartMonth)
+          .lte('month', quarterEndMonth)
           .order('month');
 
-        const processedData: MonthlyRevenue[] = [];
+        const processedData: WeeklyRevenue[] = [];
 
-        // Determine which months to display based on date filters
-        const startMonth = dateFilters?.startMonth || 1;
-        const endMonth = dateFilters?.endMonth || 12;
+        // Generate 13 weeks of data (approximately one quarter)
+        for (let week = 1; week <= 13; week++) {
+          // Calculate which month this week falls into (roughly)
+          const monthIndex = Math.floor((week - 1) / 4.33);
+          const targetMonth = quarterStartMonth + monthIndex;
+          
+          // Get monthly revenue for current and previous periods
+          const currentMonthData = currentQuarterData?.filter(d => d.fiscal_month === targetMonth) || [];
+          const previousMonthData = previousQuarterData?.filter(d => d.fiscal_month === prevQuarterStartMonth + monthIndex) || [];
+          const forecastMonth = forecastData?.find(d => d.month === targetMonth);
 
-        for (let i = startMonth; i <= endMonth; i++) {
-          const currentMonthData = currentYearData?.filter(d => d.fiscal_month === i) || [];
-          const previousMonthData = previousYearData?.filter(d => d.fiscal_month === i) || [];
-          const forecastMonth = forecastData?.find(d => d.month === i);
+          // Sum all revenue account entries for the month and divide by ~4.33 weeks/month
+          const monthlyCurrentRevenue = currentMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
+          const monthlyPreviousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
+          const monthlyTargetRevenue = forecastMonth?.forecasted_amount || (monthlyCurrentRevenue > 0 ? monthlyCurrentRevenue * 1.1 : 0);
 
-          // Sum all revenue account entries for the month
-          const currentRevenue = currentMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
-          const previousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
-          const targetRevenue = forecastMonth?.forecasted_amount || (currentRevenue > 0 ? currentRevenue * 1.1 : 0);
+          // Estimate weekly values (divide monthly by 4.33)
+          const weeklyCurrentRevenue = monthlyCurrentRevenue / 4.33;
+          const weeklyPreviousRevenue = monthlyPreviousRevenue / 4.33;
+          const weeklyTargetRevenue = monthlyTargetRevenue / 4.33;
 
           processedData.push({
-            month: monthNames[i - 1],
-            current: currentRevenue,
-            previous: previousRevenue,
-            target: targetRevenue
+            week: `W${week}`,
+            current: weeklyCurrentRevenue,
+            previous: weeklyPreviousRevenue,
+            target: weeklyTargetRevenue
           });
         }
 
@@ -92,7 +119,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
       <Card className="bg-gradient-card shadow-md">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-          <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+          <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-80 w-full" />
@@ -109,7 +136,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
       <Card className="bg-gradient-card shadow-md">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-          <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+          <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-80 text-muted-foreground">
@@ -123,7 +150,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
     <Card className="bg-gradient-card shadow-md">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-        <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+        <p className="text-sm text-muted-foreground">Weekly revenue comparison (current quarter)</p>
       </CardHeader>
       <CardContent>
         <div className="h-80">
@@ -131,7 +158,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
             <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
-                dataKey="month" 
+                dataKey="week" 
                 className="text-muted-foreground text-xs"
                 axisLine={false}
                 tickLine={false}
@@ -174,7 +201,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 dot={{ fill: "hsl(var(--muted-foreground))", strokeWidth: 2, r: 3 }}
-                name="Previous Year"
+                name="Previous Quarter"
               />
               <Line
                 type="monotone"

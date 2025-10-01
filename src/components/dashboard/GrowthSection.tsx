@@ -26,30 +26,41 @@ const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; en
 
     const fetchGrowthMetrics = async () => {
       try {
-        const currentYear = dateFilters?.year || new Date().getFullYear();
-        const previousYear = currentYear - 1;
-        const startMonth = dateFilters?.startMonth || 1;
-        const endMonth = dateFilters?.endMonth || 12;
+        const currentDate = new Date();
+        const currentYear = dateFilters?.year || currentDate.getFullYear();
+        const currentQuarter = Math.floor((currentDate.getMonth() / 3)) + 1;
+        const currentQuarterStartMonth = (currentQuarter - 1) * 3 + 1;
+        const currentQuarterEndMonth = currentQuarter * 3;
 
-        // Fetch current period revenue
-        const { data: currentYearData } = await supabase
+        // Calculate previous quarter (could be in previous year)
+        let previousQuarter = currentQuarter - 1;
+        let previousQuarterYear = currentYear;
+        if (previousQuarter === 0) {
+          previousQuarter = 4;
+          previousQuarterYear = currentYear - 1;
+        }
+        const previousQuarterStartMonth = (previousQuarter - 1) * 3 + 1;
+        const previousQuarterEndMonth = previousQuarter * 3;
+
+        // Fetch current quarter revenue
+        const { data: currentQuarterData } = await supabase
           .from('qbo_profit_loss')
           .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
           .eq('account_type', 'revenue')
-          .gte('fiscal_month', startMonth)
-          .lte('fiscal_month', endMonth);
+          .gte('fiscal_month', currentQuarterStartMonth)
+          .lte('fiscal_month', currentQuarterEndMonth);
 
-        // Fetch previous period revenue
-        const { data: previousYearData } = await supabase
+        // Fetch previous quarter revenue
+        const { data: previousQuarterData } = await supabase
           .from('qbo_profit_loss')
           .select('current_month, fiscal_month')
           .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', previousYear)
+          .eq('fiscal_year', previousQuarterYear)
           .eq('account_type', 'revenue')
-          .gte('fiscal_month', startMonth)
-          .lte('fiscal_month', endMonth);
+          .gte('fiscal_month', previousQuarterStartMonth)
+          .lte('fiscal_month', previousQuarterEndMonth);
 
         // Fetch customer count from sales pipeline
         const { data: customers } = await supabase
@@ -64,8 +75,8 @@ const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; en
           .eq('company_id', currentCompany.id)
           .eq('is_active', true);
 
-        const currentRevenue = currentYearData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
-        const previousRevenue = previousYearData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
+        const currentRevenue = currentQuarterData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
+        const previousRevenue = previousQuarterData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
         const growthRate = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
         
         const uniqueCustomers = [...new Set(customers?.map(c => c.client_name).filter(Boolean))];
@@ -79,14 +90,14 @@ const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; en
         });
 
         // Set dynamic goals based on current metrics
-        const revenueTarget = currentRevenue > 0 ? Math.round(currentRevenue * 1.25) : 1000000;
+        const revenueTarget = currentRevenue > 0 ? Math.round(currentRevenue * 1.25) : 250000;
         const customerTarget = uniqueCustomers.length > 0 ? Math.round(uniqueCustomers.length * 1.5) : 100;
         
         setGoals([
-          { title: "Annual Revenue Target", current: currentRevenue, target: revenueTarget, unit: "$" },
+          { title: "Quarterly Revenue Target", current: currentRevenue, target: revenueTarget, unit: "$" },
           { title: "Customer Acquisition", current: uniqueCustomers.length, target: customerTarget, unit: "" },
           { title: "Product Lines", current: products?.length || 0, target: Math.max((products?.length || 0) + 2, 5), unit: "" },
-          { title: "Growth Rate Target", current: Math.max(growthRate, 0), target: 25, unit: "%" },
+          { title: "Growth Rate Target", current: Math.max(growthRate, 0), target: 15, unit: "%" },
         ]);
 
       } catch (error) {
@@ -138,17 +149,17 @@ const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; en
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Revenue Growth"
+          title="Revenue Growth (QoQ)"
           value={formatPercent(metrics.growthRate)}
           change={{ 
-            value: `vs ${formatCurrency(metrics.previousYearRevenue)} last year`, 
+            value: `vs ${formatCurrency(metrics.previousYearRevenue)} last quarter`, 
             trend: metrics.growthRate > 0 ? "up" : "down" 
           }}
           icon={<TrendingUp className="h-5 w-5" />}
           variant={metrics.growthRate > 0 ? "success" : "warning"}
         />
         <MetricCard
-          title="Current Revenue"
+          title="Current Quarter Revenue"
           value={formatCurrency(metrics.currentYearRevenue)}
           change={{ 
             value: `${formatPercent(Math.abs(metrics.growthRate))} ${metrics.growthRate > 0 ? 'increase' : 'decrease'}`, 
@@ -175,7 +186,7 @@ const GrowthSection = ({ dateFilters }: { dateFilters?: { startMonth: number; en
 
       <Card className="bg-gradient-card">
         <CardHeader>
-          <CardTitle>{new Date().getFullYear()} Growth Goals Progress</CardTitle>
+          <CardTitle>Q{Math.floor((new Date().getMonth() / 3)) + 1} {new Date().getFullYear()} Growth Goals Progress</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
