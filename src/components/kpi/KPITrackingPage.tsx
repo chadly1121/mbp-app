@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Target, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Minus, RefreshCw } from 'lucide-react';
 import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
 import { useKPIs } from '@/hooks/useKPIs';
-import { KPIFormData, getKPIStatus, getProgressPercentage } from '@/types/kpis';
+import { KPIFormData, getKPIStatus, getProgressPercentage, QBO_METRIC_LABELS, QBOMetricType } from '@/types/kpis';
 
 export const KPITrackingPage = () => {
   const {
@@ -26,7 +26,9 @@ export const KPITrackingPage = () => {
     current_value: 0,
     target_value: 0,
     unit: '',
-    frequency: 'monthly'
+    frequency: 'monthly',
+    data_source: 'manual',
+    auto_sync: false
   });
 
   const handleSubmit = async () => {
@@ -37,7 +39,9 @@ export const KPITrackingPage = () => {
       current_value: 0,
       target_value: 0,
       unit: '',
-      frequency: 'monthly'
+      frequency: 'monthly',
+      data_source: 'manual',
+      auto_sync: false
     });
     setIsAddingKPI(false);
   };
@@ -206,8 +210,17 @@ export const KPITrackingPage = () => {
                   
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Frequency: {kpi.frequency}</span>
-                    <span>Updated: {new Date(kpi.updated_at).toLocaleDateString()}</span>
+                    {kpi.data_source === 'qbo' && (
+                      <Badge variant="outline" className="text-xs">
+                        QBO Synced
+                      </Badge>
+                    )}
                   </div>
+                  {kpi.last_synced_at && (
+                    <div className="text-xs text-muted-foreground">
+                      Last synced: {new Date(kpi.last_synced_at).toLocaleString()}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -274,6 +287,57 @@ export const KPITrackingPage = () => {
             </div>
           </div>
           
+          <div>
+            <label className="text-sm font-medium">Data Source</label>
+            <select
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+              value={formData.data_source}
+              onChange={(e) => setFormData({ 
+                ...formData, 
+                data_source: e.target.value as 'manual' | 'qbo',
+                qbo_metric_type: e.target.value === 'manual' ? undefined : formData.qbo_metric_type
+              })}
+            >
+              <option value="manual">Manual Entry</option>
+              <option value="qbo">QuickBooks Online</option>
+            </select>
+          </div>
+
+          {formData.data_source === 'qbo' && (
+            <>
+              <div>
+                <label className="text-sm font-medium">QBO Metric Type</label>
+                <select
+                  className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm"
+                  value={formData.qbo_metric_type || ''}
+                  onChange={(e) => setFormData({ ...formData, qbo_metric_type: e.target.value as QBOMetricType })}
+                >
+                  <option value="">Select a metric...</option>
+                  {Object.entries(QBO_METRIC_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="auto_sync"
+                  checked={formData.auto_sync || false}
+                  onChange={(e) => setFormData({ ...formData, auto_sync: e.target.checked })}
+                  className="rounded border-input"
+                />
+                <label htmlFor="auto_sync" className="text-sm font-medium cursor-pointer">
+                  Auto-sync with QuickBooks Online
+                </label>
+              </div>
+
+              <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-md">
+                <strong>Note:</strong> When auto-sync is enabled, the current value will be automatically updated from QuickBooks whenever you sync your QBO data.
+              </div>
+            </>
+          )}
+          
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">Unit</label>
@@ -283,7 +347,11 @@ export const KPITrackingPage = () => {
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 placeholder="$, %, units, etc."
+                disabled={formData.data_source === 'qbo'}
               />
+              {formData.data_source === 'qbo' && (
+                <p className="text-xs text-muted-foreground mt-1">Unit will be set based on QBO metric type</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">Frequency</label>

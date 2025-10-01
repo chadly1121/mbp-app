@@ -680,40 +680,55 @@ export type Database = {
       }
       kpis: {
         Row: {
+          auto_sync: boolean | null
           company_id: string
           created_at: string
           current_value: number | null
+          data_source: string | null
           description: string | null
           frequency: string | null
           id: string
           is_active: boolean | null
+          last_synced_at: string | null
           name: string
+          qbo_account_filter: string | null
+          qbo_metric_type: string | null
           target_value: number
           unit: string | null
           updated_at: string
         }
         Insert: {
+          auto_sync?: boolean | null
           company_id: string
           created_at?: string
           current_value?: number | null
+          data_source?: string | null
           description?: string | null
           frequency?: string | null
           id?: string
           is_active?: boolean | null
+          last_synced_at?: string | null
           name: string
+          qbo_account_filter?: string | null
+          qbo_metric_type?: string | null
           target_value: number
           unit?: string | null
           updated_at?: string
         }
         Update: {
+          auto_sync?: boolean | null
           company_id?: string
           created_at?: string
           current_value?: number | null
+          data_source?: string | null
           description?: string | null
           frequency?: string | null
           id?: string
           is_active?: boolean | null
+          last_synced_at?: string | null
           name?: string
+          qbo_account_filter?: string | null
+          qbo_metric_type?: string | null
           target_value?: number
           unit?: string | null
           updated_at?: string

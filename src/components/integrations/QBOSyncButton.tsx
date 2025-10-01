@@ -49,6 +49,7 @@ export const QBOSyncButton = ({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
+      // Sync QBO data
       const response = await supabase.functions.invoke('qbo-sync', {
         body: { companyId: currentCompany.id },
         headers: {
@@ -60,9 +61,26 @@ export const QBOSyncButton = ({
 
       const result = response.data;
       
+      // Sync KPIs after QBO sync completes
+      try {
+        const kpiResponse = await supabase.functions.invoke('sync-kpis', {
+          body: { company_id: currentCompany.id },
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (kpiResponse.data) {
+          console.log('KPI sync result:', kpiResponse.data);
+        }
+      } catch (kpiError) {
+        console.error('KPI sync error:', kpiError);
+        // Don't fail the whole sync if KPI sync fails
+      }
+      
       toast({
         title: 'Sync Completed',
-        description: `Synced ${result.itemsCount || 0} items and ${result.accountsCount || 0} accounts from QuickBooks Online`,
+        description: `Synced ${result.itemsCount || 0} items, ${result.accountsCount || 0} accounts, and updated KPIs from QuickBooks Online`,
       });
 
       if (onSyncComplete) {

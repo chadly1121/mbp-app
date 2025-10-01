@@ -1,3 +1,13 @@
+export type QBOMetricType = 
+  | 'total_revenue'
+  | 'total_expenses'
+  | 'net_income'
+  | 'sales_count'
+  | 'invoice_count'
+  | 'estimate_count'
+  | 'accounts_receivable'
+  | 'accounts_payable';
+
 export interface KPI {
   id: string;
   name: string;
@@ -10,6 +20,11 @@ export interface KPI {
   company_id: string;
   created_at: string;
   updated_at: string;
+  data_source?: 'manual' | 'qbo';
+  qbo_metric_type?: QBOMetricType;
+  qbo_account_filter?: string | null;
+  auto_sync?: boolean;
+  last_synced_at?: string | null;
 }
 
 export interface CreateKPIRequest {
@@ -20,6 +35,10 @@ export interface CreateKPIRequest {
   unit?: string;
   frequency: KPI['frequency'];
   company_id: string;
+  data_source?: 'manual' | 'qbo';
+  qbo_metric_type?: QBOMetricType;
+  qbo_account_filter?: string;
+  auto_sync?: boolean;
 }
 
 export interface UpdateKPIRequest {
@@ -49,7 +68,22 @@ export interface KPIFormData {
   target_value: number;
   unit: string;
   frequency: KPI['frequency'];
+  data_source: 'manual' | 'qbo';
+  qbo_metric_type?: QBOMetricType;
+  qbo_account_filter?: string;
+  auto_sync?: boolean;
 }
+
+export const QBO_METRIC_LABELS: Record<QBOMetricType, string> = {
+  total_revenue: 'Total Revenue',
+  total_expenses: 'Total Expenses',
+  net_income: 'Net Income',
+  sales_count: 'Number of Sales',
+  invoice_count: 'Number of Invoices',
+  estimate_count: 'Number of Estimates',
+  accounts_receivable: 'Accounts Receivable',
+  accounts_payable: 'Accounts Payable',
+};
 
 // Helper functions
 export const getKPIStatus = (current: number, target: number): KPIStatus => {
