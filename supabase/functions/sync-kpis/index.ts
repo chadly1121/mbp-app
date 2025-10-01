@@ -61,11 +61,23 @@ Deno.serve(async (req) => {
     // Get current fiscal year for QBO data
     const currentYear = new Date().getFullYear();
 
+    // Get current date info for filtering
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentQuarter = Math.ceil(currentMonth / 3);
+
     // Process each KPI
     const updates = await Promise.all(
       kpis.map(async (kpi: KPI) => {
         try {
-          const value = await calculateKPIValue(supabase, kpi, company_id, currentYear);
+          const value = await calculateKPIValue(
+            supabase, 
+            kpi, 
+            company_id, 
+            currentYear,
+            currentMonth,
+            currentQuarter
+          );
           
           if (value !== null) {
             const { error: updateError } = await supabase
@@ -81,7 +93,7 @@ Deno.serve(async (req) => {
               return { kpi_id: kpi.id, success: false, error: updateError.message };
             }
 
-            console.log(`Updated KPI ${kpi.name} with value ${value}`);
+            console.log(`Updated KPI ${kpi.name} (${kpi.frequency}) with value ${value}`);
             return { kpi_id: kpi.id, success: true, value };
           }
 
@@ -119,19 +131,26 @@ async function calculateKPIValue(
   supabase: any,
   kpi: KPI,
   company_id: string,
-  fiscal_year: number
+  fiscal_year: number,
+  current_month: number,
+  current_quarter: number
 ): Promise<number | null> {
-  const { qbo_metric_type } = kpi;
+  const { qbo_metric_type, frequency } = kpi;
+
+  // Determine date range based on frequency
+  const { startMonth, endMonth } = getDateRangeForFrequency(frequency, current_month, current_quarter);
+
+  console.log(`Calculating ${qbo_metric_type} for ${frequency} period (months ${startMonth}-${endMonth})`);
 
   switch (qbo_metric_type) {
     case 'total_revenue':
-      return await getTotalRevenue(supabase, company_id, fiscal_year);
+      return await getTotalRevenue(supabase, company_id, fiscal_year, startMonth, endMonth);
     
     case 'total_expenses':
-      return await getTotalExpenses(supabase, company_id, fiscal_year);
+      return await getTotalExpenses(supabase, company_id, fiscal_year, startMonth, endMonth);
     
     case 'net_income':
-      return await getNetIncome(supabase, company_id, fiscal_year);
+      return await getNetIncome(supabase, company_id, fiscal_year, startMonth, endMonth);
     
     case 'accounts_receivable':
       return await getAccountsReceivable(supabase, company_id);
@@ -140,13 +159,13 @@ async function calculateKPIValue(
       return await getAccountsPayable(supabase, company_id);
     
     case 'invoice_count':
-      return await getInvoiceCount(supabase, company_id);
+      return await getInvoiceCount(supabase, company_id, startMonth, endMonth);
     
     case 'estimate_count':
       return await getEstimateCount(supabase, company_id);
     
     case 'sales_count':
-      return await getSalesCount(supabase, company_id);
+      return await getSalesCount(supabase, company_id, startMonth, endMonth);
     
     default:
       console.log(`Unknown metric type: ${qbo_metric_type}`);
@@ -154,35 +173,93 @@ async function calculateKPIValue(
   }
 }
 
-async function getTotalRevenue(supabase: any, company_id: string, fiscal_year: number): Promise<number> {
+function getDateRangeForFrequency(
+  frequency: string,
+  current_month: number,
+  current_quarter: number
+): { startMonth: number; endMonth: number } {
+  const now = new Date();
+  
+  switch (frequency) {
+    case 'daily':
+      // For daily, use current month (best we can do with monthly QBO data)
+      return { startMonth: current_month, endMonth: current_month };
+    
+    case 'weekly':
+      // For weekly, use current month as approximation
+      return { startMonth: current_month, endMonth: current_month };
+    
+    case 'monthly':
+      // Current month only
+      return { startMonth: current_month, endMonth: current_month };
+    
+    case 'quarterly':
+      // Current quarter (e.g., Q1 = months 1-3, Q2 = 4-6, etc.)
+      const quarterStart = (current_quarter - 1) * 3 + 1;
+      const quarterEnd = current_quarter * 3;
+      return { startMonth: quarterStart, endMonth: quarterEnd };
+    
+    case 'yearly':
+      // Year to date
+      return { startMonth: 1, endMonth: current_month };
+    
+    default:
+      // Default to current month
+      return { startMonth: current_month, endMonth: current_month };
+  }
+}
+
+async function getTotalRevenue(
+  supabase: any, 
+  company_id: string, 
+  fiscal_year: number,
+  start_month: number,
+  end_month: number
+): Promise<number> {
   const { data, error } = await supabase
     .from('qbo_profit_loss')
-    .select('current_month')
+    .select('current_month, fiscal_month')
     .eq('company_id', company_id)
     .eq('fiscal_year', fiscal_year)
-    .eq('account_type', 'revenue');
+    .eq('account_type', 'revenue')
+    .gte('fiscal_month', start_month)
+    .lte('fiscal_month', end_month);
 
   if (error) throw error;
   
   return data?.reduce((sum: number, row: any) => sum + (parseFloat(row.current_month) || 0), 0) || 0;
 }
 
-async function getTotalExpenses(supabase: any, company_id: string, fiscal_year: number): Promise<number> {
+async function getTotalExpenses(
+  supabase: any, 
+  company_id: string, 
+  fiscal_year: number,
+  start_month: number,
+  end_month: number
+): Promise<number> {
   const { data, error } = await supabase
     .from('qbo_profit_loss')
-    .select('current_month')
+    .select('current_month, fiscal_month')
     .eq('company_id', company_id)
     .eq('fiscal_year', fiscal_year)
-    .eq('account_type', 'expense');
+    .eq('account_type', 'expense')
+    .gte('fiscal_month', start_month)
+    .lte('fiscal_month', end_month);
 
   if (error) throw error;
   
   return data?.reduce((sum: number, row: any) => sum + (parseFloat(row.current_month) || 0), 0) || 0;
 }
 
-async function getNetIncome(supabase: any, company_id: string, fiscal_year: number): Promise<number> {
-  const revenue = await getTotalRevenue(supabase, company_id, fiscal_year);
-  const expenses = await getTotalExpenses(supabase, company_id, fiscal_year);
+async function getNetIncome(
+  supabase: any, 
+  company_id: string, 
+  fiscal_year: number,
+  start_month: number,
+  end_month: number
+): Promise<number> {
+  const revenue = await getTotalRevenue(supabase, company_id, fiscal_year, start_month, end_month);
+  const expenses = await getTotalExpenses(supabase, company_id, fiscal_year, start_month, end_month);
   return revenue - expenses;
 }
 
@@ -212,11 +289,23 @@ async function getAccountsPayable(supabase: any, company_id: string): Promise<nu
   return parseFloat(data?.current_month || '0');
 }
 
-async function getInvoiceCount(supabase: any, company_id: string): Promise<number> {
+async function getInvoiceCount(
+  supabase: any, 
+  company_id: string,
+  start_month: number,
+  end_month: number
+): Promise<number> {
+  // Get invoices within the date range
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(currentYear, start_month - 1, 1).toISOString();
+  const endDate = new Date(currentYear, end_month, 0, 23, 59, 59).toISOString();
+  
   const { count, error } = await supabase
     .from('ar_tracker')
     .select('*', { count: 'exact', head: true })
-    .eq('company_id', company_id);
+    .eq('company_id', company_id)
+    .gte('invoice_date', startDate)
+    .lte('invoice_date', endDate);
 
   if (error) throw error;
   
@@ -235,12 +324,24 @@ async function getEstimateCount(supabase: any, company_id: string): Promise<numb
   return count || 0;
 }
 
-async function getSalesCount(supabase: any, company_id: string): Promise<number> {
+async function getSalesCount(
+  supabase: any, 
+  company_id: string,
+  start_month: number,
+  end_month: number
+): Promise<number> {
+  // Get paid invoices within the date range
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(currentYear, start_month - 1, 1).toISOString();
+  const endDate = new Date(currentYear, end_month, 0, 23, 59, 59).toISOString();
+  
   const { count, error } = await supabase
     .from('ar_tracker')
     .select('*', { count: 'exact', head: true })
     .eq('company_id', company_id)
-    .eq('status', 'paid');
+    .eq('status', 'paid')
+    .gte('invoice_date', startDate)
+    .lte('invoice_date', endDate);
 
   if (error) throw error;
   

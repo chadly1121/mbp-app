@@ -139,6 +139,17 @@ export const KPITrackingPage = () => {
     return TrendingDown;
   };
 
+  const getFrequencyLabel = (frequency: string) => {
+    switch (frequency) {
+      case 'daily': return 'Today';
+      case 'weekly': return 'This Week';
+      case 'monthly': return 'This Month';
+      case 'quarterly': return 'This Quarter';
+      case 'yearly': return 'Year to Date';
+      default: return frequency;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -282,8 +293,13 @@ export const KPITrackingPage = () => {
                         {kpi.current_value.toLocaleString()}{kpi.unit}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        of {kpi.target_value.toLocaleString()}{kpi.unit} target
+                        of {kpi.target_value.toLocaleString()}{kpi.unit} {kpi.frequency} target
                       </div>
+                      {kpi.data_source === 'qbo' && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          {getFrequencyLabel(kpi.frequency)} from QuickBooks
+                        </div>
+                      )}
                     </div>
                     <Badge className={statusColor}>
                       {getKPIStatus(kpi.current_value, kpi.target_value)}
@@ -291,10 +307,10 @@ export const KPITrackingPage = () => {
                   </div>
                   
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Frequency: {kpi.frequency}</span>
+                    <span className="capitalize">{kpi.frequency} Goal</span>
                     {kpi.data_source === 'qbo' && (
                       <Badge variant="outline" className="text-xs">
-                        QBO Synced
+                        QBO Auto-sync
                       </Badge>
                     )}
                   </div>
@@ -448,8 +464,25 @@ export const KPITrackingPage = () => {
                 <option value="quarterly">Quarterly</option>
                 <option value="yearly">Yearly</option>
               </select>
+              {formData.data_source === 'qbo' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  QBO data will sync for this {formData.frequency} period only
+                </p>
+              )}
             </div>
           </div>
+          
+          {formData.data_source === 'qbo' && (
+            <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded-md">
+              <strong>Frequency Sync Info:</strong>
+              <ul className="mt-1 ml-4 list-disc space-y-1">
+                <li><strong>Daily/Weekly:</strong> Current month data (approximation)</li>
+                <li><strong>Monthly:</strong> Current month only</li>
+                <li><strong>Quarterly:</strong> Current quarter (e.g., Jan-Mar)</li>
+                <li><strong>Yearly:</strong> Year-to-date total</li>
+              </ul>
+            </div>
+          )}
         </div>
       </FormDialog>
 
