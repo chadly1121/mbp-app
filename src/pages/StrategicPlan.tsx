@@ -383,17 +383,19 @@ export default function StrategicPlan() {
                   </Button>
                 </div>
                 {tactics.map((tactic, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
+                  <div key={index} className="flex gap-2 items-start">
+                    <Textarea
                       placeholder="Post in office and shop. Daily reminders..."
                       value={tactic}
                       onChange={(e) => updateTactic(index, e.target.value)}
-                      className="flex-1"
+                      className="flex-1 min-h-[60px] resize-y"
+                      rows={2}
                     />
                     <Button
                       onClick={() => removeTactic(index)}
                       variant="outline"
                       size="sm"
+                      className="shrink-0"
                     >
                       Remove
                     </Button>
@@ -503,17 +505,19 @@ export default function StrategicPlan() {
                     </Button>
                   </div>
                   {annualForm.implementation_items.map((item, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
+                    <div key={index} className="flex gap-2 items-start">
+                      <Textarea
                         placeholder="Implementation item..."
                         value={item}
                         onChange={(e) => updateAnnualImplementationItem(index, e.target.value)}
-                        className="flex-1"
+                        className="flex-1 min-h-[60px] resize-y"
+                        rows={2}
                       />
                       <Button
                         onClick={() => removeAnnualImplementationItem(index)}
                         variant="outline"
                         size="sm"
+                        className="shrink-0"
                       >
                         Remove
                       </Button>
@@ -713,17 +717,19 @@ export default function StrategicPlan() {
                     </Button>
                   </div>
                   {quarterlyForm.implementation_items.map((item, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
+                    <div key={index} className="flex gap-2 items-start">
+                      <Textarea
                         placeholder="Implementation item..."
                         value={item}
                         onChange={(e) => updateQuarterlyImplementationItem(index, e.target.value)}
-                        className="flex-1"
+                        className="flex-1 min-h-[60px] resize-y"
+                        rows={2}
                       />
                       <Button
                         onClick={() => removeQuarterlyImplementationItem(index)}
                         variant="outline"
                         size="sm"
+                        className="shrink-0"
                       >
                         Remove
                       </Button>
