@@ -17,6 +17,9 @@ import {
 import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
 import { useKPIs } from '@/hooks/useKPIs';
 import { KPIFormData, getKPIStatus, getProgressPercentage, QBO_METRIC_LABELS, QBOMetricType, KPI } from '@/types/kpis';
+import { useCompany } from '@/hooks/useCompany';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export const KPITrackingPage = () => {
   const {
@@ -32,6 +35,9 @@ export const KPITrackingPage = () => {
     updating,
     deleting
   } = useKPIs();
+
+  const { currentCompany } = useCompany();
+  const [syncing, setSyncing] = useState(false);
 
   const [isAddingKPI, setIsAddingKPI] = useState(false);
   const [editingKPI, setEditingKPI] = useState<string | null>(null);
@@ -150,6 +156,43 @@ export const KPITrackingPage = () => {
     }
   };
 
+  const handleSyncKPIs = async () => {
+    if (!currentCompany?.id) return;
+    
+    setSyncing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await supabase.functions.invoke('sync-kpis', {
+        body: { company_id: currentCompany.id },
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      const result = response.data;
+      toast({
+        title: 'KPI Sync Completed',
+        description: `Updated ${result.updated || 0} KPIs from QuickBooks Online`,
+      });
+
+      // Refresh KPI data
+      refetch();
+    } catch (error: any) {
+      console.error('KPI sync error:', error);
+      toast({
+        title: 'Sync Failed',
+        description: error.message || 'Failed to sync KPIs',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -170,6 +213,10 @@ export const KPITrackingPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSyncKPIs} disabled={syncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing KPIs...' : 'Sync KPIs'}
+          </Button>
           <Button variant="outline" size="sm" onClick={refetch}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh

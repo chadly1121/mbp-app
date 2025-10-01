@@ -62,6 +62,7 @@ export const QBOSyncButton = ({
       const result = response.data;
       
       // Sync KPIs after QBO sync completes
+      let kpiUpdateCount = 0;
       try {
         const kpiResponse = await supabase.functions.invoke('sync-kpis', {
           body: { company_id: currentCompany.id },
@@ -70,8 +71,16 @@ export const QBOSyncButton = ({
           }
         });
 
-        if (kpiResponse.data) {
+        if (kpiResponse.error) {
+          console.error('KPI sync error:', kpiResponse.error);
+          toast({
+            title: 'Warning',
+            description: 'QBO data synced but KPI update failed. Check KPI configuration.',
+            variant: 'destructive',
+          });
+        } else if (kpiResponse.data) {
           console.log('KPI sync result:', kpiResponse.data);
+          kpiUpdateCount = kpiResponse.data.updated || 0;
         }
       } catch (kpiError) {
         console.error('KPI sync error:', kpiError);
@@ -80,11 +89,15 @@ export const QBOSyncButton = ({
       
       toast({
         title: 'Sync Completed',
-        description: `Synced ${result.itemsCount || 0} items, ${result.accountsCount || 0} accounts, and updated KPIs from QuickBooks Online`,
+        description: `Synced ${result.itemsCount || 0} items, ${result.accountsCount || 0} accounts${kpiUpdateCount > 0 ? `, and ${kpiUpdateCount} KPIs` : ''} from QuickBooks Online`,
       });
 
+      // Reload page to show updated data
       if (onSyncComplete) {
         onSyncComplete();
+      } else {
+        // Force page reload if no callback provided
+        window.location.reload();
       }
 
     } catch (error: any) {
