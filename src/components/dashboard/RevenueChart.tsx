@@ -130,10 +130,10 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
     );
   }
 
-  // Filter to show only weeks with data
-  const filteredData = revenueData.filter(d => d.current > 0 || d.previous > 0);
+  // Show all 52 weeks (don't filter out zero values)
+  const filteredData = revenueData;
 
-  if (filteredData.length === 0) {
+  if (revenueData.length === 0) {
     return (
       <Card className="bg-gradient-card shadow-md">
         <CardHeader>
@@ -180,20 +180,20 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="w-full">
-          <div style={{ width: `${filteredData.length * 20}px`, minWidth: '100%' }} className="h-80">
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="h-80" style={{ width: `${filteredData.length * 35}px`, minWidth: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <BarChart data={filteredData} margin={{ top: 5, right: 5, left: 10, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                 <XAxis 
                   dataKey="week" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
                   interval={0}
-                  angle={-45}
+                  angle={-90}
                   textAnchor="end"
-                  height={60}
+                  height={70}
                 />
                 <YAxis 
                   scale={useLogScale ? 'log' : 'linear'}
