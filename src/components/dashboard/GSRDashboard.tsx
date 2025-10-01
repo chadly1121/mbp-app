@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FormDialog } from '@/components/mbp/tabs/shared/FormDialog';
 import { useKPIs } from '@/hooks/useKPIs';
 import { useNavigate } from 'react-router-dom';
+import { QBOSyncButton } from '@/components/integrations/QBOSyncButton';
 
 interface Goal {
   id: string;
@@ -111,19 +112,29 @@ export const GSRDashboard = ({ onSectionChange }: GSRDashboardProps = {}) => {
       setGoals(kpis || []);
       setObjectives(strategicObjectives || []);
 
-      // Calculate real financial metrics from QBO data
+      // Calculate real financial metrics from QBO data (sum all monthly values for YTD)
       if (plData && plData.length > 0) {
-        const revenue = plData
+        // Aggregate by account name and sum current_month values
+        const accountTotals = plData.reduce((acc, item) => {
+          const key = `${item.account_name}-${item.account_type}`;
+          if (!acc[key]) {
+            acc[key] = { account_type: item.account_type, total: 0 };
+          }
+          acc[key].total += Math.abs(item.current_month || 0);
+          return acc;
+        }, {} as Record<string, { account_type: string; total: number }>);
+
+        const revenue = Object.values(accountTotals)
           .filter(item => item.account_type === 'revenue')
-          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+          .reduce((sum, item) => sum + item.total, 0);
         
-        const expenses = plData
+        const expenses = Object.values(accountTotals)
           .filter(item => item.account_type === 'expense')
-          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+          .reduce((sum, item) => sum + item.total, 0);
         
-        const cogs = plData
+        const cogs = Object.values(accountTotals)
           .filter(item => item.account_type === 'cost_of_goods_sold')
-          .reduce((sum, item) => sum + (item.year_to_date || 0), 0);
+          .reduce((sum, item) => sum + item.total, 0);
         
         const grossProfit = revenue - cogs;
         const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
@@ -358,6 +369,11 @@ export const GSRDashboard = ({ onSectionChange }: GSRDashboardProps = {}) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <QBOSyncButton 
+            variant="outline"
+            size="sm"
+            onSyncComplete={() => fetchData()}
+          />
           <Button variant="outline" size="sm" onClick={() => setIsSchedulingReview(true)}>
             <Clock className="h-4 w-4 mr-2" />
             Schedule Review

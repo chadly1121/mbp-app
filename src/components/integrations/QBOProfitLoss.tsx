@@ -55,12 +55,14 @@ export const QBOProfitLoss = () => {
         .select('*')
         .eq('company_id', currentCompany.id)
         .eq('fiscal_year', selectedYear)
-        .order('account_type', { ascending: true })
+        .order('fiscal_month', { ascending: true })
         .order('account_name', { ascending: true });
 
       if (error) throw error;
 
-      setPlData(data || []);
+      // Calculate QTD and YTD from monthly data
+      const processedData = calculateAggregatedData(data || []);
+      setPlData(processedData);
     } catch (error: any) {
       toast({
         title: "Error loading P&L data",
@@ -70,6 +72,53 @@ export const QBOProfitLoss = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateAggregatedData = (rawData: any[]): PLData[] => {
+    // Group by account and aggregate
+    const accountGroups = rawData.reduce((acc, item) => {
+      const key = `${item.account_name}-${item.account_type}`;
+      if (!acc[key]) {
+        acc[key] = {
+          ...item,
+          monthlyData: []
+        };
+      }
+      acc[key].monthlyData.push({
+        month: item.fiscal_month,
+        amount: item.current_month || 0
+      });
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Calculate aggregations for each account
+    return Object.values(accountGroups).map((group: any) => {
+      const currentMonth = group.current_month || 0;
+      const currentMonthNumber = new Date().getMonth() + 1;
+      const currentQuarter = Math.ceil(currentMonthNumber / 3);
+      const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+      
+      // Sum all months for YTD
+      const year_to_date = group.monthlyData.reduce((sum: number, m: any) => sum + Math.abs(m.amount), 0);
+      
+      // Sum only current quarter months for QTD
+      const quarter_to_date = group.monthlyData
+        .filter((m: any) => m.month >= quarterStartMonth && m.month <= currentMonthNumber)
+        .reduce((sum: number, m: any) => sum + Math.abs(m.amount), 0);
+
+      return {
+        ...group,
+        current_month: currentMonth,
+        quarter_to_date,
+        year_to_date,
+        budget_current_month: group.budget_current_month || 0,
+        budget_quarter_to_date: group.budget_quarter_to_date || 0,
+        budget_year_to_date: group.budget_year_to_date || 0,
+        variance_current_month: currentMonth - (group.budget_current_month || 0),
+        variance_quarter_to_date: quarter_to_date - (group.budget_quarter_to_date || 0),
+        variance_year_to_date: year_to_date - (group.budget_year_to_date || 0)
+      };
+    });
   };
 
   const handleSync = async () => {
@@ -140,9 +189,12 @@ export const QBOProfitLoss = () => {
     return acc;
   }, {} as Record<string, PLData[]>);
 
-  // Calculate totals
-  const calculateTotal = (type: string, field: keyof PLData) => {
-    return groupedData[type]?.reduce((sum, item) => sum + (item[field] as number), 0) || 0;
+  // Calculate totals by aggregating account groups properly
+  const calculateTotal = (type: string, field: string) => {
+    return groupedData[type]?.reduce((sum, item) => {
+      const value = item[field as keyof PLData] as number;
+      return sum + Math.abs(value || 0);
+    }, 0) || 0;
   };
 
   const totalRevenue = calculateTotal('revenue', selectedView);
