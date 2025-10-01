@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface WeeklyRevenue {
   week: string;
@@ -75,15 +76,15 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
 
         const processedData: WeeklyRevenue[] = [];
 
-        // Generate 13 weeks of data (approximately one quarter)
-        for (let week = 1; week <= 13; week++) {
-          // Calculate which month this week falls into (roughly)
+        // Generate 52 weeks of data (full year)
+        for (let week = 1; week <= 52; week++) {
+          // Calculate which month this week falls into (roughly 4.33 weeks per month)
           const monthIndex = Math.floor((week - 1) / 4.33);
-          const targetMonth = quarterStartMonth + monthIndex;
+          const targetMonth = (monthIndex % 12) + 1;
           
           // Get monthly revenue for current and previous periods
           const currentMonthData = currentQuarterData?.filter(d => d.fiscal_month === targetMonth) || [];
-          const previousMonthData = previousQuarterData?.filter(d => d.fiscal_month === prevQuarterStartMonth + monthIndex) || [];
+          const previousMonthData = previousQuarterData?.filter(d => d.fiscal_month === targetMonth) || [];
           const forecastMonth = forecastData?.find(d => d.month === targetMonth);
 
           // Sum all revenue account entries for the month and divide by ~4.33 weeks/month
@@ -148,14 +149,18 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
     );
   }
 
-  // Calculate quarter info and totals for summary
+  // Calculate year totals for summary
   const currentDate = new Date();
-  const currentQuarter = Math.floor((currentDate.getMonth() / 3)) + 1;
   const currentYear = dateFilters?.year || currentDate.getFullYear();
   
   const totalCurrent = filteredData.reduce((sum, d) => sum + d.current, 0);
   const totalPrevious = filteredData.reduce((sum, d) => sum + d.previous, 0);
   const growthRate = totalPrevious > 0 ? ((totalCurrent - totalPrevious) / totalPrevious) * 100 : 0;
+
+  // Determine if we need logarithmic scale based on data range
+  const maxValue = Math.max(...filteredData.map(d => Math.max(d.current, d.previous, d.target)));
+  const minValue = Math.min(...filteredData.filter(d => d.current > 0 || d.previous > 0 || d.target > 0).map(d => Math.min(d.current, d.previous, d.target)));
+  const useLogScale = maxValue / minValue > 100; // Use log scale if range is over 100x
 
   return (
     <Card className="bg-gradient-card shadow-md">
@@ -163,79 +168,86 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-lg font-semibold">Weekly Revenue Trends</CardTitle>
-            <CardDescription>Q{currentQuarter} {currentYear} performance vs previous quarter</CardDescription>
+            <CardDescription>{currentYear} annual performance - 52 weeks</CardDescription>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">${(totalCurrent / 1000).toFixed(1)}K</div>
             <div className={`text-sm flex items-center gap-1 ${growthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {growthRate >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}% vs last quarter
+              {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}% vs previous
             </div>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={filteredData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis 
-                dataKey="week" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                tickLine={false}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                }}
-                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 8 }}
-                formatter={(value: number) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, '']}
-              />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="line"
-                formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontSize: '14px' }}>{value}</span>}
-              />
-              <Line
-                type="monotone"
-                dataKey="current"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 5 }}
-                activeDot={{ r: 7 }}
-                name="Current Quarter"
-              />
-              <Line
-                type="monotone"
-                dataKey="previous"
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={{ fill: "hsl(var(--muted-foreground))", strokeWidth: 2, r: 4 }}
-                name="Previous Quarter"
-              />
-              <Line
-                type="monotone"
-                dataKey="target"
-                stroke="hsl(220 70% 50%)"
-                strokeWidth={2}
-                strokeDasharray="3 3"
-                dot={{ fill: "hsl(220 70% 50%)", strokeWidth: 2, r: 4 }}
-                name="Target"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <ScrollArea className="w-full">
+          <div style={{ width: `${filteredData.length * 20}px`, minWidth: '100%' }} className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={filteredData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tickLine={false}
+                  interval={0}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  scale={useLogScale ? 'log' : 'linear'}
+                  domain={useLogScale ? ['auto', 'auto'] : [0, 'auto']}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tickLine={false}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                    return `$${value}`;
+                  }}
+                  label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                  }}
+                  labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 8 }}
+                  formatter={(value: number) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, '']}
+                />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="rect"
+                  formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontSize: '14px' }}>{value}</span>}
+                />
+                <Bar
+                  dataKey="current"
+                  fill="hsl(var(--primary))"
+                  name="Current Year"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="previous"
+                  fill="hsl(var(--muted-foreground))"
+                  name="Previous Year"
+                  radius={[4, 4, 0, 0]}
+                  opacity={0.6}
+                />
+                <Bar
+                  dataKey="target"
+                  fill="hsl(220 70% 50%)"
+                  name="Target"
+                  radius={[4, 4, 0, 0]}
+                  opacity={0.5}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </CardContent>
     </Card>
   );
