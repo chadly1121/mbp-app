@@ -27,6 +27,63 @@ const Index = () => {
   const { signOut, user } = useAuth();
   const { currentCompany } = useCompany();
   const isMobile = useIsMobile();
+  const [dashboardMetrics, setDashboardMetrics] = useState({
+    totalRevenue: 0,
+    growthRate: 0,
+    activeCustomers: 0,
+    conversionRate: 0,
+  });
+
+  // Fetch real dashboard metrics
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+
+    const fetchDashboardMetrics = async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        const previousYear = currentYear - 1;
+
+        // Fetch current year revenue (YTD)
+        const { data: currentRevData } = await supabase
+          .from('qbo_profit_loss')
+          .select('current_month')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', currentYear)
+          .eq('account_type', 'revenue');
+
+        // Fetch previous year revenue for growth calculation
+        const { data: previousRevData } = await supabase
+          .from('qbo_profit_loss')
+          .select('current_month')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', previousYear)
+          .eq('account_type', 'revenue');
+
+        // Fetch customer count
+        const { data: customers } = await supabase
+          .from('sales_pipeline')
+          .select('client_name')
+          .eq('company_id', currentCompany.id);
+
+        const currentRevenue = currentRevData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
+        const previousRevenue = previousRevData?.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0) || 0;
+        const growthRate = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+        const uniqueCustomers = [...new Set(customers?.map(c => c.client_name).filter(Boolean))];
+
+        setDashboardMetrics({
+          totalRevenue: currentRevenue,
+          growthRate,
+          activeCustomers: uniqueCustomers.length,
+          conversionRate: 3.2, // This would need to be calculated from actual conversion data
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard metrics:', error);
+      }
+    };
+
+    fetchDashboardMetrics();
+  }, [currentCompany?.id]);
 
   // Handle collaboration invite acceptance
   useEffect(() => {
@@ -169,29 +226,37 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               <MetricCard
                 title="Total Revenue"
-                value="$847,230"
-                change={{ value: "+12.5% from last month", trend: "up" }}
+                value={dashboardMetrics.totalRevenue > 0 ? `$${dashboardMetrics.totalRevenue.toLocaleString()}` : "$0"}
+                change={{ 
+                  value: dashboardMetrics.growthRate > 0 
+                    ? `+${dashboardMetrics.growthRate.toFixed(1)}% from last year` 
+                    : "No prior year data", 
+                  trend: dashboardMetrics.growthRate > 0 ? "up" : "neutral" 
+                }}
                 icon={<DollarSign className="h-5 w-5" />}
                 variant="success"
               />
               <MetricCard
                 title="Growth Rate"
-                value="23.1%"
-                change={{ value: "+2.3% from last quarter", trend: "up" }}
+                value={`${Math.abs(dashboardMetrics.growthRate).toFixed(1)}%`}
+                change={{ 
+                  value: dashboardMetrics.growthRate > 0 ? "Year over year growth" : "Year over year", 
+                  trend: dashboardMetrics.growthRate > 0 ? "up" : "down" 
+                }}
                 icon={<TrendingUp className="h-5 w-5" />}
                 variant="info"
               />
               <MetricCard
                 title="Active Customers"
-                value="1,234"
-                change={{ value: "+89 new this month", trend: "up" }}
+                value={dashboardMetrics.activeCustomers.toString()}
+                change={{ value: "from sales pipeline", trend: "neutral" }}
                 icon={<Users className="h-5 w-5" />}
                 variant="default"
               />
               <MetricCard
                 title="Conversion Rate"
-                value="3.2%"
-                change={{ value: "-0.1% from last week", trend: "down" }}
+                value={`${dashboardMetrics.conversionRate.toFixed(1)}%`}
+                change={{ value: "estimated conversion", trend: "neutral" }}
                 icon={<ShoppingCart className="h-5 w-5" />}
                 variant="warning"
               />

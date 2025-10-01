@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
       console.error('Error syncing customer balances:', error)
     }
 
-    // Sync P&L Report Data
+    // Sync P&L Report Data - Fetch monthly data by making separate calls for each month
     console.log('Syncing P&L report data from QBO')
     let plDataCount = 0
     
@@ -409,11 +409,6 @@ Deno.serve(async (req) => {
       const currentDate = new Date()
       const fiscalYear = currentDate.getFullYear()
       const currentMonth = currentDate.getMonth() + 1 // 1-12
-      const currentQuarter = Math.ceil(currentMonth / 3)
-      
-      // Get YTD P&L report (simplified approach)
-      const startDate = `${fiscalYear}-01-01`
-      const endDate = currentDate.toISOString().split('T')[0]
       
       // Clear existing P&L data for this year first
       console.log('Clearing existing P&L data for fiscal year:', fiscalYear)
@@ -427,132 +422,105 @@ Deno.serve(async (req) => {
         console.error('Error clearing existing P&L data:', deleteError)
       }
       
-      // DIRECT P&L TEST - Let's see exactly what QBO returns
-      console.log(`=== TESTING REAL QBO P&L API ===`)
+      console.log(`=== FETCHING MONTHLY P&L DATA ===`)
       console.log(`QBO Company ID: ${tokenData.qbo_company_id}`)
-      console.log(`Date range: ${startDate} to ${endDate}`)
       
-      // Request monthly columns from QBO for proper monthly breakdown
-      const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}&summarize_column_by=Month`
-      console.log('Calling P&L URL:', plUrl)
-      
-      try {
-        const response = await fetch(plUrl, { headers })
-        console.log('P&L Response Status:', response.status, response.statusText)
+      // Fetch P&L for each month YTD
+      for (let month = 1; month <= currentMonth; month++) {
+        const startDate = `${fiscalYear}-${String(month).padStart(2, '0')}-01`
+        const lastDay = new Date(fiscalYear, month, 0).getDate()
+        const endDate = `${fiscalYear}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
         
-        if (response.ok) {
-          const plData = await response.json()
-          console.log('=== SUCCESS! Got P&L data from QBO ===')
-          console.log('Response keys:', Object.keys(plData))
+        console.log(`Fetching P&L for month ${month}: ${startDate} to ${endDate}`)
+        
+        const plUrl = `${baseUrl}/reports/ProfitAndLoss?start_date=${startDate}&end_date=${endDate}`
+        
+        try {
+          const response = await fetch(plUrl, { headers })
           
-          // Parse the REAL QBO P&L response structure with monthly columns
-          if (plData.Rows && plData.Rows.Row && plData.Columns && plData.Columns.Column) {
-            console.log(`Processing ${plData.Rows.Row.length} sections from QBO P&L`)
+          if (response.ok) {
+            const plData = await response.json()
+            const quarter = Math.ceil(month / 3)
             
-            // Extract month information from columns
-            // Column 0 is account name, columns 1+ are the month data
-            const monthColumns = plData.Columns.Column.slice(1).map((col: any, idx: number) => ({
-              index: idx + 1,
-              month: idx + 1,  // Month number 1-12
-              title: col.ColTitle || `Month ${idx + 1}`
-            }))
-            
-            console.log(`Found ${monthColumns.length} month columns`)
-            
-            // Function to recursively process the nested row structure
-            const processRows = async (rows: any[], parentGroup = '') => {
-              for (const row of rows) {
-                if (row.type === 'Section' && row.Rows && row.Rows.Row) {
-                  // This is a section with sub-rows, process recursively
-                  const sectionName = row.group || parentGroup || 'Unknown'
-                  console.log(`Processing section: ${sectionName} with ${row.Rows.Row.length} items`)
-                  await processRows(row.Rows.Row, sectionName)
-                } else if (row.type === 'Data' && row.ColData && row.ColData.length > 1) {
-                  // This is actual account data
-                  const accountName = row.ColData[0]?.value
-                  const accountId = row.ColData[0]?.id
-                  
-                  if (accountName && !accountName.includes('Total')) {
-                    // Determine account type based on parent section
-                    let accountType = 'expense'
-                    const lowerGroup = parentGroup.toLowerCase()
+            // Process the P&L data for this month
+            if (plData.Rows && plData.Rows.Row) {
+              const processRows = async (rows: any[], parentGroup = '') => {
+                for (const row of rows) {
+                  if (row.type === 'Section' && row.Rows && row.Rows.Row) {
+                    const sectionName = row.group || parentGroup || 'Unknown'
+                    await processRows(row.Rows.Row, sectionName)
+                  } else if (row.type === 'Data' && row.ColData && row.ColData.length >= 2) {
+                    const accountName = row.ColData[0]?.value
+                    const amountStr = row.ColData[1]?.value
+                    const accountId = row.ColData[0]?.id
                     
-                    if (lowerGroup === 'income') {
-                      accountType = 'revenue'
-                    } else if (lowerGroup === 'otherincome') {
-                      accountType = 'expense'  // Treat other income as expense reduction
-                    } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
-                      accountType = 'cost_of_goods_sold'
-                    }
-                    
-                    // Process each month column
-                    for (const monthCol of monthColumns) {
-                      const amountStr = row.ColData[monthCol.index]?.value
-                      if (amountStr) {
-                        const amount = parseFloat(amountStr.replace(/,/g, ''))
+                    if (accountName && amountStr && !accountName.includes('Total')) {
+                      const amount = parseFloat(amountStr.replace(/,/g, ''))
+                      
+                      if (!isNaN(amount) && Math.abs(amount) > 0.01) {
+                        let accountType = 'expense'
+                        const lowerGroup = parentGroup.toLowerCase()
                         
-                        if (!isNaN(amount) && Math.abs(amount) > 0.01) {
-                          const month = monthCol.month
-                          const quarter = Math.ceil(month / 3)
-                          
-                          const plEntry = {
-                            company_id: companyId,
-                            account_id: null,
-                            account_name: accountName,
-                            account_type: accountType,
-                            qbo_account_id: accountId,
-                            report_date: `${fiscalYear}-${String(month).padStart(2, '0')}-01`,
-                            fiscal_year: fiscalYear,
-                            fiscal_quarter: quarter,
-                            fiscal_month: month,
-                            current_month: Math.abs(amount),
-                            quarter_to_date: 0,  // Will be calculated separately if needed
-                            year_to_date: 0,     // Will be calculated separately if needed
-                            budget_current_month: 0,
-                            budget_quarter_to_date: 0,
-                            budget_year_to_date: 0,
-                            variance_current_month: Math.abs(amount),
-                            variance_quarter_to_date: 0,
-                            variance_year_to_date: 0
-                          }
-                          
-                          const { error: insertError } = await supabase
-                            .from('qbo_profit_loss')
-                            .insert(plEntry)
-                          
-                          if (!insertError) {
-                            plDataCount++
-                          } else {
-                            console.error(`Error inserting P&L data for ${accountName} month ${month}:`, insertError)
-                          }
+                        if (lowerGroup === 'income') {
+                          accountType = 'revenue'
+                        } else if (lowerGroup === 'otherincome') {
+                          accountType = 'expense'
+                        } else if (lowerGroup.includes('cogs') || lowerGroup.includes('cost of goods sold')) {
+                          accountType = 'cost_of_goods_sold'
+                        }
+                        
+                        const plEntry = {
+                          company_id: companyId,
+                          account_id: null,
+                          account_name: accountName,
+                          account_type: accountType,
+                          qbo_account_id: accountId,
+                          report_date: startDate,
+                          fiscal_year: fiscalYear,
+                          fiscal_quarter: quarter,
+                          fiscal_month: month,
+                          current_month: Math.abs(amount),
+                          quarter_to_date: 0,
+                          year_to_date: 0,
+                          budget_current_month: 0,
+                          budget_quarter_to_date: 0,
+                          budget_year_to_date: 0,
+                          variance_current_month: Math.abs(amount),
+                          variance_quarter_to_date: 0,
+                          variance_year_to_date: 0
+                        }
+                        
+                        const { error: insertError } = await supabase
+                          .from('qbo_profit_loss')
+                          .insert(plEntry)
+                        
+                        if (!insertError) {
+                          plDataCount++
+                        } else {
+                          console.error(`Error inserting P&L data for ${accountName} month ${month}:`, insertError)
                         }
                       }
-                    }
-                    
-                    if (plDataCount > 0 && plDataCount % 10 === 0) {
-                      console.log(`Processed ${plDataCount} P&L entries so far...`)
                     }
                   }
                 }
               }
+              
+              await processRows(plData.Rows.Row)
             }
             
-            // Start processing from the top level
-            await processRows(plData.Rows.Row)
-            console.log(`Successfully processed ${plDataCount} real P&L entries from QBO`)
+            console.log(`Processed month ${month}, total entries: ${plDataCount}`)
+          } else {
+            console.error(`P&L API failed for month ${month}:`, response.status)
           }
-          
-          console.log('=== FULL RAW P&L RESPONSE ===')
-          console.log(JSON.stringify(plData, null, 2))
-          console.log('=== END RAW RESPONSE ===')
-          
-        } else {
-          const errorText = await response.text()
-          console.error('P&L API failed:', response.status, errorText)
+        } catch (monthError) {
+          console.error(`Exception fetching P&L for month ${month}:`, monthError)
         }
-      } catch (error) {
-        console.error('Exception calling P&L API:', error)
+        
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
+      
+      console.log(`Successfully processed ${plDataCount} P&L entries across ${currentMonth} months`)
       
       // If no data retrieved, create sample data for now
       if (plDataCount === 0) {
