@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 
 interface GrowthMetrics {
   currentYearRevenue: number;
@@ -130,6 +131,9 @@ const GrowthSection = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <QBOSyncButton onSyncComplete={() => window.location.reload()} />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Revenue Growth"

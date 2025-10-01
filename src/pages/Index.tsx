@@ -13,6 +13,7 @@ import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
 import { MBPTabs } from "@/components/mbp/MBPTabs";
 import { QBOIntegration } from "@/components/integrations/QBOIntegration";
+import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 import { StrategicPlanning } from "@/components/mbp/tabs/StrategicPlanning";
 import { KPITrackingPage } from "@/components/kpi/KPITrackingPage";
 import { GSRDashboard } from "@/components/dashboard/GSRDashboard";
@@ -392,12 +393,15 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Filter Bar - Hide on mobile for MBP and Strategic sections */}
+              {/* Filter Bar and Sync - Hide on mobile for MBP and Strategic sections */}
               {!['mbp', 'strategic', 'gsr', 'kpis'].includes(activeSection) && !isMobile && (
-                <FilterBar 
-                  onFilterChange={setDateFilters} 
-                  currentFilters={dateFilters}
-                />
+                <div className="flex items-center justify-between gap-4">
+                  <FilterBar 
+                    onFilterChange={setDateFilters} 
+                    currentFilters={dateFilters}
+                  />
+                  <QBOSyncButton onSyncComplete={() => window.location.reload()} />
+                </div>
               )}
               
               {/* Content */}

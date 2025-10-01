@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 
 interface RevenueData {
   account_name: string;
@@ -114,7 +115,11 @@ const AnalyticsSection = () => {
   const filteredMonthlyData = monthlyData.filter(d => d.revenue > 0 || d.expenses > 0);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <QBOSyncButton onSyncComplete={() => window.location.reload()} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card className="bg-gradient-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -189,6 +194,7 @@ const AnalyticsSection = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

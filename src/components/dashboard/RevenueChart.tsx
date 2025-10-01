@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 
 interface MonthlyRevenue {
   month: string;
@@ -59,9 +60,10 @@ const RevenueChart = () => {
           const previousMonthData = previousYearData?.filter(d => d.fiscal_month === i) || [];
           const forecastMonth = forecastData?.find(d => d.month === i);
 
+          // Sum all revenue account entries for the month
           const currentRevenue = currentMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
           const previousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
-          const targetRevenue = forecastMonth?.forecasted_amount || currentRevenue * 1.1; // 10% growth if no forecast
+          const targetRevenue = forecastMonth?.forecasted_amount || (currentRevenue > 0 ? currentRevenue * 1.1 : 0);
 
           processedData.push({
             month: monthNames[i - 1],
@@ -117,8 +119,13 @@ const RevenueChart = () => {
   return (
     <Card className="bg-gradient-card shadow-md">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-        <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
+            <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
+          </div>
+          <QBOSyncButton onSyncComplete={() => window.location.reload()} />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-80">
