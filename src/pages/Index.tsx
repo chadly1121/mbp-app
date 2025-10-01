@@ -393,14 +393,19 @@ const Index = () => {
                 </p>
               </div>
 
-              {/* Filter Bar and Sync - Hide on mobile for MBP and Strategic sections */}
-              {!['mbp', 'strategic', 'gsr', 'kpis'].includes(activeSection) && !isMobile && (
+              {/* Filter Bar and Sync - Show on pages with QBO data */}
+              {!['mbp', 'strategic', 'gsr', 'kpis', 'integrations'].includes(activeSection) && !isMobile && (
                 <div className="flex items-center justify-between gap-4">
                   <FilterBar 
                     onFilterChange={setDateFilters} 
                     currentFilters={dateFilters}
                   />
-                  <QBOSyncButton onSyncComplete={() => window.location.reload()} />
+                  <QBOSyncButton 
+                    onSyncComplete={() => {
+                      // Reload entire page to refresh all QBO data across all components
+                      window.location.reload();
+                    }} 
+                  />
                 </div>
               )}
               

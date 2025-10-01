@@ -115,11 +115,7 @@ const AnalyticsSection = () => {
   const filteredMonthlyData = monthlyData.filter(d => d.revenue > 0 || d.expenses > 0);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <QBOSyncButton onSyncComplete={() => window.location.reload()} />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card className="bg-gradient-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -194,7 +190,6 @@ const AnalyticsSection = () => {
           </div>
         </CardContent>
       </Card>
-      </div>
     </div>
   );
 };

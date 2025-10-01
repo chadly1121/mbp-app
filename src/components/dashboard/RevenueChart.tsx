@@ -4,7 +4,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { QBOSyncButton } from "@/components/integrations/QBOSyncButton";
 
 interface MonthlyRevenue {
   month: string;
@@ -119,13 +118,8 @@ const RevenueChart = () => {
   return (
     <Card className="bg-gradient-card shadow-md">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
-            <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
-          </div>
-          <QBOSyncButton onSyncComplete={() => window.location.reload()} />
-        </div>
+        <CardTitle className="text-lg font-semibold">Revenue Trends</CardTitle>
+        <p className="text-sm text-muted-foreground">Monthly revenue comparison and targets</p>
       </CardHeader>
       <CardContent>
         <div className="h-80">
