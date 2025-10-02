@@ -162,12 +162,8 @@ export const MarketAnalysis = () => {
     return sum + parseFloat(segment.size.replace('$', '').replace('M', ''));
   }, 0);
 
-  const ourMarketShare = marketSegments.reduce((total, segment) => {
-    const segmentValue = parseFloat(segment.size.replace('$', '').replace('M', ''));
-    return total + (segmentValue * segment.ourShare / 100);
-  }, 0);
-
-  const overallMarketShare = (ourMarketShare / totalMarketSize) * 100;
+  // Calculate market share directly: (Our Revenue / Total Market) * 100
+  const overallMarketShare = actualRevenue > 0 ? (actualRevenue / totalMarketSize) * 100 : 0;
 
   return (
     <div className="space-y-6">
