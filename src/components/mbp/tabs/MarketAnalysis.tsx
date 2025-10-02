@@ -221,7 +221,7 @@ export const MarketAnalysis = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingRevenue ? '...' : `${overallMarketShare.toFixed(1)}%`}
+              {isLoadingRevenue ? '...' : `${overallMarketShare.toFixed(3)}%`}
             </div>
             <div className="text-xs text-muted-foreground">
               ${actualRevenue.toFixed(2)}M actual revenue (2025)
