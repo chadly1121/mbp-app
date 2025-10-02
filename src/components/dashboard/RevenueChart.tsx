@@ -13,8 +13,8 @@ interface MonthlyRevenue {
   current: number;
   previous: number;
   target: number;
-  yoyIndicator: number;
-  yoyColor: string;
+  isWin: boolean;
+  isLoss: boolean;
 }
 
 const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
@@ -72,16 +72,9 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
           const monthlyPreviousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
           const monthlyTargetRevenue = forecastMonth?.forecasted_amount || (monthlyCurrentRevenue > 0 ? monthlyCurrentRevenue * 1.1 : 0);
 
-          // Determine win/loss color based on year-over-year comparison
+          // Determine win/loss based on year-over-year comparison
           const isWin = monthlyPreviousRevenue > 0 && monthlyCurrentRevenue >= monthlyPreviousRevenue;
           const isLoss = monthlyPreviousRevenue > 0 && monthlyCurrentRevenue < monthlyPreviousRevenue;
-          const yoyColor = isWin 
-            ? 'hsl(var(--success) / 0.15)' 
-            : isLoss 
-            ? 'hsl(var(--destructive) / 0.15)' 
-            : 'transparent';
-          
-          const maxValue = Math.max(monthlyCurrentRevenue, monthlyPreviousRevenue, monthlyTargetRevenue);
 
           processedData.push({
             month: monthNames[monthNum - 1],
@@ -89,8 +82,8 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
             current: monthlyCurrentRevenue,
             previous: monthlyPreviousRevenue,
             target: monthlyTargetRevenue,
-            yoyIndicator: maxValue * 1.2,
-            yoyColor
+            isWin,
+            isLoss
           });
         }
 
@@ -184,10 +177,43 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
                 <XAxis 
                   dataKey="month" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const monthData = filteredData.find(d => d.month === payload.value);
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text 
+                          x={0} 
+                          y={0} 
+                          dy={16} 
+                          textAnchor="middle" 
+                          fill="hsl(var(--muted-foreground))" 
+                          fontSize={12}
+                        >
+                          {payload.value}
+                        </text>
+                        {monthData?.isWin && (
+                          <circle 
+                            cx={0} 
+                            cy={28} 
+                            r={4} 
+                            fill="hsl(var(--success))" 
+                          />
+                        )}
+                        {monthData?.isLoss && (
+                          <circle 
+                            cx={0} 
+                            cy={28} 
+                            r={4} 
+                            fill="hsl(var(--destructive))" 
+                          />
+                        )}
+                      </g>
+                    );
+                  }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
-                  height={40}
+                  height={50}
                 />
                 <YAxis 
                   scale="linear"
@@ -222,24 +248,6 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                   formatter={(value) => {
                     const labels: any = { current: 'Current Year', previous: 'Previous Year', target: 'Target' };
                     return <span style={{ color: 'hsl(var(--foreground))', fontSize: '13px' }}>{labels[value] || value}</span>;
-                  }}
-                />
-                <Bar 
-                  dataKey="yoyIndicator" 
-                  fill="transparent"
-                  stackId="background"
-                  shape={(props: any) => {
-                    const { x, y, width, height, payload } = props;
-                    return (
-                      <rect
-                        x={x}
-                        y={0}
-                        width={width}
-                        height={height + y}
-                        fill={payload.yoyColor}
-                        rx={4}
-                      />
-                    );
                   }}
                 />
                 <Bar
