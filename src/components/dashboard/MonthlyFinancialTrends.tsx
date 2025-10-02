@@ -40,16 +40,6 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
           .lte('fiscal_month', endMonth)
           .order('fiscal_month');
         
-        // Fetch previous year data for comparison
-        const { data: prevYearTrends } = await supabase
-          .from('qbo_profit_loss')
-          .select('fiscal_month, current_month, account_type')
-          .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', fiscalYear - 1)
-          .gte('fiscal_month', startMonth)
-          .lte('fiscal_month', endMonth)
-          .order('fiscal_month');
-        
         // Process monthly data
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const processedMonthly: MonthlyData[] = [];
@@ -63,21 +53,17 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
             .filter(d => d.account_type === 'expense' || d.account_type === 'cost_of_goods_sold')
             .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
           
-          // Calculate previous year revenue for comparison
-          const prevMonthData = prevYearTrends?.filter(d => d.fiscal_month === i) || [];
-          const prevRevenue = prevMonthData
-            .filter(d => d.account_type === 'revenue')
-            .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
+          const profit = revenue - expenses;
           
-          // Determine win/loss based on year-over-year comparison
-          const isWin = prevRevenue > 0 && revenue >= prevRevenue;
-          const isLoss = prevRevenue > 0 && revenue < prevRevenue;
+          // Determine win/loss based on $2000 profit threshold
+          const isWin = profit >= 2000;
+          const isLoss = profit < 2000;
           
           processedMonthly.push({
             month: monthNames[i - 1],
             revenue,
             expenses,
-            profit: revenue - expenses,
+            profit,
             isWin,
             isLoss
           });
