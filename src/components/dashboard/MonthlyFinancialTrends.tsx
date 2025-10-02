@@ -132,25 +132,9 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
                   formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="revenue" 
-                  name="Revenue" 
-                  fill="hsl(var(--primary))"
-                  shape={(props: any) => {
-                    const { fill, x, y, width, height, payload } = props;
-                    return (
-                      <rect
-                        x={x}
-                        y={y}
-                        width={width}
-                        height={height}
-                        fill={payload.revenueColor || fill}
-                      />
-                    );
-                  }}
-                />
-                <Bar dataKey="expenses" fill="hsl(var(--muted))" name="Expenses" />
-                <Bar dataKey="profit" fill="hsl(var(--primary))" name="Profit" />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
+                <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" />
+                <Bar dataKey="profit" fill="hsl(var(--success))" name="Profit" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
