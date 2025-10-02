@@ -312,16 +312,41 @@ const Index = () => {
         );
       case 'revenue':
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <RevenueChart dateFilters={getDateRange()} />
+          <div className="space-y-6">
+            {/* Sales Pipeline */}
             <SalesPipeline />
+            
+            {/* Customer Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MetricCard
+                title="Active Customers"
+                value={dashboardMetrics.activeCustomers.toString()}
+                change={{ value: "from sales pipeline", trend: "neutral" }}
+                icon={<Users className="h-5 w-5" />}
+                variant="default"
+              />
+              <MetricCard
+                title="Conversion Rate"
+                value={`${dashboardMetrics.conversionRate.toFixed(1)}%`}
+                change={{ value: "estimated conversion", trend: "neutral" }}
+                icon={<ShoppingCart className="h-5 w-5" />}
+                variant="warning"
+              />
+              <MetricCard
+                title="Pipeline Value"
+                value="Track deals"
+                change={{ value: "total opportunity", trend: "neutral" }}
+                icon={<TrendingUp className="h-5 w-5" />}
+                variant="info"
+              />
+            </div>
           </div>
         );
       default:
         return (
-          <>
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+          <div className="space-y-6">
+            {/* Revenue Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <MetricCard
                 title="Total Revenue"
                 value={dashboardMetrics.totalRevenue > 0 ? `$${dashboardMetrics.totalRevenue.toLocaleString()}` : "$0"}
@@ -344,28 +369,11 @@ const Index = () => {
                 icon={<TrendingUp className="h-5 w-5" />}
                 variant="info"
               />
-              <MetricCard
-                title="Active Customers"
-                value={dashboardMetrics.activeCustomers.toString()}
-                change={{ value: "from sales pipeline", trend: "neutral" }}
-                icon={<Users className="h-5 w-5" />}
-                variant="default"
-              />
-              <MetricCard
-                title="Conversion Rate"
-                value={`${dashboardMetrics.conversionRate.toFixed(1)}%`}
-                change={{ value: "estimated conversion", trend: "neutral" }}
-                icon={<ShoppingCart className="h-5 w-5" />}
-                variant="warning"
-              />
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              <RevenueChart dateFilters={getDateRange()} />
-              <SalesPipeline />
-            </div>
-          </>
+            {/* Revenue Chart */}
+            <RevenueChart dateFilters={getDateRange()} />
+          </div>
         );
     }
   };
@@ -403,11 +411,11 @@ const Index = () => {
                    activeSection === 'gsr' ? 'Goal Setting & Review' :
                    activeSection === 'kpis' ? 'KPI Tracking' :
                    activeSection === 'mbp' ? 'Monthly Business Planning' :
-                   activeSection === 'dashboard' ? 'Executive Dashboard' :
+                   activeSection === 'dashboard' ? 'Revenue Dashboard' :
                    activeSection === 'analytics' ? 'Analytics Overview' :
                    activeSection === 'growth' ? 'Growth Metrics' :
                    activeSection === 'integrations' ? 'Integrations' :
-                   activeSection === 'revenue' ? 'Revenue Analysis' :
+                   activeSection === 'revenue' ? 'Sales Dashboard' :
                    'Dashboard'}
                 </h2>
                 <p className="text-sm md:text-base text-muted-foreground">
@@ -416,11 +424,11 @@ const Index = () => {
                     activeSection === 'gsr' ? 'Set goals, track progress, and conduct regular performance reviews' :
                     activeSection === 'kpis' ? 'Track and monitor key performance indicators' :
                     activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
-                    activeSection === 'dashboard' ? 'Your business performance at a glance' :
+                    activeSection === 'dashboard' ? 'Track revenue trends and year-over-year growth' :
                     activeSection === 'analytics' ? 'Detailed analytics and insights' :
                     activeSection === 'growth' ? 'Track your growth goals and KPIs' :
                     activeSection === 'integrations' ? 'Connect and sync with external accounting software' :
-                    activeSection === 'revenue' ? 'Revenue trends and pipeline analysis' :
+                    activeSection === 'revenue' ? 'Manage your sales pipeline, customers, and deals' :
                     'Business insights and metrics'}
                 </p>
               </div>
