@@ -17,13 +17,14 @@ export const useRevenueData = (year: number = 2025) => {
         throw new Error('No company selected');
       }
 
+      // Query qbo_profit_loss table for revenue data
       const { data, error } = await supabase
-        .from('income_statements')
-        .select('month_number, current_month, year_to_date')
+        .from('qbo_profit_loss')
+        .select('current_month, fiscal_month')
         .eq('company_id', currentCompany.id)
-        .eq('year', year)
-        .eq('category', 'Revenue')
-        .order('month_number', { ascending: true });
+        .eq('fiscal_year', year)
+        .eq('account_type', 'revenue')
+        .order('fiscal_month', { ascending: true });
 
       if (error) throw error;
 
@@ -34,7 +35,7 @@ export const useRevenueData = (year: number = 2025) => {
 
       // Group by month
       const revenueByMonth = data?.map(row => ({
-        month: row.month_number,
+        month: row.fiscal_month,
         amount: Number(row.current_month) || 0
       })) || [];
 
