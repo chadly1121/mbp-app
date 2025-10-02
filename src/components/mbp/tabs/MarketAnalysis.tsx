@@ -35,94 +35,115 @@ export const MarketAnalysis = () => {
 
   const competitors: CompetitorData[] = [
     {
-      name: 'Competitor A',
-      marketShare: 35,
-      revenue: '$50M',
-      strengths: ['Strong brand recognition', 'Large sales team', 'Enterprise focus'],
-      threats: ['Price competition', 'Market dominance', 'Feature parity']
+      name: 'Pro Painters Muskoka (Bracebridge)',
+      marketShare: 4.5,
+      revenue: '$1.5M-$3.0M',
+      strengths: ['20+ employees', '1,100+ projects completed', 'Broad service mix', 'Capacity and speed'],
+      threats: ['Large team capacity', 'Price flexibility', 'Fast project turnaround']
     },
     {
-      name: 'Competitor B',
-      marketShare: 25,
-      revenue: '$35M',
-      strengths: ['Innovation leader', 'Strong R&D', 'Mobile-first approach'],
-      threats: ['Technical superiority', 'Faster releases', 'Developer ecosystem']
+      name: 'WOW 1 DAY PAINTING – Muskoka',
+      marketShare: 2,
+      revenue: '$0.6M-$1.6M',
+      strengths: ['National brand recognition', 'Heavy marketing presence', 'One-day service promise'],
+      threats: ['Strong lead capture', 'Brand trust', 'Speed advantage']
     },
     {
-      name: 'Competitor C',
-      marketShare: 20,
-      revenue: '$28M',
-      strengths: ['Cost leadership', 'Simple pricing', 'SMB focused'],
-      threats: ['Price pressure', 'Market penetration', 'Simplicity advantage']
+      name: 'Northwood Painting Huntsville',
+      marketShare: 1.5,
+      revenue: '$0.5M-$1.0M',
+      strengths: ['Strong review volume', 'Interior/exterior expertise', 'Staining services', 'Huntsville market presence'],
+      threats: ['Reputation in Huntsville core', 'Customer loyalty', 'Review ratings']
+    },
+    {
+      name: 'Royal Muskoka Painting',
+      marketShare: 1.15,
+      revenue: '$0.4M-$0.8M',
+      strengths: ['Multi-town regional coverage', 'Interior and exterior services', 'Wide service area'],
+      threats: ['Geographic reach', 'Competitive quoting', 'Regional presence']
+    },
+    {
+      name: 'Great White Painting Co.',
+      marketShare: 0.85,
+      revenue: '$0.3M-$0.7M',
+      strengths: ['Local brand identity', 'Curated portfolio', 'Cottage exterior focus'],
+      threats: ['Cottage market competition', 'Portfolio quality', 'Niche specialization']
     }
   ];
 
   const marketSegments: MarketSegment[] = [
     {
-      name: 'Enterprise (1000+ employees)',
-      size: '$500M',
-      growth: 8.5,
-      ourShare: 12,
-      potential: 'high'
-    },
-    {
-      name: 'Mid-market (100-999 employees)',
-      size: '$200M',
-      growth: 15.2,
-      ourShare: 18,
-      potential: 'high'
-    },
-    {
-      name: 'Small Business (10-99 employees)',
-      size: '$150M',
-      growth: 22.8,
-      ourShare: 25,
+      name: 'Commercial / Enterprise',
+      size: '$11.5M',
+      growth: 1,
+      ourShare: 5,
       potential: 'medium'
     },
     {
-      name: 'Startups (1-9 employees)',
-      size: '$50M',
-      growth: 35.0,
+      name: 'Residential - Year-round',
+      size: '$16.9M',
+      growth: 3,
       ourShare: 8,
+      potential: 'high'
+    },
+    {
+      name: 'Residential - Seasonal/Cottage',
+      size: '$37.3M',
+      growth: 3,
+      ourShare: 6,
+      potential: 'high'
+    },
+    {
+      name: 'New Construction',
+      size: '$3M',
+      growth: 2,
+      ourShare: 10,
       potential: 'medium'
     }
   ];
 
   const marketTrends: MarketTrend[] = [
     {
-      trend: 'AI Integration',
+      trend: 'Low/Zero-VOC Coatings & Federal Regulations',
       impact: 'high',
-      timeframe: '6-12 months',
-      description: 'Increasing demand for AI-powered features and automation',
+      timeframe: 'Now - 24 months',
+      description: 'Canada enforcing stricter VOC limits for coatings. Opportunity to upsell compliant systems and market IAQ benefits.',
       opportunity: true
     },
     {
-      trend: 'Remote Work Tools',
+      trend: 'Skilled Labour Shortage & Wage Pressure',
       impact: 'high',
-      timeframe: 'Current',
-      description: 'Continued focus on remote collaboration and productivity tools',
+      timeframe: '6-24 months',
+      description: 'Persistent trades shortages across Ontario. Provides pricing power if capacity is reliable; need retention systems.',
       opportunity: true
     },
     {
-      trend: 'Privacy Regulations',
+      trend: 'STR Licensing Requirements',
+      impact: 'high',
+      timeframe: 'Now - 12 months',
+      description: 'Huntsville and Muskoka Lakes require STR licenses. Owners upgrading paint for inspections and guest standards.',
+      opportunity: true
+    },
+    {
+      trend: 'Aging & Seasonal Housing Stock',
+      impact: 'high',
+      timeframe: 'Now - 24 months',
+      description: 'Large seasonal base and older dwellings increase repaint frequency. Focus on exterior stain/paint programs and wood restoration.',
+      opportunity: true
+    },
+    {
+      trend: 'Digital Lead Generation Consolidation',
       impact: 'medium',
-      timeframe: '12-24 months',
-      description: 'New data privacy laws affecting product development',
+      timeframe: 'Now - 12 months',
+      description: 'Branded players and aggregators crowding Google LSA and maps. Must differentiate on niche offers, reviews, and fast quoting.',
       opportunity: false
     },
     {
-      trend: 'Economic Uncertainty',
-      impact: 'high',
-      timeframe: 'Current',
-      description: 'Budget constraints leading to longer sales cycles',
-      opportunity: false
-    },
-    {
-      trend: 'API-First Architecture',
+      trend: 'Input Cost Volatility',
       impact: 'medium',
       timeframe: '6-18 months',
-      description: 'Growing demand for integration-friendly solutions',
-      opportunity: true
+      description: 'RRPI remains elevated vs pre-2020; coatings and sundries volatility. Need indexed quotes and escalation clauses.',
+      opportunity: false
     }
   ];
 
@@ -172,9 +193,9 @@ export const MarketAnalysis = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="overall">Overall Market</SelectItem>
-              <SelectItem value="enterprise">Enterprise</SelectItem>
-              <SelectItem value="mid-market">Mid-market</SelectItem>
-              <SelectItem value="smb">Small Business</SelectItem>
+              <SelectItem value="commercial">Commercial</SelectItem>
+              <SelectItem value="residential">Residential</SelectItem>
+              <SelectItem value="seasonal">Seasonal/Cottage</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">
@@ -219,8 +240,8 @@ export const MarketAnalysis = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">14.2%</div>
-            <div className="text-xs text-muted-foreground">Weighted average CAGR</div>
+            <div className="text-2xl font-bold text-green-600">2-4%</div>
+            <div className="text-xs text-muted-foreground">Market CAGR (2025-2027)</div>
           </CardContent>
         </Card>
         
