@@ -176,10 +176,10 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
       </CardHeader>
       <CardContent>
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="h-80" style={{ width: `${filteredData.length * 35}px`, minWidth: '100%' }}>
+          <div className="h-96" style={{ width: `${filteredData.length * 40}px`, minWidth: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData} margin={{ top: 5, right: 5, left: 10, bottom: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <BarChart data={filteredData} margin={{ top: 10, right: 10, left: 60, bottom: 50 }} barGap={0} barCategoryGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
                 <XAxis 
                   dataKey="week" 
                   tick={(props) => {
@@ -189,25 +189,21 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                       <g transform={`translate(${x},${y})`}>
                         <text 
                           x={0} 
-                          y={0} 
-                          dy={10} 
-                          textAnchor="end" 
+                          y={5} 
+                          textAnchor="middle" 
                           fill="hsl(var(--muted-foreground))" 
                           fontSize={9}
-                          transform="rotate(-90)"
                         >
                           {payload.value}
                         </text>
                         {data?.month && (
                           <text 
                             x={0} 
-                            y={0} 
-                            dy={22} 
-                            textAnchor="end" 
+                            y={20} 
+                            textAnchor="middle" 
                             fill="hsl(var(--primary))" 
-                            fontSize={10}
-                            fontWeight={600}
-                            transform="rotate(-90)"
+                            fontSize={11}
+                            fontWeight={700}
                           >
                             {data.month}
                           </text>
@@ -218,55 +214,64 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
                   interval={0}
-                  height={80}
+                  height={40}
                 />
                 <YAxis 
-                  scale={useLogScale ? 'log' : 'linear'}
-                  domain={useLogScale ? ['auto', 'auto'] : [0, 'auto']}
+                  scale="linear"
+                  domain={[0, 'auto']}
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
+                  width={55}
                   tickFormatter={(value) => {
                     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
                     return `$${value}`;
                   }}
-                  label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
                 />
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    padding: '8px 12px'
                   }}
-                  labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 8 }}
-                  formatter={(value: number) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, '']}
+                  labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+                  formatter={(value: number, name: string) => {
+                    const label = name === 'current' ? 'Current Year' : name === 'previous' ? 'Previous Year' : 'Target';
+                    return [`$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, label];
+                  }}
                 />
                 <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
+                  wrapperStyle={{ paddingTop: '10px' }}
                   iconType="rect"
-                  formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontSize: '14px' }}>{value}</span>}
+                  formatter={(value) => {
+                    const labels: any = { current: 'Current Year', previous: 'Previous Year', target: 'Target' };
+                    return <span style={{ color: 'hsl(var(--foreground))', fontSize: '13px' }}>{labels[value] || value}</span>;
+                  }}
                 />
                 <Bar
                   dataKey="current"
                   fill="hsl(var(--primary))"
-                  name="Current Year"
+                  name="current"
                   radius={[4, 4, 0, 0]}
+                  maxBarSize={30}
                 />
                 <Bar
                   dataKey="previous"
                   fill="hsl(var(--muted-foreground))"
-                  name="Previous Year"
+                  name="previous"
                   radius={[4, 4, 0, 0]}
-                  opacity={0.6}
+                  maxBarSize={30}
                 />
                 <Bar
                   dataKey="target"
                   fill="hsl(220 70% 50%)"
-                  name="Target"
+                  name="target"
                   radius={[4, 4, 0, 0]}
-                  opacity={0.5}
+                  maxBarSize={30}
+                  fillOpacity={0.4}
                 />
               </BarChart>
             </ResponsiveContainer>
