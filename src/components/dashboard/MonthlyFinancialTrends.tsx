@@ -10,6 +10,7 @@ interface MonthlyData {
   revenue: number;
   expenses: number;
   profit: number;
+  revenueColor?: string;
 }
 
 const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
@@ -26,12 +27,22 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
         const startMonth = dateFilters?.startMonth || 1;
         const endMonth = dateFilters?.endMonth || 12;
         
-        // Fetch monthly trends for bar chart
+        // Fetch current year monthly trends
         const { data: monthlyTrends } = await supabase
           .from('qbo_profit_loss')
           .select('fiscal_month, current_month, account_type')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', fiscalYear)
+          .gte('fiscal_month', startMonth)
+          .lte('fiscal_month', endMonth)
+          .order('fiscal_month');
+        
+        // Fetch previous year data for comparison
+        const { data: prevYearTrends } = await supabase
+          .from('qbo_profit_loss')
+          .select('fiscal_month, current_month, account_type')
+          .eq('company_id', currentCompany.id)
+          .eq('fiscal_year', fiscalYear - 1)
           .gte('fiscal_month', startMonth)
           .lte('fiscal_month', endMonth)
           .order('fiscal_month');
@@ -49,11 +60,23 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
             .filter(d => d.account_type === 'expense' || d.account_type === 'cost_of_goods_sold')
             .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
           
+          // Calculate previous year revenue for comparison
+          const prevMonthData = prevYearTrends?.filter(d => d.fiscal_month === i) || [];
+          const prevRevenue = prevMonthData
+            .filter(d => d.account_type === 'revenue')
+            .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
+          
+          // Determine color based on year-over-year comparison
+          const revenueColor = prevRevenue > 0 
+            ? (revenue >= prevRevenue ? 'hsl(var(--success))' : 'hsl(var(--destructive))')
+            : 'hsl(var(--primary))';
+          
           processedMonthly.push({
             month: monthNames[i - 1],
             revenue,
             expenses,
-            profit: revenue - expenses
+            profit: revenue - expenses,
+            revenueColor
           });
         }
         
@@ -109,9 +132,25 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
                   formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]}
                 />
                 <Legend />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
-                <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" />
-                <Bar dataKey="profit" fill="hsl(var(--success))" name="Profit" />
+                <Bar 
+                  dataKey="revenue" 
+                  name="Revenue" 
+                  fill="hsl(var(--primary))"
+                  shape={(props: any) => {
+                    const { fill, x, y, width, height, payload } = props;
+                    return (
+                      <rect
+                        x={x}
+                        y={y}
+                        width={width}
+                        height={height}
+                        fill={payload.revenueColor || fill}
+                      />
+                    );
+                  }}
+                />
+                <Bar dataKey="expenses" fill="hsl(var(--muted))" name="Expenses" />
+                <Bar dataKey="profit" fill="hsl(var(--primary))" name="Profit" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
