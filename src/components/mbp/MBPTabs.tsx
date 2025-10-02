@@ -6,7 +6,6 @@ import { FinancialPlanning } from "./tabs/FinancialPlanning";
 import { RevenueForecast } from "./tabs/RevenueForecast";
 import { CashFlowPlanning } from "./tabs/CashFlowPlanning";
 
-import { StrategicPlanning } from "./tabs/StrategicPlanning";
 import { ActionItems } from "./tabs/ActionItems";
 import { MonthlyReview } from "./tabs/MonthlyReview";
 import { MarketAnalysis } from "./tabs/MarketAnalysis";
@@ -60,12 +59,6 @@ export const MBPTabs = () => {
       label: "Cash Flow",
       icon: Banknote,
       shortLabel: "Cash Flow"
-    },
-    {
-      id: "strategic",
-      label: "Strategic Planning",
-      icon: Map,
-      shortLabel: "Strategic"
     },
     {
       id: "market",
@@ -186,10 +179,6 @@ export const MBPTabs = () => {
           
           <TabsContent value="cashflow" className="mt-0">
             <CashFlowPlanning />
-          </TabsContent>
-          
-          <TabsContent value="strategic" className="mt-0">
-            <StrategicPlanning />
           </TabsContent>
           
           <TabsContent value="market" className="mt-0">
