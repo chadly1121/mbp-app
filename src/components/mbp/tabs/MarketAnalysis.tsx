@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, TrendingUp, Users, DollarSign, Target, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useRevenueData } from '@/hooks/useRevenueData';
 
 interface CompetitorData {
   name: string;
@@ -32,6 +33,7 @@ interface MarketTrend {
 
 export const MarketAnalysis = () => {
   const [selectedMarket, setSelectedMarket] = useState('overall');
+  const { data: revenueData, isLoading: isLoadingRevenue } = useRevenueData(2025);
 
   const competitors: CompetitorData[] = [
     {
@@ -71,36 +73,27 @@ export const MarketAnalysis = () => {
     }
   ];
 
-  const marketSegments: MarketSegment[] = [
-    {
-      name: 'Commercial / Enterprise',
-      size: '$11.5M',
-      growth: 1,
-      ourShare: 5,
-      potential: 'medium'
-    },
-    {
-      name: 'Residential - Year-round',
-      size: '$16.9M',
-      growth: 3,
-      ourShare: 8,
-      potential: 'high'
-    },
-    {
-      name: 'Residential - Seasonal/Cottage',
-      size: '$37.3M',
-      growth: 3,
-      ourShare: 6,
-      potential: 'high'
-    },
-    {
-      name: 'New Construction',
-      size: '$3M',
-      growth: 2,
-      ourShare: 10,
-      potential: 'medium'
-    }
-  ];
+  // Calculate actual market share based on 2025 revenue
+  const actualRevenue = (revenueData?.totalRevenue || 0) / 1000000; // Convert to millions
+  
+  const marketSegments: MarketSegment[] = useMemo(() => {
+    const segments = [
+      { name: 'Commercial / Enterprise', size: 11.5, growth: 1, potential: 'medium' as const },
+      { name: 'Residential - Year-round', size: 16.9, growth: 3, potential: 'high' as const },
+      { name: 'Residential - Seasonal/Cottage', size: 37.3, growth: 3, potential: 'high' as const },
+      { name: 'New Construction', size: 3.0, growth: 2, potential: 'medium' as const }
+    ];
+
+    const totalMarket = segments.reduce((sum, s) => sum + s.size, 0);
+    
+    return segments.map(segment => ({
+      ...segment,
+      size: `$${segment.size}M`,
+      // Calculate proportional share based on segment size
+      ourShare: actualRevenue > 0 ? 
+        Number(((actualRevenue / totalMarket) * 100).toFixed(1)) : 0
+    }));
+  }, [actualRevenue]);
 
   const marketTrends: MarketTrend[] = [
     {
@@ -227,8 +220,12 @@ export const MarketAnalysis = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overallMarketShare.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">${ourMarketShare.toFixed(1)}M revenue</div>
+            <div className="text-2xl font-bold">
+              {isLoadingRevenue ? '...' : `${overallMarketShare.toFixed(1)}%`}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              ${actualRevenue.toFixed(2)}M actual revenue (2025)
+            </div>
           </CardContent>
         </Card>
         
