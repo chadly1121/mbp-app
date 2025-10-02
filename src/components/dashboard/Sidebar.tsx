@@ -28,7 +28,6 @@ const AppSidebar = ({ activeSection, onSectionChange }: AppSidebarProps) => {
     { id: 'mbp', label: 'MBP Dashboard', icon: DollarSign },
     { id: 'dashboard', label: 'Revenue', icon: DollarSign },
     { id: 'revenue', label: 'Sales', icon: BarChart3 },
-    { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'growth', label: 'Growth', icon: TrendingUp },
     { id: 'integrations', label: 'Integrations', icon: Cable },
     { id: 'customers', label: 'Customers', icon: Users },

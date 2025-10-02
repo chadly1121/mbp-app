@@ -8,7 +8,7 @@ import RevenueChart from "@/components/dashboard/RevenueChart";
 import SalesPipeline from "@/components/dashboard/SalesPipeline";
 import AppSidebar from "@/components/dashboard/Sidebar";
 import FilterBar, { DateRangeFilter } from "@/components/dashboard/FilterBar";
-import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
+import MonthlyFinancialTrends from "@/components/dashboard/MonthlyFinancialTrends";
 import GrowthSection from "@/components/dashboard/GrowthSection";
 import CompanySetup from "@/components/company/CompanySetup";
 import { MBPTabs } from "@/components/mbp/MBPTabs";
@@ -300,8 +300,6 @@ const Index = () => {
         return <KPITrackingPage />;
       case 'mbp':
         return <MBPTabs />;
-      case 'analytics':
-        return <AnalyticsSection dateFilters={getDateRange()} />;
       case 'growth':
         return <GrowthSection dateFilters={getDateRange()} />;
       case 'integrations':
@@ -373,6 +371,9 @@ const Index = () => {
 
             {/* Revenue Chart */}
             <RevenueChart dateFilters={getDateRange()} />
+            
+            {/* Monthly Financial Trends */}
+            <MonthlyFinancialTrends dateFilters={getDateRange()} />
           </div>
         );
     }
@@ -412,7 +413,6 @@ const Index = () => {
                    activeSection === 'kpis' ? 'KPI Tracking' :
                    activeSection === 'mbp' ? 'Monthly Business Planning' :
                    activeSection === 'dashboard' ? 'Revenue Dashboard' :
-                   activeSection === 'analytics' ? 'Analytics Overview' :
                    activeSection === 'growth' ? 'Growth Metrics' :
                    activeSection === 'integrations' ? 'Integrations' :
                    activeSection === 'revenue' ? 'Sales Dashboard' :
@@ -425,7 +425,6 @@ const Index = () => {
                     activeSection === 'kpis' ? 'Track and monitor key performance indicators' :
                     activeSection === 'mbp' ? 'Track and analyze your monthly business performance by product' :
                     activeSection === 'dashboard' ? 'Track revenue trends and year-over-year growth' :
-                    activeSection === 'analytics' ? 'Detailed analytics and insights' :
                     activeSection === 'growth' ? 'Track your growth goals and KPIs' :
                     activeSection === 'integrations' ? 'Connect and sync with external accounting software' :
                     activeSection === 'revenue' ? 'Manage your sales pipeline, customers, and deals' :
@@ -434,7 +433,7 @@ const Index = () => {
               </div>
 
               {/* Filter Bar and Sync - Show on pages with QBO data */}
-              {!['mbp', 'onepage', 'strategic', 'gsr', 'kpis', 'integrations'].includes(activeSection) && !isMobile && (
+              {!['mbp', 'onepage', 'strategic', 'gsr', 'kpis', 'integrations', 'revenue'].includes(activeSection) && !isMobile && (
                 <div className="flex items-center justify-between gap-4">
                   <FilterBar 
                     onFilterChange={setDateFilters} 
