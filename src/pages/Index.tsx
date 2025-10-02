@@ -371,7 +371,7 @@ const Index = () => {
                   trend: dashboardMetrics.growthRate > 0 ? "up" : (dashboardMetrics.growthRate < 0 ? "down" : "neutral")
                 }}
                 icon={<TrendingUp className="h-5 w-5" />}
-                variant={dashboardMetrics.growthRate >= 0 ? "info" : "warning"}
+                variant={dashboardMetrics.growthRate >= 0 ? "success" : "destructive"}
               />
             </div>
 

@@ -11,7 +11,7 @@ interface MetricCardProps {
   };
   icon: ReactNode;
   className?: string;
-  variant?: 'default' | 'success' | 'warning' | 'info';
+  variant?: 'default' | 'success' | 'warning' | 'info' | 'destructive';
 }
 
 const MetricCard = ({ 
@@ -30,6 +30,8 @@ const MetricCard = ({
         return 'border-warning/20 bg-gradient-to-br from-warning/5 to-warning/10';
       case 'info':
         return 'border-info/20 bg-gradient-to-br from-info/5 to-info/10';
+      case 'destructive':
+        return 'border-destructive/20 bg-gradient-to-br from-destructive/5 to-destructive/10';
       default:
         return 'bg-gradient-card';
     }
@@ -73,6 +75,7 @@ const MetricCard = ({
               variant === 'success' ? 'bg-success/10 text-success' :
               variant === 'warning' ? 'bg-warning/10 text-warning' :
               variant === 'info' ? 'bg-info/10 text-info' :
+              variant === 'destructive' ? 'bg-destructive/10 text-destructive' :
               'bg-primary/10 text-primary'
             )}>
               {icon}
