@@ -10,7 +10,8 @@ interface MonthlyData {
   revenue: number;
   expenses: number;
   profit: number;
-  revenueColor?: string;
+  yoyIndicator: number;
+  yoyColor: string;
 }
 
 const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
@@ -67,16 +68,24 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
             .reduce((sum, d) => sum + Math.abs(d.current_month || 0), 0);
           
           // Determine color based on year-over-year comparison
-          const revenueColor = prevRevenue > 0 
-            ? (revenue >= prevRevenue ? 'hsl(var(--success))' : 'hsl(var(--destructive))')
-            : 'hsl(var(--primary))';
+          const isWin = prevRevenue > 0 && revenue >= prevRevenue;
+          const isLoss = prevRevenue > 0 && revenue < prevRevenue;
+          const yoyColor = isWin 
+            ? 'hsl(var(--success) / 0.15)' 
+            : isLoss 
+            ? 'hsl(var(--destructive) / 0.15)' 
+            : 'transparent';
+          
+          // Find max value for scaling the background indicator
+          const maxValue = Math.max(revenue, expenses);
           
           processedMonthly.push({
             month: monthNames[i - 1],
             revenue,
             expenses,
             profit: revenue - expenses,
-            revenueColor
+            yoyIndicator: maxValue * 1.2, // Slightly higher than the tallest bar
+            yoyColor
           });
         }
         
@@ -132,6 +141,24 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
                   formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]}
                 />
                 <Legend />
+                <Bar 
+                  dataKey="yoyIndicator" 
+                  fill="transparent"
+                  stackId="background"
+                  shape={(props: any) => {
+                    const { x, y, width, height, payload } = props;
+                    return (
+                      <rect
+                        x={x}
+                        y={0}
+                        width={width}
+                        height={height + y}
+                        fill={payload.yoyColor}
+                        rx={4}
+                      />
+                    );
+                  }}
+                />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
                 <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" />
                 <Bar dataKey="profit" fill="hsl(var(--success))" name="Profit" />
