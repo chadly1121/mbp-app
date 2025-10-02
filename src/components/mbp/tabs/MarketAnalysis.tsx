@@ -217,10 +217,17 @@ export const MarketAnalysis = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoadingRevenue ? '...' : `${overallMarketShare.toFixed(3)}%`}
+              {isLoadingRevenue ? '...' : 
+                actualRevenue > 0 ? `${overallMarketShare.toFixed(3)}%` : 
+                <span className="text-muted-foreground">No data</span>
+              }
             </div>
             <div className="text-xs text-muted-foreground">
-              ${actualRevenue.toFixed(2)}M actual revenue (2025)
+              {actualRevenue > 0 ? (
+                `$${actualRevenue.toFixed(2)}M actual revenue (2025)`
+              ) : (
+                'Add revenue data in Income Statements'
+              )}
             </div>
           </CardContent>
         </Card>
