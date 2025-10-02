@@ -13,6 +13,8 @@ interface MonthlyRevenue {
   current: number;
   previous: number;
   target: number;
+  yoyIndicator: number;
+  yoyColor: string;
 }
 
 const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
@@ -70,12 +72,25 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
           const monthlyPreviousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
           const monthlyTargetRevenue = forecastMonth?.forecasted_amount || (monthlyCurrentRevenue > 0 ? monthlyCurrentRevenue * 1.1 : 0);
 
+          // Determine win/loss color based on year-over-year comparison
+          const isWin = monthlyPreviousRevenue > 0 && monthlyCurrentRevenue >= monthlyPreviousRevenue;
+          const isLoss = monthlyPreviousRevenue > 0 && monthlyCurrentRevenue < monthlyPreviousRevenue;
+          const yoyColor = isWin 
+            ? 'hsl(var(--success) / 0.15)' 
+            : isLoss 
+            ? 'hsl(var(--destructive) / 0.15)' 
+            : 'transparent';
+          
+          const maxValue = Math.max(monthlyCurrentRevenue, monthlyPreviousRevenue, monthlyTargetRevenue);
+
           processedData.push({
             month: monthNames[monthNum - 1],
             monthNum: monthNum,
             current: monthlyCurrentRevenue,
             previous: monthlyPreviousRevenue,
-            target: monthlyTargetRevenue
+            target: monthlyTargetRevenue,
+            yoyIndicator: maxValue * 1.2,
+            yoyColor
           });
         }
 
@@ -207,6 +222,24 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                   formatter={(value) => {
                     const labels: any = { current: 'Current Year', previous: 'Previous Year', target: 'Target' };
                     return <span style={{ color: 'hsl(var(--foreground))', fontSize: '13px' }}>{labels[value] || value}</span>;
+                  }}
+                />
+                <Bar 
+                  dataKey="yoyIndicator" 
+                  fill="transparent"
+                  stackId="background"
+                  shape={(props: any) => {
+                    const { x, y, width, height, payload } = props;
+                    return (
+                      <rect
+                        x={x}
+                        y={0}
+                        width={width}
+                        height={height + y}
+                        fill={payload.yoyColor}
+                        rx={4}
+                      />
+                    );
                   }}
                 />
                 <Bar
