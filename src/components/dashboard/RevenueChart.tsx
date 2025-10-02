@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface WeeklyRevenue {
   week: string;
+  month: string;
   current: number;
   previous: number;
   target: number;
@@ -56,11 +57,15 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
 
         const processedData: WeeklyRevenue[] = [];
 
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
         // Generate 52 weeks of data (full year)
         for (let week = 1; week <= 52; week++) {
           // Calculate which month this week falls into (roughly 4.33 weeks per month)
           const monthIndex = Math.floor((week - 1) / 4.33);
           const targetMonth = monthIndex + 1; // Month 1-12
+          const weekInMonth = ((week - 1) % 4.33) + 1;
+          const isFirstWeekOfMonth = Math.floor((week - 1) / 4.33) !== Math.floor((week - 2) / 4.33) || week === 1;
           
           // Get monthly revenue for current and previous periods
           const currentMonthData = currentYearData?.filter(d => d.fiscal_month === targetMonth) || [];
@@ -79,6 +84,7 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
 
           processedData.push({
             week: `W${week}`,
+            month: isFirstWeekOfMonth ? monthNames[monthIndex] : '',
             current: weeklyCurrentRevenue,
             previous: weeklyPreviousRevenue,
             target: weeklyTargetRevenue
@@ -172,17 +178,47 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="h-80" style={{ width: `${filteredData.length * 35}px`, minWidth: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData} margin={{ top: 5, right: 5, left: 10, bottom: 60 }}>
+              <BarChart data={filteredData} margin={{ top: 5, right: 5, left: 10, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                 <XAxis 
                   dataKey="week" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const data = filteredData[payload.index];
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text 
+                          x={0} 
+                          y={0} 
+                          dy={10} 
+                          textAnchor="end" 
+                          fill="hsl(var(--muted-foreground))" 
+                          fontSize={9}
+                          transform="rotate(-90)"
+                        >
+                          {payload.value}
+                        </text>
+                        {data?.month && (
+                          <text 
+                            x={0} 
+                            y={0} 
+                            dy={22} 
+                            textAnchor="end" 
+                            fill="hsl(var(--primary))" 
+                            fontSize={10}
+                            fontWeight={600}
+                            transform="rotate(-90)"
+                          >
+                            {data.month}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
                   interval={0}
-                  angle={-90}
-                  textAnchor="end"
-                  height={70}
+                  height={80}
                 />
                 <YAxis 
                   scale={useLogScale ? 'log' : 'linear'}
