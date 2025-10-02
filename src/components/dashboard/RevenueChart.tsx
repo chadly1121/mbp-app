@@ -7,9 +7,9 @@ import { useCompany } from "@/hooks/useCompany";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-interface WeeklyRevenue {
-  week: string;
+interface MonthlyRevenue {
   month: string;
+  monthNum: number;
   current: number;
   previous: number;
   target: number;
@@ -17,7 +17,7 @@ interface WeeklyRevenue {
 
 const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; endMonth: number; year: number } }) => {
   const { currentCompany } = useCompany();
-  const [revenueData, setRevenueData] = useState<WeeklyRevenue[]>([]);
+  const [revenueData, setRevenueData] = useState<MonthlyRevenue[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,51 +55,38 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
           .eq('year', currentYear)
           .order('month');
 
-        const processedData: WeeklyRevenue[] = [];
-
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        // Generate 52 weeks of data (full year)
-        for (let week = 1; week <= 52; week++) {
-          // Calculate which month this week falls into (roughly 4.33 weeks per month)
-          const monthIndex = Math.floor((week - 1) / 4.33);
-          const targetMonth = monthIndex + 1; // Month 1-12
-          const weekInMonth = ((week - 1) % 4.33) + 1;
-          const isFirstWeekOfMonth = Math.floor((week - 1) / 4.33) !== Math.floor((week - 2) / 4.33) || week === 1;
-          
-          // Get monthly revenue for current and previous periods
-          const currentMonthData = currentYearData?.filter(d => d.fiscal_month === targetMonth) || [];
-          const previousMonthData = previousYearData?.filter(d => d.fiscal_month === targetMonth) || [];
-          const forecastMonth = forecastData?.find(d => d.month === targetMonth);
+        const processedData: MonthlyRevenue[] = [];
 
-          // Sum all revenue account entries for the month and divide by ~4.33 weeks/month
+        // Generate 12 months of data
+        for (let monthNum = 1; monthNum <= 12; monthNum++) {
+          // Get monthly revenue for current and previous year
+          const currentMonthData = currentYearData?.filter(d => d.fiscal_month === monthNum) || [];
+          const previousMonthData = previousYearData?.filter(d => d.fiscal_month === monthNum) || [];
+          const forecastMonth = forecastData?.find(d => d.month === monthNum);
+
+          // Sum all revenue account entries for the month
           const monthlyCurrentRevenue = currentMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
           const monthlyPreviousRevenue = previousMonthData.reduce((sum, item) => sum + Math.abs(item.current_month || 0), 0);
           const monthlyTargetRevenue = forecastMonth?.forecasted_amount || (monthlyCurrentRevenue > 0 ? monthlyCurrentRevenue * 1.1 : 0);
 
-          // Estimate weekly values (divide monthly by 4.33)
-          const weeklyCurrentRevenue = monthlyCurrentRevenue / 4.33;
-          const weeklyPreviousRevenue = monthlyPreviousRevenue / 4.33;
-          const weeklyTargetRevenue = monthlyTargetRevenue / 4.33;
-
           processedData.push({
-            week: `W${week}`,
-            month: isFirstWeekOfMonth ? monthNames[monthIndex] : '',
-            current: weeklyCurrentRevenue,
-            previous: weeklyPreviousRevenue,
-            target: weeklyTargetRevenue
+            month: monthNames[monthNum - 1],
+            monthNum: monthNum,
+            current: monthlyCurrentRevenue,
+            previous: monthlyPreviousRevenue,
+            target: monthlyTargetRevenue
           });
         }
 
         setRevenueData(processedData);
         
-        // Debug logging
         console.log('Revenue Chart Data:', {
-          totalWeeks: processedData.length,
-          sampleWeeks: processedData.slice(0, 5),
+          totalMonths: processedData.length,
+          sampleMonths: processedData.slice(0, 3),
           maxCurrent: Math.max(...processedData.map(d => d.current)),
           maxPrevious: Math.max(...processedData.map(d => d.previous)),
-          weeksWithData: processedData.filter(d => d.current > 0 || d.previous > 0).length
+          monthsWithData: processedData.filter(d => d.current > 0 || d.previous > 0).length
         });
       } catch (error) {
         console.error('Error fetching revenue data:', error);
@@ -162,58 +149,29 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">Weekly Revenue Trends</CardTitle>
-            <CardDescription>{currentYear} annual performance - 52 weeks</CardDescription>
+            <CardTitle className="text-lg font-semibold">Monthly Revenue Trends</CardTitle>
+            <CardDescription>{currentYear} annual performance</CardDescription>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">${(totalCurrent / 1000).toFixed(1)}K</div>
             <div className={`text-sm flex items-center gap-1 ${growthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {growthRate >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}% vs previous
+              {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}% vs previous year
             </div>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="h-96" style={{ width: `${filteredData.length * 40}px`, minWidth: '100%' }}>
+          <div className="h-96" style={{ width: `${filteredData.length * 120}px`, minWidth: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredData} margin={{ top: 10, right: 10, left: 60, bottom: 50 }} barGap={0} barCategoryGap={2}>
+              <BarChart data={filteredData} margin={{ top: 10, right: 10, left: 60, bottom: 50 }} barGap={4} barCategoryGap="15%">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
                 <XAxis 
-                  dataKey="week" 
-                  tick={(props) => {
-                    const { x, y, payload } = props;
-                    const data = filteredData[payload.index];
-                    return (
-                      <g transform={`translate(${x},${y})`}>
-                        <text 
-                          x={0} 
-                          y={5} 
-                          textAnchor="middle" 
-                          fill="hsl(var(--muted-foreground))" 
-                          fontSize={9}
-                        >
-                          {payload.value}
-                        </text>
-                        {data?.month && (
-                          <text 
-                            x={0} 
-                            y={20} 
-                            textAnchor="middle" 
-                            fill="hsl(var(--primary))" 
-                            fontSize={11}
-                            fontWeight={700}
-                          >
-                            {data.month}
-                          </text>
-                        )}
-                      </g>
-                    );
-                  }}
+                  dataKey="month" 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                   tickLine={false}
-                  interval={0}
                   height={40}
                 />
                 <YAxis 
@@ -256,21 +214,21 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
                   fill="hsl(var(--primary))"
                   name="current"
                   radius={[4, 4, 0, 0]}
-                  maxBarSize={30}
+                  maxBarSize={60}
                 />
                 <Bar
                   dataKey="previous"
                   fill="hsl(var(--muted-foreground))"
                   name="previous"
                   radius={[4, 4, 0, 0]}
-                  maxBarSize={30}
+                  maxBarSize={60}
                 />
                 <Bar
                   dataKey="target"
                   fill="hsl(220 70% 50%)"
                   name="target"
                   radius={[4, 4, 0, 0]}
-                  maxBarSize={30}
+                  maxBarSize={60}
                   fillOpacity={0.4}
                 />
               </BarChart>
