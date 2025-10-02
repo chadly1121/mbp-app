@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 
@@ -84,42 +86,110 @@ const MonthlyFinancialTrends = ({ dateFilters }: { dateFilters?: { startMonth: n
   // Filter monthly data to show only months with data
   const filteredMonthlyData = monthlyData.filter(d => d.revenue > 0 || d.expenses > 0);
 
+  // Calculate totals for summary
+  const currentDate = new Date();
+  const currentYear = dateFilters?.year || currentDate.getFullYear();
+  const totalRevenue = filteredMonthlyData.reduce((sum, d) => sum + d.revenue, 0);
+  const totalExpenses = filteredMonthlyData.reduce((sum, d) => sum + d.expenses, 0);
+  const totalProfit = totalRevenue - totalExpenses;
+  const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
   return (
-    <Card className="bg-gradient-card">
+    <Card className="bg-gradient-card shadow-md">
       <CardHeader>
-        <CardTitle>Monthly Financial Trends</CardTitle>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">Monthly Financial Trends</CardTitle>
+            <p className="text-sm text-muted-foreground">{currentYear} financial performance</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold">${(totalProfit / 1000).toFixed(1)}K</div>
+            <div className={`text-sm flex items-center gap-1 ${profitMargin >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {profitMargin >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              {profitMargin.toFixed(1)}% profit margin
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          {filteredMonthlyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filteredMonthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))" 
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]}
-                />
-                <Legend />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" />
-                <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" />
-                <Bar dataKey="profit" fill="hsl(var(--success))" name="Profit" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              No financial data available. Sync with QuickBooks to see your monthly trends.
+        {filteredMonthlyData.length > 0 ? (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="h-96" style={{ width: `${filteredMonthlyData.length * 120}px`, minWidth: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredMonthlyData} margin={{ top: 10, right: 10, left: 60, bottom: 50 }} barGap={4} barCategoryGap="15%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={false}
+                    height={40}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={false}
+                    width={55}
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+                      if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
+                      return `$${value}`;
+                    }}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      padding: '8px 12px'
+                    }}
+                    labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+                    formatter={(value: number, name: string) => {
+                      const labels: any = { revenue: 'Revenue', expenses: 'Expenses', profit: 'Profit' };
+                      return [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, labels[name] || name];
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '10px' }}
+                    iconType="rect"
+                    formatter={(value) => {
+                      const labels: any = { revenue: 'Revenue', expenses: 'Expenses', profit: 'Profit' };
+                      return <span style={{ color: 'hsl(var(--foreground))', fontSize: '13px' }}>{labels[value] || value}</span>;
+                    }}
+                  />
+                  <Bar 
+                    dataKey="revenue" 
+                    fill="hsl(var(--primary))" 
+                    name="revenue" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                  <Bar 
+                    dataKey="expenses" 
+                    fill="hsl(var(--destructive))" 
+                    name="expenses" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                  <Bar 
+                    dataKey="profit" 
+                    fill="hsl(var(--success))" 
+                    name="profit" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
-        </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        ) : (
+          <div className="flex items-center justify-center h-80 text-muted-foreground">
+            No financial data available. Sync with QuickBooks to see your monthly trends.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
