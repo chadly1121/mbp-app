@@ -346,26 +346,32 @@ const Index = () => {
             {/* Revenue Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <MetricCard
-                title="Total Revenue"
+                title="Total Revenue (YTD)"
                 value={dashboardMetrics.totalRevenue > 0 ? `$${dashboardMetrics.totalRevenue.toLocaleString()}` : "$0"}
                 change={{ 
-                  value: dashboardMetrics.growthRate > 0 
-                    ? `+${dashboardMetrics.growthRate.toFixed(1)}% from last year` 
+                  value: dashboardMetrics.totalRevenue > 0 
+                    ? (dashboardMetrics.growthRate >= 0 
+                        ? `+${dashboardMetrics.growthRate.toFixed(1)}% vs last year` 
+                        : `${dashboardMetrics.growthRate.toFixed(1)}% vs last year`)
                     : "No prior year data", 
-                  trend: dashboardMetrics.growthRate > 0 ? "up" : "neutral" 
+                  trend: dashboardMetrics.growthRate > 0 ? "up" : (dashboardMetrics.growthRate < 0 ? "down" : "neutral")
                 }}
                 icon={<DollarSign className="h-5 w-5" />}
-                variant="success"
+                variant={dashboardMetrics.growthRate >= 0 ? "success" : "default"}
               />
               <MetricCard
-                title="Growth Rate"
-                value={`${Math.abs(dashboardMetrics.growthRate).toFixed(1)}%`}
+                title="Year-over-Year Change"
+                value={dashboardMetrics.growthRate >= 0 
+                  ? `+${dashboardMetrics.growthRate.toFixed(1)}%` 
+                  : `${dashboardMetrics.growthRate.toFixed(1)}%`}
                 change={{ 
-                  value: dashboardMetrics.growthRate > 0 ? "Year over year growth" : "Year over year", 
-                  trend: dashboardMetrics.growthRate > 0 ? "up" : "down" 
+                  value: dashboardMetrics.growthRate >= 0 
+                    ? "Revenue growth" 
+                    : "Revenue decline", 
+                  trend: dashboardMetrics.growthRate > 0 ? "up" : (dashboardMetrics.growthRate < 0 ? "down" : "neutral")
                 }}
                 icon={<TrendingUp className="h-5 w-5" />}
-                variant="info"
+                variant={dashboardMetrics.growthRate >= 0 ? "info" : "warning"}
               />
             </div>
 
