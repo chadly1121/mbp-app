@@ -27,51 +27,31 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         const currentDate = new Date();
         const currentYear = dateFilters?.year || currentDate.getFullYear();
         const previousYear = currentYear - 1;
-        
-        // Get current quarter to show last 13 weeks
-        const currentQuarter = Math.floor((currentDate.getMonth() / 3)) + 1;
-        const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
-        const quarterEndMonth = currentQuarter * 3;
 
-        // Fetch current quarter data
-        const { data: currentQuarterData } = await supabase
+        // Fetch full year current data
+        const { data: currentYearData } = await supabase
           .from('qbo_profit_loss')
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
           .eq('fiscal_year', currentYear)
           .eq('account_type', 'revenue')
-          .gte('fiscal_month', quarterStartMonth)
-          .lte('fiscal_month', quarterEndMonth)
           .order('fiscal_month');
 
-        // Fetch previous quarter data (for comparison)
-        let prevQuarter = currentQuarter - 1;
-        let prevQuarterYear = currentYear;
-        if (prevQuarter === 0) {
-          prevQuarter = 4;
-          prevQuarterYear = previousYear;
-        }
-        const prevQuarterStartMonth = (prevQuarter - 1) * 3 + 1;
-        const prevQuarterEndMonth = prevQuarter * 3;
-
-        const { data: previousQuarterData } = await supabase
+        // Fetch full year previous data
+        const { data: previousYearData } = await supabase
           .from('qbo_profit_loss')
           .select('fiscal_month, current_month')
           .eq('company_id', currentCompany.id)
-          .eq('fiscal_year', prevQuarterYear)
+          .eq('fiscal_year', previousYear)
           .eq('account_type', 'revenue')
-          .gte('fiscal_month', prevQuarterStartMonth)
-          .lte('fiscal_month', prevQuarterEndMonth)
           .order('fiscal_month');
 
-        // Fetch forecasted targets
+        // Fetch forecasted targets for full year
         const { data: forecastData } = await supabase
           .from('revenue_forecasts')
           .select('month, forecasted_amount')
           .eq('company_id', currentCompany.id)
           .eq('year', currentYear)
-          .gte('month', quarterStartMonth)
-          .lte('month', quarterEndMonth)
           .order('month');
 
         const processedData: WeeklyRevenue[] = [];
@@ -80,11 +60,11 @@ const RevenueChart = ({ dateFilters }: { dateFilters?: { startMonth: number; end
         for (let week = 1; week <= 52; week++) {
           // Calculate which month this week falls into (roughly 4.33 weeks per month)
           const monthIndex = Math.floor((week - 1) / 4.33);
-          const targetMonth = (monthIndex % 12) + 1;
+          const targetMonth = monthIndex + 1; // Month 1-12
           
           // Get monthly revenue for current and previous periods
-          const currentMonthData = currentQuarterData?.filter(d => d.fiscal_month === targetMonth) || [];
-          const previousMonthData = previousQuarterData?.filter(d => d.fiscal_month === targetMonth) || [];
+          const currentMonthData = currentYearData?.filter(d => d.fiscal_month === targetMonth) || [];
+          const previousMonthData = previousYearData?.filter(d => d.fiscal_month === targetMonth) || [];
           const forecastMonth = forecastData?.find(d => d.month === targetMonth);
 
           // Sum all revenue account entries for the month and divide by ~4.33 weeks/month
